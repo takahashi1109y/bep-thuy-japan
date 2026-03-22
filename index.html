@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bếp Thuỷ Japan — Đặc Sản Hà Nội Tại Nhật</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { red: '#C8102E', gold: '#D4A017', cream: '#FFF8F0', dark: '#2C1A0E', warm: '#8B3A0F' }
+          },
+          fontFamily: { serif: ['Georgia', 'Cambria', 'serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #FFF8F0; }
+    h1, h2, h3 { font-family: 'Playfair Display', serif; }
+    .hero-bg { background: linear-gradient(135deg, #2C1A0E 0%, #8B3A0F 50%, #C8102E 100%); }
+    .gold-line { width: 60px; height: 3px; background: linear-gradient(90deg, #D4A017, #F5C842, #D4A017); margin: 12px auto; border-radius: 2px; }
+    .product-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(200,16,46,0.12); }
+    .img-placeholder { background: linear-gradient(135deg, #f5e6d3 0%, #e8c99a 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+    .badge { background: linear-gradient(135deg, #C8102E, #8B3A0F); }
+    .btn-add { transition: all 0.2s ease; }
+    .btn-add:hover { transform: scale(1.03); }
+    .btn-500 { background: #fff; border: 2px solid #C8102E; color: #C8102E; }
+    .btn-500:hover { background: #C8102E; color: white; }
+    .btn-1kg { background: linear-gradient(135deg, #C8102E, #8B3A0F); color: white; }
+    .btn-1kg:hover { background: linear-gradient(135deg, #8B3A0F, #C8102E); }
+    .btn-box { background: linear-gradient(135deg, #D4A017, #b8860b); color: white; }
+    .btn-box:hover { background: linear-gradient(135deg, #b8860b, #D4A017); }
+    .float-cart { position: fixed; bottom: 24px; right: 24px; z-index: 100; }
+    .cart-badge { position: absolute; top: -8px; right: -8px; background: #C8102E; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+    .toast { position: fixed; bottom: 90px; right: 24px; z-index: 200; transform: translateX(120%); transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(0); }
+    .tag-no-pepper { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .tag-pepper { background-color: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+    .tag-special { background-color: #fce4ec; color: #880e4f; border: 1px solid #f48fb1; }
+    #cart-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
+    #cart-panel { position: fixed; top: 0; right: 0; height: 100%; width: 100%; max-width: 480px; background: #FFF8F0; z-index: 400; transform: translateX(100%); transition: transform 0.35s ease; overflow-y: auto; }
+    #cart-panel.open { transform: translateX(0); }
+    .qty-btn { width: 28px; height: 28px; border-radius: 50%; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; }
+    input, select { outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: #C8102E !important; }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+    .bank-box { background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 16px; padding: 20px; }
+    .paypay-box { background: linear-gradient(135deg, #d70000, #ff0033); color: white; border-radius: 16px; padding: 20px; }
+    .pay-tab { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px; transition: all 0.2s; border: 2px solid transparent; cursor: pointer; }
+    .pay-tab.active-paypay { background: #ff0033; color: white; }
+    .pay-tab.active-bank { background: linear-gradient(135deg,#1a237e,#283593); color: white; }
+    .pay-tab.inactive { background: white; color: #666; border-color: #ddd; }
+    #paypay-qr canvas, #paypay-qr img { margin: 0 auto; border-radius: 12px; }
+    .copy-btn { cursor: pointer; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 8px; padding: 4px 10px; font-size: 12px; transition: background 0.2s; }
+    .copy-btn:hover { background: rgba(255,255,255,0.35); }
+    .order-badge { background: linear-gradient(135deg, #C8102E, #8B3A0F); color: white; font-size: 2.5rem; font-weight: 900; padding: 12px 32px; border-radius: 16px; letter-spacing: 4px; display: inline-block; }
+    .ship-result { background: #e8f5e9; border: 2px solid #a5d6a7; border-radius: 12px; padding: 12px 16px; margin-top: 8px; }
+    .ship-error { background: #fff3e0; border: 2px solid #ffcc80; border-radius: 12px; padding: 12px 16px; margin-top: 8px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- HERO -->
+<section class="hero-bg text-white py-16 px-4 text-center relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
+  <div class="absolute bottom-0 left-0 w-56 h-56 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(-30%,30%)"></div>
+  <div class="relative z-10 max-w-2xl mx-auto">
+    <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Đặc Sản Hà Nội Tại Nhật ✦</p>
+    <h1 class="text-4xl md:text-6xl font-bold mb-3 leading-tight">Bếp Thuỷ Japan</h1>
+    <div class="gold-line"></div>
+    <p class="text-yellow-100 text-lg mt-4 font-light italic">"Hạnh phúc là được ăn ngon"</p>
+    <p class="text-gray-300 mt-3 text-sm">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Hà Nội, làm tại Nhật</p>
+    <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="#products" class="inline-block text-white font-semibold px-8 py-3 rounded-full shadow-lg text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">🛒 Xem Thực Đơn</a>
+      <button onclick="openCart()" class="border border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-yellow-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">🛍️ Giỏ Hàng</button>
+      <button onclick="openSiPopup()" class="border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🤝 Liên Hệ Mua Sỉ</button>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST BAR -->
+<section class="bg-brand-dark text-white py-4 px-4">
+  <div class="max-w-4xl mx-auto flex flex-wrap justify-center gap-6 text-lg text-gray-300">
+    <span>🌿 Nguyên liệu tươi sạch</span>
+    <span>🏠 Tự tay làm mỗi ngày</span>
+    <span>❄️ Giao lạnh đảm bảo</span>
+    <span>🇻🇳 Chuẩn vị Hà Nội</span>
+    <span>🇯🇵 Ship toàn Nhật</span>
+  </div>
+</section>
+
+<!-- PRODUCTS -->
+<section id="products" class="py-16 px-4 max-w-6xl mx-auto">
+  <div class="text-center mb-12">
+    <p class="text-brand-red text-sm tracking-widest uppercase font-semibold mb-2">Thực Đơn</p>
+    <h2 class="text-3xl md:text-4xl font-bold text-brand-dark">Đặc Sản Của Chúng Tôi</h2>
+    <div class="gold-line"></div>
+    <p class="text-gray-500 mt-3 text-sm">Chọn 500g hoặc 1kg — thêm vào giỏ — thanh toán một lần</p>
+  </div>
+
+  <!-- Giò -->
+  <div class="mb-12">
+    <h3 class="text-xl font-bold text-brand-warm mb-1 flex items-center gap-2"><span class="w-1 h-6 bg-brand-red rounded"></span>Giò</h3>
+    <hr style="border:none;height:2px;background:linear-gradient(90deg,#D4A017,transparent);margin-bottom:24px">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/gio.jpg" alt="Giò" class="w-full h-full object-cover"><span class="absolute top-3 left-3 badge text-white text-xs font-bold px-3 py-1 rounded-full">Bestseller</span></div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark text-lg">Giò</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">GT</span></div>
+          <p class="text-gray-500 text-xs">Chuẩn vị Hà Nội</p>
+          <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
+          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Giò gói lá chuối thơm, thịt heo xay mịn, chuẩn vị Hà Nội truyền thống.</p>
+          <div class="mt-4 flex gap-2">
+            <button onclick="addToCart(1,'[GT] Giò (Có Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-sm font-semibold">+ 500g<br><span class="text-xs font-normal">¥950</span></button>
+            <button onclick="addToCart(1,'[GT] Giò (Có Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-sm font-semibold">+ 1kg<br><span class="text-xs opacity-80">¥1,850</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/gio.jpg" alt="Giò Không Tiêu" class="w-full h-full object-cover"><span class="absolute top-3 left-3 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">Không Cay</span></div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark text-lg">Giò <span class="text-green-700">Không Tiêu</span></h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">GKT</span></div>
+          <p class="text-gray-500 text-xs">Chuẩn vị Hà Nội</p>
+          <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
+          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Phù hợp cho trẻ em và người không ăn được cay. Thịt mịn, hương vị nhẹ nhàng.</p>
+          <div class="mt-4 flex gap-2">
+            <button onclick="addToCart(2,'[GKT] Giò (Không Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-sm font-semibold">+ 500g<br><span class="text-xs font-normal">¥950</span></button>
+            <button onclick="addToCart(2,'[GKT] Giò (Không Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-sm font-semibold">+ 1kg<br><span class="text-xs opacity-80">¥1,850</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chả -->
+  <div class="mb-12">
+    <h3 class="text-xl font-bold text-brand-warm mb-1 flex items-center gap-2"><span class="w-1 h-6 bg-brand-red rounded"></span>Chả</h3>
+    <hr style="border:none;height:2px;background:linear-gradient(90deg,#D4A017,transparent);margin-bottom:24px">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/cha.jpg" alt="Chả Quế" class="w-full h-full object-cover"><span class="absolute top-3 left-3 badge text-white text-xs font-bold px-3 py-1 rounded-full">Bestseller</span></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Chả Quế Tiêu</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">C</span></div>
+          <p class="text-gray-500 text-xs">Thơm quế đặc trưng</p>
+          <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Chả quế vàng ươm, thơm mùi quế tự nhiên, có hạt tiêu. Ăn kèm bánh mì sáng cực hợp.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(3,'[C] Chả Quế (Có Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(3,'[C] Chả Quế (Có Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/cha.jpg" alt="Chả Quế Không Tiêu" class="w-full h-full object-cover"><span class="absolute top-3 left-3 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">Không Cay</span></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Chả Quế <span class="text-green-700">Không Tiêu</span></h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">CKT</span></div>
+          <p class="text-gray-500 text-xs">Thơm quế đặc trưng</p>
+          <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Hương quế thơm nức, không tiêu — cả gia đình đều ăn được, kể cả bé nhỏ.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(4,'[CKT] Chả Quế (Không Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(4,'[CKT] Chả Quế (Không Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 overflow-hidden"><img src="images/cha.jpg" alt="Chả Lụa Có Tiêu" class="w-full h-full object-cover"></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Chả Lụa <span class="text-orange-600">Có Tiêu</span></h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">CLUA TIEU</span></div>
+          <p class="text-gray-500 text-xs">Không Quế · Có Tiêu</p>
+          <div class="flex gap-1 mt-2 flex-wrap">
+            <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium">Có Tiêu</span>
+            <span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 rounded-full font-medium">Không Quế</span>
+          </div>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Chả lụa trắng mịn, không quế, có hạt tiêu thơm. Vị đậm đà hơn chả lụa thường.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(10,'[CLUA TIEU] Chả Lụa Có Tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(10,'[CLUA TIEU] Chả Lụa Có Tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 overflow-hidden"><img src="images/cha.jpg" alt="Chả Lụa" class="w-full h-full object-cover"></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Chả Lụa <span class="text-green-700">Không Tiêu</span></h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">CLUA</span></div>
+          <p class="text-gray-500 text-xs">Không Tiêu · Không Quế</p>
+          <div class="flex gap-1 mt-2 flex-wrap">
+            <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium">Không Tiêu</span>
+            <span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 rounded-full font-medium">Không Quế</span>
+          </div>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Trắng mịn, vị thanh. Thích hợp cho người thích vị thuần túy.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(5,'[CLUA] Chả Lụa (Không Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(5,'[CLUA] Chả Lụa (Không Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mọc -->
+  <div class="mb-12">
+    <h3 class="text-xl font-bold text-brand-warm mb-1 flex items-center gap-2"><span class="w-1 h-6 bg-brand-red rounded"></span>Mọc</h3>
+    <hr style="border:none;height:2px;background:linear-gradient(90deg,#D4A017,transparent);margin-bottom:24px">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 overflow-hidden"><img src="images/moc.jpg" alt="Mọc Tiêu" class="w-full h-full object-cover"></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Mọc Tiêu</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">M</span></div>
+          <p class="text-gray-500 text-xs">Viên mọc thịt heo</p>
+          <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Đậm đà vị tiêu thơm. Nấu bún mọc, lẩu, hay chiên đều ngon.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(6,'[M] Mọc (Có Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(6,'[M] Mọc (Có Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 overflow-hidden"><img src="images/moc.jpg" alt="Mọc Không Tiêu" class="w-full h-full object-cover"></div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark">Mọc <span class="text-green-700">Không Tiêu</span></h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">MKT</span></div>
+          <p class="text-gray-500 text-xs">Viên mọc thịt heo</p>
+          <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
+          <p class="text-gray-600 text-xs mt-2 leading-relaxed">Thịt tươi mềm ngon — cả gia đình có trẻ nhỏ đều ăn được.</p>
+          <div class="mt-3 flex gap-2">
+            <button onclick="addToCart(7,'[MKT] Mọc (Không Tiêu)','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
+            <button onclick="addToCart(7,'[MKT] Mọc (Không Tiêu)','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Đặc Sản -->
+  <div class="mb-12">
+    <h3 class="text-xl font-bold text-brand-warm mb-1 flex items-center gap-2"><span class="w-1 h-6 bg-brand-red rounded"></span>Đặc Sản</h3>
+    <hr style="border:none;height:2px;background:linear-gradient(90deg,#D4A017,transparent);margin-bottom:24px">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/nem-lui.jpg" alt="Nem Lụi Huế" class="w-full h-full object-cover"><span class="absolute top-3 left-3 tag-special text-xs font-bold px-3 py-1 rounded-full">Đặc Sản Huế</span></div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark text-lg">Nem Lụi Huế</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">Nem</span></div>
+          <p class="text-gray-500 text-xs">Hộp 500g · 10 cây + sốt Huế</p>
+          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Nem lụi thịt heo xiên que — ướp sả, tỏi, mắm ruốc. Nướng lên thơm cực kỳ!</p>
+          <div class="mt-4">
+            <div class="flex justify-between items-center mb-2"><span class="text-brand-red font-bold text-xl">¥1,000</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
+            <button onclick="addToCart(8,'[Nem] Nem Lụi Huế','hộp 500g',1000,0.5)" class="btn-add btn-box w-full py-2.5 rounded-xl text-sm font-semibold">+ Thêm vào giỏ</button>
+          </div>
+        </div>
+      </div>
+      <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
+        <div class="h-48 relative overflow-hidden"><img src="images/pate.jpg" alt="Pate Phố Cổ Hà Nội" class="w-full h-full object-cover"><span class="absolute top-3 left-3 tag-special text-xs font-bold px-3 py-1 rounded-full">Phố Cổ HN</span></div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark text-lg">Pate Phố Cổ Hà Nội</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">Pte</span></div>
+          <p class="text-gray-500 text-xs">Hộp 500g</p>
+          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Pate gan heo béo ngậy theo công thức phố cổ. Phết bánh mì sáng sớm — tuyệt!</p>
+          <div class="mt-4">
+            <div class="flex justify-between items-center mb-2"><span class="text-brand-red font-bold text-xl">¥1,300</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
+            <button onclick="addToCart(9,'[Pte] Pate Phố Cổ Hà Nội','hộp 500g',1300,0.5)" class="btn-add btn-box w-full py-2.5 rounded-xl text-sm font-semibold">+ Thêm vào giỏ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW TO ORDER -->
+<section class="bg-brand-dark text-white py-16 px-4">
+  <div class="max-w-3xl mx-auto text-center">
+    <h2 class="text-3xl font-bold mb-3">Cách Đặt Hàng</h2>
+    <div class="gold-line"></div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-10">
+      <div class="text-center"><div class="w-16 h-16 rounded-full bg-brand-red flex items-center justify-center text-2xl mx-auto mb-4">🛒</div><h3 class="font-bold text-lg mb-2">1. Chọn Sản Phẩm</h3><p class="text-gray-400 text-sm">Chọn 500g hoặc 1kg, bấm thêm vào giỏ.</p></div>
+      <div class="text-center"><div class="w-16 h-16 rounded-full bg-brand-red flex items-center justify-center text-2xl mx-auto mb-4">📋</div><h3 class="font-bold text-lg mb-2">2. Điền Thông Tin</h3><p class="text-gray-400 text-sm">Chọn tỉnh/thành — phí ship tính ngay tự động.</p></div>
+      <div class="text-center"><div class="w-16 h-16 rounded-full bg-brand-red flex items-center justify-center text-2xl mx-auto mb-4">🏦</div><h3 class="font-bold text-lg mb-2">3. Chuyển Khoản</h3><p class="text-gray-400 text-sm">Nhận mã đơn → chuyển khoản → Thuỷ giao hàng!</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" class="py-16 px-4 bg-brand-cream">
+  <div class="max-w-xl mx-auto text-center">
+    <h2 class="text-3xl font-bold text-brand-dark mb-3">Cần Hỗ Trợ?</h2>
+    <div class="gold-line"></div>
+    <div class="mt-8 space-y-4">
+      <a href="tel:+810805115688" class="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:border-brand-red group transition-all">
+        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-2xl flex-shrink-0">📱</div>
+        <div class="text-left"><p class="text-xs text-gray-400 uppercase font-medium">Điện Thoại / Zalo</p><p class="font-bold text-brand-dark text-lg group-hover:text-brand-red transition-colors">(+81) 080-5115-6688</p></div>
+        <div class="ml-auto text-gray-300 group-hover:text-brand-red">→</div>
+      </a>
+      <a href="https://www.facebook.com/profile.php?id=100083479861585" target="_blank" class="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:border-blue-500 group transition-all">
+        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-2xl flex-shrink-0">📘</div>
+        <div class="text-left"><p class="text-xs text-gray-400 uppercase font-medium">Facebook</p><p class="font-bold text-brand-dark text-lg group-hover:text-blue-600 transition-colors">Thuỷ Japan</p></div>
+        <div class="ml-auto text-gray-300 group-hover:text-blue-500">→</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="bg-brand-dark text-gray-400 py-8 px-4 text-center">
+  <p class="text-white font-bold text-xl mb-1">Bếp Thuỷ Japan</p>
+  <p class="text-sm italic text-yellow-400">"Hạnh phúc là được ăn ngon"</p>
+  <div class="gold-line mt-3"></div>
+  <p class="text-xs mt-4">📞 (+81) 080-5115-6688</p>
+  <p class="text-xs mt-4 text-gray-600">© 2026 Bếp Thuỷ Japan ❤️</p>
+</footer>
+
+<!-- POPUP MUA SỈ -->
+<div id="si-overlay" onclick="closeSiPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;"></div>
+<div id="si-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:600;width:90%;max-width:400px;">
+  <div class="bg-white rounded-3xl overflow-hidden shadow-2xl">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F,#C8102E)" class="p-6 text-white text-center relative">
+      <button onclick="closeSiPopup()" class="absolute top-4 right-4 text-white opacity-60 hover:opacity-100 text-2xl font-light">✕</button>
+      <div class="text-4xl mb-2">🤝</div>
+      <h3 class="text-xl font-bold" style="font-family:'Playfair Display',serif">Mua Sỉ — Giá Ưu Đãi</h3>
+      <p class="text-yellow-200 text-sm mt-1">Bếp Thuỷ Japan</p>
+    </div>
+
+    <!-- Benefits -->
+    <div class="px-6 pt-5 pb-3">
+      <p class="text-gray-600 text-sm text-center mb-4">Liên hệ trực tiếp với Thuỷ để được tư vấn giá sỉ và ưu đãi đặc biệt!</p>
+      <div class="space-y-2 mb-5">
+        <div class="flex items-center gap-3 bg-green-50 rounded-xl px-4 py-2.5">
+          <span class="text-xl">💰</span>
+          <p class="text-sm text-green-800 font-medium">Giá sỉ hấp dẫn từ 5kg trở lên</p>
+        </div>
+        <div class="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-2.5">
+          <span class="text-xl">🚚</span>
+          <p class="text-sm text-blue-800 font-medium">Ưu đãi phí ship cho đơn lớn</p>
+        </div>
+        <div class="flex items-center gap-3 bg-orange-50 rounded-xl px-4 py-2.5">
+          <span class="text-xl">🎁</span>
+          <p class="text-sm text-orange-800 font-medium">Hỗ trợ đặt hàng định kỳ mỗi tuần</p>
+        </div>
+      </div>
+
+      <!-- Contact buttons -->
+      <a href="https://zalo.me/0805115688" target="_blank"
+         class="flex items-center justify-center gap-3 w-full py-3.5 rounded-2xl text-white font-bold text-sm mb-3"
+         style="background:linear-gradient(135deg,#0068FF,#0052CC)">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/32px-Icon_of_Zalo.svg.png" class="w-6 h-6" onerror="this.style.display='none'">
+        💬 Nhắn Zalo: 080-5115-6688
+      </a>
+      <a href="https://www.facebook.com/profile.php?id=100083479861585" target="_blank"
+         class="flex items-center justify-center gap-3 w-full py-3.5 rounded-2xl text-white font-bold text-sm mb-3"
+         style="background:linear-gradient(135deg,#1877F2,#0a5fd4)">
+        📘 Nhắn Facebook: Thuỷ Japan
+      </a>
+      <a href="tel:+810805115688"
+         class="flex items-center justify-center gap-3 w-full py-3 rounded-2xl font-bold text-sm border-2 border-gray-200 text-gray-600 hover:border-brand-red hover:text-brand-red transition-all">
+        📞 Gọi Điện: (+81) 080-5115-6688
+      </a>
+    </div>
+    <p class="text-center text-xs text-gray-400 pb-5 pt-2">Thuỷ sẽ phản hồi trong vòng 30 phút ❤️</p>
+  </div>
+</div>
+
+<!-- FLOATING CART -->
+<div class="float-cart">
+  <button onclick="openCart()" class="relative flex items-center gap-2 text-white font-bold px-5 py-3 rounded-full shadow-2xl text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
+    🛒 Giỏ Hàng
+    <span id="cart-count-badge" class="cart-badge hidden">0</span>
+  </button>
+</div>
+<div id="toast" class="toast bg-green-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-medium">✓ Đã thêm!</div>
+<div id="cart-overlay" onclick="closeCart()"></div>
+
+<!-- CART PANEL -->
+<div id="cart-panel">
+  <div class="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-10 shadow-sm">
+    <div>
+      <h2 class="text-xl font-bold text-brand-dark" style="font-family:'Playfair Display',serif">🛒 Giỏ Hàng</h2>
+      <p id="cart-header-count" class="text-xs text-gray-500 mt-0.5"></p>
+    </div>
+    <button onclick="closeCart()" class="text-gray-400 hover:text-gray-700 text-2xl font-light">✕</button>
+  </div>
+
+  <!-- Step 1: Cart -->
+  <div id="cart-items-section" class="px-5 py-4">
+    <div id="cart-empty" class="text-center py-16">
+      <div class="text-6xl mb-4">🛒</div>
+      <p class="text-gray-500 font-medium">Giỏ hàng trống</p>
+      <p class="text-gray-400 text-sm mt-1">Hãy thêm sản phẩm vào giỏ nhé!</p>
+      <button onclick="closeCart()" class="mt-6 px-6 py-2.5 rounded-full text-sm font-semibold text-white" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">Xem Thực Đơn</button>
+    </div>
+    <div id="cart-list" class="hidden space-y-3"></div>
+    <div id="cart-footer" class="hidden mt-6">
+      <div class="bg-orange-50 rounded-2xl p-4 mb-4">
+        <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Tổng hàng:</span><span id="cart-subtotal" class="font-semibold text-brand-dark"></span></div>
+        <div class="flex justify-between text-sm text-gray-500"><span>Tổng trọng lượng:</span><span id="cart-weight-display" class="font-medium text-gray-600"></span></div>
+        <div class="flex justify-between text-sm text-gray-400 mt-1"><span>Phí ship:</span><span class="italic text-xs">Chọn tỉnh/thành ở bước sau</span></div>
+      </div>
+      <button onclick="goToCheckout()" class="w-full py-4 rounded-2xl text-white font-bold text-base shadow-lg" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">Tiếp theo: Thông Tin Giao Hàng →</button>
+      <button onclick="closeCart()" class="w-full mt-3 py-3 rounded-2xl text-brand-red font-semibold text-sm border-2 border-brand-red hover:bg-red-50 transition-colors">← Tiếp tục chọn hàng</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Checkout -->
+  <div id="checkout-section" class="px-5 py-4" style="display:none">
+    <button onclick="backToCart()" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-5">← Quay lại giỏ hàng</button>
+    <div class="bg-orange-50 rounded-2xl p-4 mb-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Đơn hàng</p>
+      <div id="checkout-summary" class="space-y-1"></div>
+      <hr class="my-2 border-orange-200">
+      <div class="flex justify-between text-sm font-bold text-brand-dark"><span>Tạm tính:</span><span id="checkout-subtotal" class="text-brand-red"></span></div>
+    </div>
+
+    <h3 class="font-bold text-brand-dark text-lg mb-4" style="font-family:'Playfair Display',serif">Thông Tin Giao Hàng</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ và Tên <span class="text-brand-red">*</span></label>
+        <input id="f-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-brand-red">*</span></label>
+        <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số Điện Thoại <span class="text-brand-red">*</span></label>
+        <input id="f-phone" type="tel" placeholder="080-XXXX-XXXX" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span> <span class="text-xs text-green-600 font-normal">← phí ship tính tự động</span></label>
+        <select id="f-prefecture" onchange="calcShipping()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
+          <option value="">-- Chọn tỉnh / thành phố --</option>
+          <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
+          <optgroup label="東北 Tohoku">
+            <option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option>
+            <option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option>
+            <option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option>
+          </optgroup>
+          <optgroup label="関東 Kanto">
+            <option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option>
+            <option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option>
+            <option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option>
+            <option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option>
+          </optgroup>
+          <optgroup label="信越・北陸">
+            <option value="新潟県">新潟県 - Niigata</option><option value="長野県">長野県 - Nagano</option>
+            <option value="富山県">富山県 - Toyama</option><option value="石川県">石川県 - Ishikawa</option>
+            <option value="福井県">福井県 - Fukui</option>
+          </optgroup>
+          <optgroup label="中部 Chubu">
+            <option value="岐阜県">岐阜県 - Gifu</option><option value="静岡県">静岡県 - Shizuoka</option>
+            <option value="愛知県">愛知県 - Aichi</option><option value="三重県">三重県 - Mie</option>
+          </optgroup>
+          <optgroup label="関西 Kansai">
+            <option value="滋賀県">滋賀県 - Shiga</option><option value="京都府">京都府 - Kyoto</option>
+            <option value="大阪府">大阪府 - Osaka</option><option value="兵庫県">兵庫県 - Hyogo</option>
+            <option value="奈良県">奈良県 - Nara</option><option value="和歌山県">和歌山県 - Wakayama</option>
+          </optgroup>
+          <optgroup label="中国 Chugoku">
+            <option value="鳥取県">鳥取県 - Tottori</option><option value="島根県">島根県 - Shimane</option>
+            <option value="岡山県">岡山県 - Okayama</option><option value="広島県">広島県 - Hiroshima</option>
+            <option value="山口県">山口県 - Yamaguchi</option>
+          </optgroup>
+          <optgroup label="四国 Shikoku">
+            <option value="徳島県">徳島県 - Tokushima</option><option value="香川県">香川県 - Kagawa</option>
+            <option value="愛媛県">愛媛県 - Ehime</option><option value="高知県">高知県 - Kochi</option>
+          </optgroup>
+          <optgroup label="九州 Kyushu">
+            <option value="福岡県">福岡県 - Fukuoka</option><option value="佐賀県">佐賀県 - Saga</option>
+            <option value="長崎県">長崎県 - Nagasaki</option><option value="熊本県">熊本県 - Kumamoto</option>
+            <option value="大分県">大分県 - Oita</option><option value="宮崎県">宮崎県 - Miyazaki</option>
+            <option value="鹿児島県">鹿児島県 - Kagoshima</option>
+          </optgroup>
+          <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
+        </select>
+        <div id="ship-result-box" class="hidden"></div>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Bưu Điện (郵便番号) <span class="text-brand-red">*</span></label>
+        <input id="f-postal" type="text" placeholder="〒 123-4567" maxlength="8" oninput="onPostalInput(this)" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Địa Chỉ Nhận Hàng <span class="text-brand-red">*</span></label>
+        <input id="f-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú (tuỳ chọn)</label>
+        <input id="f-note" type="text" placeholder="Giao buổi sáng, gọi trước khi giao..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+    </div>
+
+    <div id="total-summary-box" class="hidden mt-5 bg-red-50 rounded-2xl p-4">
+      <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Tiền hàng:</span><span id="final-subtotal" class="font-semibold"></span></div>
+      <div class="flex justify-between text-sm text-gray-600 mb-2"><span>Phí ship (クール宅急便):</span><span id="final-ship" class="font-semibold text-blue-700"></span></div>
+      <hr class="border-red-200 mb-2">
+      <div class="flex justify-between font-bold text-brand-dark text-base"><span>TỔNG CỘNG:</span><span id="final-total" class="text-brand-red text-xl"></span></div>
+    </div>
+
+    <button id="submit-btn" onclick="submitOrder()" class="w-full mt-6 py-4 rounded-2xl text-white font-bold text-base shadow-lg" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">✅ Xác Nhận Đặt Hàng</button>
+    <p class="text-center text-xs text-gray-400 mt-3">Sau khi đặt, bạn nhận mã đơn để chuyển khoản</p>
+  </div>
+
+  <!-- Step 3: Success + Bank Transfer -->
+  <div id="order-success" class="px-5 py-8" style="display:none">
+    <!-- Header -->
+    <div class="text-center mb-5">
+      <div class="text-6xl mb-3">🎉</div>
+      <h3 class="text-2xl font-bold text-brand-dark mb-2" style="font-family:'Playfair Display',serif">Đặt Hàng Thành Công!</h3>
+      <p class="text-gray-500 text-sm">Chọn hình thức thanh toán bên dưới</p>
+    </div>
+
+    <!-- Mã đơn -->
+    <div class="text-center mb-5">
+      <p class="text-xs text-gray-500 mb-2 uppercase tracking-wide font-semibold">Mã Đơn Hàng</p>
+      <div id="order-no-display" class="order-badge">----</div>
+    </div>
+
+    <!-- Số tiền -->
+    <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-5 text-center">
+      <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Số Tiền Cần Thanh Toán</p>
+      <p id="transfer-amount" class="text-brand-red font-bold text-3xl"></p>
+      <p class="text-xs text-gray-400 mt-1">(tiền hàng + phí vận chuyển)</p>
+    </div>
+
+    <!-- Tab chọn hình thức thanh toán -->
+    <p class="text-xs text-gray-500 uppercase font-semibold mb-3 text-center">Chọn Hình Thức Thanh Toán</p>
+    <div class="flex gap-3 mb-5">
+      <button id="tab-paypay" onclick="switchPayment('paypay')" class="pay-tab active-paypay">
+        <span class="text-xl">💳</span><br>PayPay
+      </button>
+      <button id="tab-bank" onclick="switchPayment('bank')" class="pay-tab inactive">
+        <span class="text-xl">🏦</span><br>Chuyển Khoản
+      </button>
+    </div>
+
+    <!-- PAYPAY SECTION -->
+    <div id="section-paypay">
+      <div class="paypay-box mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-2xl">💳</span>
+          <div><p class="font-bold text-base">PayPay</p><p class="text-red-200 text-xs">Thanghoang · Bếp Thuỷ Japan</p></div>
+        </div>
+        <!-- QR tạo tự động -->
+        <div class="bg-white rounded-2xl p-4 text-center mb-3">
+          <div id="paypay-qr" class="flex justify-center mb-2"></div>
+          <p class="text-gray-500 text-xs">Mở app PayPay → Quét QR này</p>
+        </div>
+        <a id="paypay-open-btn" href="https://qr.paypay.ne.jp/p2p01_1Zr6ca5Czb7L7Nje" target="_blank"
+           class="block w-full text-center py-3 rounded-xl font-bold text-sm bg-white text-red-600 mb-2">
+          📱 Mở PayPay App Ngay
+        </a>
+      </div>
+      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-4">
+        <p class="font-bold text-yellow-800 mb-2">⚠️ Lưu ý khi thanh toán PayPay</p>
+        <ol class="list-decimal list-inside space-y-1.5 text-xs text-yellow-800">
+          <li>Mở app <strong>PayPay</strong> → nhấn <strong>スキャン</strong> (Quét)</li>
+          <li>Quét QR bên trên hoặc nhấn <strong>"Mở PayPay App Ngay"</strong></li>
+          <li>Nhập số tiền: <strong id="paypay-amount-hint" class="text-red-600 text-sm"></strong></li>
+          <li>Kiểm tra tên người nhận: <strong>Thanghoang</strong></li>
+          <li>Nhấn xác nhận thanh toán ✅</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- BANK SECTION -->
+    <div id="section-bank" style="display:none">
+      <div class="bank-box mb-4">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-2xl">🏦</span>
+          <div><p class="font-bold text-base">ゆうちょ銀行</p><p class="text-blue-200 text-xs">Japan Post Bank</p></div>
+        </div>
+        <div class="space-y-2.5 text-sm">
+          <div class="flex justify-between items-center"><span class="text-blue-200">支店名:</span><span class="font-semibold">二〇八店 (208)</span></div>
+          <div class="flex justify-between items-center"><span class="text-blue-200">口座種別:</span><span class="font-semibold">普通</span></div>
+          <div class="flex justify-between items-center">
+            <span class="text-blue-200">口座番号:</span>
+            <div class="flex items-center gap-2"><span class="font-bold text-lg tracking-widest">2168488</span><button class="copy-btn" onclick="copyText('2168488')">コピー</button></div>
+          </div>
+          <div class="flex justify-between items-center"><span class="text-blue-200">口座名義:</span><span class="font-semibold">タカハラ ケイイチロウ</span></div>
+          <hr class="border-blue-700 my-1">
+          <div class="flex justify-between items-center">
+            <span class="text-blue-200 text-xs">記号番号:</span>
+            <div class="flex items-center gap-2"><span class="font-bold text-sm tracking-wider">12030-21684881</span><button class="copy-btn" onclick="copyText('1203021684881')">コピー</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-4">
+        <p class="font-bold text-yellow-800 mb-2">⚠️ Cách Ghi Tên Khi Chuyển Khoản</p>
+        <p class="text-sm text-yellow-900 mb-2">Ô <strong>振込人名義</strong> → thêm <strong>MÃ ĐƠN</strong> vào trước tên:</p>
+        <div class="bg-white rounded-xl p-3 text-center mb-2">
+          <p class="text-gray-400 text-xs mb-1">Nhập tên:</p>
+          <p class="font-bold text-brand-red text-lg tracking-widest" id="transfer-name-example">0001 TEN BAN</p>
+          <button onclick="copyText(document.getElementById('transfer-name-example').textContent)" class="mt-2 text-xs bg-red-50 border border-red-200 text-brand-red px-3 py-1 rounded-full">📋 Copy tên</button>
+        </div>
+        <ol class="list-decimal list-inside space-y-1 text-xs text-yellow-800">
+          <li>Mở app ngân hàng → chọn <strong>振込</strong></li>
+          <li>Nhập thông tin tài khoản Thuỷ bên trên</li>
+          <li>Nhập số tiền cần chuyển</li>
+          <li>Sửa <strong>振込人名義</strong> như ô đỏ bên trên</li>
+          <li>Xác nhận ✅</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Receipt -->
+    <div id="order-receipt" class="bg-gray-50 rounded-2xl p-4 text-sm mb-5"></div>
+
+    <a href="tel:+810805115688" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">📞 Gọi / Zalo Thuỷ: 080-5115-6688</a>
+    <button onclick="resetAndClose()" class="w-full text-gray-500 text-sm hover:text-gray-700 underline py-2">Đặt thêm hàng</button>
+  </div>
+</div>
+
+<script>
+  // ── CONFIG ──
+  const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbz38j2-cr8sWIib0qokfYyaPnjz7BemNIZjr-P9T4aIIW_R2vOpMfOUDeOFs_FnFYJA2g/exec';
+  const PAYPAY_URL  = 'https://qr.paypay.ne.jp/p2p01_1Zr6ca5Czb7L7Nje'; // ← Đổi link này khi nâng lên Business
+
+  // ── SHIPPING DATA ──
+  const PREF_REGION = {
+    '北海道':'hokkaido',
+    '青森県':'kita_tohoku','岩手県':'kita_tohoku','秋田県':'kita_tohoku',
+    '宮城県':'minami_tohoku','山形県':'minami_tohoku','福島県':'minami_tohoku',
+    '茨城県':'kanto','栃木県':'kanto','群馬県':'kanto','埼玉県':'kanto',
+    '千葉県':'kanto','東京都':'kanto','神奈川県':'kanto','山梨県':'kanto',
+    '新潟県':'shinetsu','長野県':'shinetsu',
+    '富山県':'hokuriku','石川県':'hokuriku','福井県':'hokuriku',
+    '岐阜県':'chubu','静岡県':'chubu','愛知県':'chubu','三重県':'chubu',
+    '滋賀県':'kansai','京都府':'kansai','大阪府':'kansai','兵庫県':'kansai','奈良県':'kansai','和歌山県':'kansai',
+    '鳥取県':'chugoku','島根県':'chugoku','岡山県':'chugoku','広島県':'chugoku','山口県':'chugoku',
+    '徳島県':'shikoku','香川県':'shikoku','愛媛県':'shikoku','高知県':'shikoku',
+    '福岡県':'kyushu','佐賀県':'kyushu','長崎県':'kyushu','熊本県':'kyushu','大分県':'kyushu','宮崎県':'kyushu','鹿児島県':'kyushu',
+    '沖縄県':'okinawa'
+  };
+  const REGION_LABEL = {hokkaido:'北海道',kita_tohoku:'北東北',minami_tohoku:'南東北',kanto:'関東',shinetsu:'信越',hokuriku:'北陸',chubu:'中部',kansai:'関西',chugoku:'中国',shikoku:'四国',kyushu:'九州',okinawa:'沖縄'};
+  const REGION_IDX  = ['hokkaido','kita_tohoku','minami_tohoku','kanto','shinetsu','hokuriku','chubu','kansai','chugoku','shikoku','kyushu','okinawa'];
+
+  // Base rate (Kanto発) + クール宅急便 surcharge already added
+  const SHIP = {
+    60: [1570,900,800,800,800,800,800,900,950,950,1570,1570],
+    80: [1880,1100,1050,1050,1050,1050,1050,1100,1200,1200,1880,2180],
+    100:[2260,1400,1350,1350,1350,1350,1350,1400,1500,1500,2260,2860],
+    120:[2800,1850,1750,1750,1750,1750,1750,1850,1900,1900,2800,3700],
+    140:[2460,1350,1300,1300,1300,1300,1300,1350,1400,1400,2460,3660],
+  };
+
+  function getSize(kg){ return kg<=2?60:kg<=5?80:kg<=10?100:kg<=15?120:kg<=20?140:null; }
+
+  function shippingFee(pref,kg){
+    const sz=getSize(kg); if(!sz) return null;
+    const r=PREF_REGION[pref]; if(!r) return null;
+    return SHIP[sz][REGION_IDX.indexOf(r)];
+  }
+
+  // ── CART ──
+  let cart=[]; let shipFee=0; let orderNo='';
+
+  function addToCart(id,name,size,price,wt){
+    const key=id+'_'+size;
+    const ex=cart.find(i=>i.key===key);
+    if(ex) ex.qty++; else cart.push({key,id,name,size,price,wt,qty:1});
+    updateCartUI(); showToast('✓ '+name+' '+size);
+  }
+  function removeFromCart(key){ cart=cart.filter(i=>i.key!==key); updateCartUI(); }
+  function changeQty(key,d){ const i=cart.find(x=>x.key===key); if(!i) return; i.qty+=d; if(i.qty<=0) removeFromCart(key); else updateCartUI(); }
+  function subtotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
+  function totalWeight(){ return cart.reduce((s,i)=>s+i.wt*i.qty,0); }
+  function cartCount(){ return cart.reduce((s,i)=>s+i.qty,0); }
+  function yen(n){ return '¥'+Math.round(n).toLocaleString('ja-JP'); }
+
+  function updateCartUI(){
+    const n=cartCount();
+    const badge=document.getElementById('cart-count-badge');
+    badge.textContent=n; badge.classList.toggle('hidden',n===0);
+    document.getElementById('cart-header-count').textContent=n>0?n+' sản phẩm':'';
+    const empty=document.getElementById('cart-empty'),list=document.getElementById('cart-list'),footer=document.getElementById('cart-footer');
+    if(!cart.length){ empty.classList.remove('hidden');list.classList.add('hidden');footer.classList.add('hidden');return; }
+    empty.classList.add('hidden');list.classList.remove('hidden');footer.classList.remove('hidden');
+    list.innerHTML=cart.map(i=>`<div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+      <div class="flex-1 min-w-0"><p class="font-semibold text-brand-dark text-sm truncate">${i.name}</p><p class="text-gray-400 text-xs">${i.size} · ${yen(i.price)}</p></div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button onclick="changeQty('${i.key}',-1)" class="qty-btn bg-gray-100 hover:bg-red-100 text-gray-600 text-lg">−</button>
+        <span class="w-6 text-center font-bold text-brand-dark">${i.qty}</span>
+        <button onclick="changeQty('${i.key}',1)" class="qty-btn bg-gray-100 hover:bg-green-100 text-gray-600 text-lg">+</button>
+        <span class="w-16 text-right font-bold text-brand-red text-sm">${yen(i.price*i.qty)}</span>
+        <button onclick="removeFromCart('${i.key}')" class="text-gray-300 hover:text-red-400 ml-1">🗑</button>
+      </div></div>`).join('');
+    const wt=totalWeight(), sz=getSize(wt);
+    document.getElementById('cart-subtotal').textContent=yen(subtotal());
+    document.getElementById('cart-weight-display').textContent=wt.toFixed(1)+'kg'+(sz?' → Size '+sz:' → Quá 20kg, liên hệ Thuỷ');
+  }
+
+  // ── SHIPPING CALC ──
+  function calcShipping(){
+    const pref=document.getElementById('f-prefecture').value;
+    const box=document.getElementById('ship-result-box');
+    if(!pref){ box.classList.add('hidden'); return; }
+    const wt=totalWeight(), sz=getSize(wt);
+    if(!sz){
+      box.innerHTML=`<div class="ship-error"><p class="font-bold text-orange-800">⚠️ Đơn trên 20kg — liên hệ Thuỷ để có giá ship tốt hơn!</p><a href="tel:+810805115688" class="text-orange-600 font-bold underline text-sm">📞 080-5115-6688</a></div>`;
+      box.classList.remove('hidden'); shipFee=0; updateTotalBox(); return;
+    }
+    const fee=shippingFee(pref,wt); shipFee=fee;
+    const r=PREF_REGION[pref];
+    box.innerHTML=`<div class="ship-result"><div class="flex justify-between items-center"><div><p class="text-xs text-green-700 font-semibold">✅ Phí ship đến ${pref}</p><p class="text-xs text-green-600">${REGION_LABEL[r]} · Size ${sz} · クール宅急便</p></div><p class="text-green-800 font-bold text-xl">${yen(fee)}</p></div></div>`;
+    box.classList.remove('hidden');
+    updateTotalBox();
+  }
+
+  function updateTotalBox(){
+    const box=document.getElementById('total-summary-box');
+    if(!shipFee){ box.classList.add('hidden'); return; }
+    document.getElementById('final-subtotal').textContent=yen(subtotal());
+    document.getElementById('final-ship').textContent=yen(shipFee);
+    document.getElementById('final-total').textContent=yen(subtotal()+shipFee);
+    box.classList.remove('hidden');
+  }
+
+  // ── NAVIGATION ──
+  function openCart(){ document.getElementById('cart-overlay').style.display='block'; document.getElementById('cart-panel').classList.add('open'); document.body.style.overflow='hidden'; showStep('cart-items-section'); }
+  function closeCart(){ document.getElementById('cart-overlay').style.display='none'; document.getElementById('cart-panel').classList.remove('open'); document.body.style.overflow=''; }
+  function showStep(id){ ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; }); }
+  function backToCart(){ showStep('cart-items-section'); }
+
+  function goToCheckout(){
+    document.getElementById('checkout-summary').innerHTML=cart.map(i=>`<div class="flex justify-between text-xs text-gray-600"><span class="flex-1 truncate">${i.name} (${i.size}) × ${i.qty}</span><span class="font-medium ml-2">${yen(i.price*i.qty)}</span></div>`).join('');
+    document.getElementById('checkout-subtotal').textContent=yen(subtotal());
+    showStep('checkout-section');
+    document.getElementById('cart-panel').scrollTop=0;
+    if(document.getElementById('f-prefecture').value) calcShipping();
+  }
+
+  // ── HELPERS ──
+  function onPostalInput(el){ let v=el.value.replace(/\D/g,'').substring(0,7); if(v.length>3) v=v.substring(0,3)+'-'+v.substring(3); el.value=v; }
+  function copyText(t){ navigator.clipboard.writeText(t).then(()=>showToast('✓ Đã copy!')); }
+  function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+
+  // ── SUBMIT ──
+  async function submitOrder(){
+    const name=document.getElementById('f-name').value.trim();
+    const email=document.getElementById('f-email').value.trim();
+    const phone=document.getElementById('f-phone').value.trim();
+    const pref=document.getElementById('f-prefecture').value;
+    const postal=document.getElementById('f-postal').value.trim();
+    const address=document.getElementById('f-address').value.trim();
+    const note=document.getElementById('f-note').value.trim();
+
+    if(!name)   { alert('Vui lòng nhập họ và tên.'); return; }
+    if(!email)  { alert('Vui lòng nhập email.'); return; }
+    if(!phone)  { alert('Vui lòng nhập số điện thoại.'); return; }
+    if(!pref)   { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
+    if(!postal||postal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện đủ 7 chữ số.'); return; }
+    if(!address){ alert('Vui lòng nhập địa chỉ nhận hàng.'); return; }
+    if(getSize(totalWeight())===null){ alert('Đơn trên 20kg — vui lòng liên hệ Thuỷ trực tiếp!'); return; }
+
+    const sub=subtotal(), ship=shipFee||shippingFee(pref,totalWeight())||0, total=sub+ship;
+
+    const btn=document.getElementById('submit-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spin">⏳</span> Đang xử lý...';
+
+    try {
+      const res=await fetch(SCRIPT_URL,{
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({name,email,phone,prefecture:pref,postal,address,note,
+          items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
+          cartItems:cart.map(i=>({name:i.name,qty:i.qty,wt:i.wt})),
+          subtotal:sub,shipping:ship,total})
+      });
+      const d=await res.json();
+      orderNo=d.success?d.orderNo:String(Date.now()).slice(-4).padStart(4,'0');
+    } catch(e){ orderNo=String(Date.now()).slice(-4).padStart(4,'0'); }
+
+    btn.disabled=false; btn.innerHTML='✅ Xác Nhận Đặt Hàng';
+    showSuccess({name,email,phone,pref,postal,address,sub,ship,total});
+  }
+
+  function switchPayment(type){
+    const isPaypay = type === 'paypay';
+    document.getElementById('section-paypay').style.display = isPaypay ? 'block' : 'none';
+    document.getElementById('section-bank').style.display   = isPaypay ? 'none' : 'block';
+    document.getElementById('tab-paypay').className = 'pay-tab ' + (isPaypay ? 'active-paypay' : 'inactive');
+    document.getElementById('tab-bank').className   = 'pay-tab ' + (isPaypay ? 'inactive' : 'active-bank');
+  }
+
+  function generatePayPayQR(totalAmount){
+    const box = document.getElementById('paypay-qr');
+    box.innerHTML = '';
+    new QRCode(box, {
+      text: PAYPAY_URL,
+      width: 200, height: 200,
+      colorDark: '#d70000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  function showSuccess({name,email,phone,pref,postal,address,sub,ship,total}){
+    document.getElementById('order-no-display').textContent = orderNo;
+    document.getElementById('transfer-amount').textContent  = yen(total);
+    document.getElementById('paypay-amount-hint').textContent = yen(total);
+
+    const nameParts = name.toUpperCase().split(' ').slice(0,3).join(' ');
+    document.getElementById('transfer-name-example').textContent = orderNo + ' ' + nameParts;
+
+    document.getElementById('order-receipt').innerHTML =
+      `<p class="font-semibold text-gray-700 mb-2">📋 Đơn #${orderNo}</p>`+
+      cart.map(i=>`<div class="flex justify-between text-xs mb-1 text-gray-600"><span>${i.name} (${i.size}) × ${i.qty}</span><span>${yen(i.price*i.qty)}</span></div>`).join('')+
+      `<hr class="my-2"><div class="flex justify-between text-xs"><span>Phí ship (${pref}):</span><span>${yen(ship)}</span></div>`+
+      `<div class="flex justify-between font-bold text-sm mt-1"><span>Tổng:</span><span class="text-brand-red">${yen(total)}</span></div>`+
+      `<p class="text-xs text-gray-400 mt-2">📮 〒${postal} ${pref} ${address}</p><p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
+
+    // Tạo QR PayPay
+    generatePayPayQR(total);
+    // Mặc định hiện PayPay
+    switchPayment('paypay');
+    showStep('order-success');
+    document.getElementById('cart-panel').scrollTop = 0;
+  }
+
+  function resetAndClose(){
+    cart=[]; shipFee=0; orderNo=''; updateCartUI();
+    ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-prefecture').value='';
+    document.getElementById('ship-result-box').classList.add('hidden');
+    document.getElementById('total-summary-box').classList.add('hidden');
+    showStep('cart-items-section'); closeCart();
+  }
+
+  function openSiPopup(){
+    document.getElementById('si-overlay').style.display='block';
+    document.getElementById('si-popup').style.display='block';
+    document.body.style.overflow='hidden';
+  }
+  function closeSiPopup(){
+    document.getElementById('si-overlay').style.display='none';
+    document.getElementById('si-popup').style.display='none';
+    document.body.style.overflow='';
+  }
+
+  updateCartUI();
+</script>
+</body>
+</html>
