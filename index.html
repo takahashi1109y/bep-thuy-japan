@@ -492,8 +492,8 @@
       <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Giờ Giao Hàng (配達時間帯)</label>
         <select id="f-delivery-time" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
-          <option value="0812">午前中 — Buổi sáng (trước 12h)</option>
-          <option value="1416" selected>14～16時 — 14 đến 16 giờ</option>
+          <option value="0812" selected>午前中 — Buổi sáng (trước 12h)</option>
+          <option value="1416">14～16時 — 14 đến 16 giờ</option>
           <option value="1618">16～18時 — 16 đến 18 giờ</option>
           <option value="1820">18～20時 — 18 đến 20 giờ</option>
           <option value="1921">19～21時 — 19 đến 21 giờ</option>
@@ -832,7 +832,7 @@
     cart=[]; shipFee=0; orderNo=''; updateCartUI();
     ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f-prefecture').value='';
-    document.getElementById('f-delivery-time').value='1416';
+    document.getElementById('f-delivery-time').value='0812';
     document.getElementById('ship-result-box').classList.add('hidden');
     document.getElementById('total-summary-box').classList.add('hidden');
     showStep('cart-items-section'); closeCart();
