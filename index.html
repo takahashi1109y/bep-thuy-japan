@@ -486,8 +486,18 @@
         <input id="f-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú (tuỳ chọn)</label>
-        <input id="f-note" type="text" placeholder="Giao buổi sáng, gọi trước khi giao..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú / Tên Toà Nhà (tuỳ chọn)</label>
+        <input id="f-note" type="text" placeholder="Tên toà nhà, phòng số, ghi chú thêm..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Giờ Giao Hàng (配達時間帯)</label>
+        <select id="f-delivery-time" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
+          <option value="0812">午前中 — Buổi sáng (trước 12h)</option>
+          <option value="1416" selected>14～16時 — 14 đến 16 giờ</option>
+          <option value="1618">16～18時 — 16 đến 18 giờ</option>
+          <option value="1820">18～20時 — 18 đến 20 giờ</option>
+          <option value="1921">19～21時 — 19 đến 21 giờ</option>
+        </select>
       </div>
     </div>
 
@@ -745,6 +755,7 @@
     const postal=document.getElementById('f-postal').value.trim();
     const address=document.getElementById('f-address').value.trim();
     const note=document.getElementById('f-note').value.trim();
+    const deliveryTime=document.getElementById('f-delivery-time').value;
 
     if(!name)   { alert('Vui lòng nhập họ và tên.'); return; }
     if(!email)  { alert('Vui lòng nhập email.'); return; }
@@ -762,7 +773,7 @@
     try {
       const res=await fetch(SCRIPT_URL,{
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({name,email,phone,prefecture:pref,postal,address,note,
+        body:JSON.stringify({name,email,phone,prefecture:pref,postal,address,note,deliveryTime,
           items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
           cartItems:cart.map(i=>({name:i.name,qty:i.qty,wt:i.wt})),
           subtotal:sub,shipping:ship,total})
@@ -821,6 +832,7 @@
     cart=[]; shipFee=0; orderNo=''; updateCartUI();
     ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f-prefecture').value='';
+    document.getElementById('f-delivery-time').value='1416';
     document.getElementById('ship-result-box').classList.add('hidden');
     document.getElementById('total-summary-box').classList.add('hidden');
     showStep('cart-items-section'); closeCart();
