@@ -63,6 +63,20 @@
     .order-badge { background: linear-gradient(135deg, #C8102E, #8B3A0F); color: white; font-size: 2.5rem; font-weight: 900; padding: 12px 32px; border-radius: 16px; letter-spacing: 4px; display: inline-block; }
     .ship-result { background: #e8f5e9; border: 2px solid #a5d6a7; border-radius: 12px; padding: 12px 16px; margin-top: 8px; }
     .ship-error { background: #fff3e0; border: 2px solid #ffcc80; border-radius: 12px; padding: 12px 16px; margin-top: 8px; }
+    /* Mobile responsive - giảm kích thước trên điện thoại */
+    @media (max-width: 480px) {
+      #cart-panel { font-size: 14px; }
+      .order-badge { font-size: 1.6rem; padding: 8px 20px; letter-spacing: 2px; }
+      #order-success h3 { font-size: 1.3rem !important; }
+      #order-success .text-3xl { font-size: 1.5rem !important; }
+      #order-success .text-6xl { font-size: 3rem; }
+      .pay-tab { padding: 8px; font-size: 13px; }
+      .bank-box, .paypay-box { padding: 14px; }
+      .bank-box p, .paypay-box p { font-size: 13px; }
+      #checkout-section label { font-size: 13px; }
+      #checkout-section input, #checkout-section select { font-size: 16px; padding: 10px 12px; }
+      #cart-panel .px-5 { padding-left: 12px; padding-right: 12px; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
