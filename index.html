@@ -617,6 +617,13 @@
     <!-- Receipt -->
     <div id="order-receipt" class="bg-gray-50 rounded-2xl p-4 text-sm mb-5"></div>
 
+    <!-- Thông báo nếu không có email -->
+    <div id="no-email-messenger" style="display:none" class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-4 mb-5 text-center">
+      <p class="text-blue-800 font-bold text-sm mb-2">📩 Xác nhận đơn hàng qua Messenger</p>
+      <p class="text-blue-600 text-xs mb-3">Bạn chưa nhập email. Hãy nhắn Messenger để nhận xác nhận đơn hàng nhé!</p>
+      <a id="messenger-confirm-link" href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger xác nhận đơn</a>
+    </div>
+
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
     <a href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger</a>
     <button onclick="resetAndClose()" class="w-full text-gray-500 text-sm hover:text-gray-700 underline py-2">Đặt thêm hàng</button>
@@ -826,6 +833,17 @@
       `<hr class="my-2"><div class="flex justify-between text-xs"><span>Phí ship (${pref}):</span><span>${yen(ship)}</span></div>`+
       `<div class="flex justify-between font-bold text-sm mt-1"><span>Tổng:</span><span class="text-brand-red">${yen(total)}</span></div>`+
       `<p class="text-xs text-gray-400 mt-2">📮 〒${postal} ${pref} ${address}</p><p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
+
+    // Hiện/ẩn thông báo Messenger nếu không có email
+    const noEmailBox = document.getElementById('no-email-messenger');
+    if(!email){
+      const msgText = `Xin chào, mình vừa đặt đơn #${orderNo}. Mình muốn xác nhận đơn hàng ạ!`;
+      const msgUrl = 'https://m.me/ThuyJapaan?text=' + encodeURIComponent(msgText);
+      noEmailBox.style.display='block';
+      document.getElementById('messenger-confirm-link').href = msgUrl;
+    } else {
+      noEmailBox.style.display='none';
+    }
 
     // Tạo QR PayPay
     generatePayPayQR(total);
