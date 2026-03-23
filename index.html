@@ -425,11 +425,11 @@
         <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số Điện Thoại <span class="text-brand-red">*</span></label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số Điện Thoại</label>
         <input id="f-phone" type="tel" placeholder="080-XXXX-XXXX" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span> <span class="text-xs text-green-600 font-normal">← phí ship tính tự động</span></label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span></label>
         <select id="f-prefecture" onchange="calcShipping()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
           <option value="">-- Chọn tỉnh / thành phố --</option>
           <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
@@ -760,7 +760,7 @@
 
     if(!name)   { alert('Vui lòng nhập họ và tên.'); return; }
     if(!email)  { alert('Vui lòng nhập email.'); return; }
-    if(!phone)  { alert('Vui lòng nhập số điện thoại.'); return; }
+
     if(!pref)   { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
     if(!postal||postal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện đủ 7 chữ số.'); return; }
     if(!address){ alert('Vui lòng nhập địa chỉ nhận hàng.'); return; }
