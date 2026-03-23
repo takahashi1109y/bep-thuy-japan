@@ -858,7 +858,7 @@
     // Luôn hiện hộp post đơn vào nhóm cho mọi khách
     const groupBox = document.getElementById('group-order-box');
     const itemLines = cart.map(i=>`  - ${i.name} (${i.size}) x${i.qty} = ${yen(i.price*i.qty)}`).join('\n');
-    const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\n\nHọ tên: ${name}\nSĐT: ${phone}\nĐịa chỉ: 〒${postal} ${pref} ${address}${email ? '\nEmail: '+email : ''}\n\nSản phẩm:\n${itemLines}\nPhí ship: ${yen(ship)}\nTổng: ${yen(total)}\n\nXin xác nhận đơn hàng ạ!`;
+    const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\nHọ tên: ${name}\n\nSản phẩm:\n${itemLines}\nPhí ship: ${yen(ship)}\nTổng: ${yen(total)}\n\nXin xác nhận đơn hàng ạ!`;
     document.getElementById('group-order-text').textContent = orderText;
     groupBox.style.display='block';
 
