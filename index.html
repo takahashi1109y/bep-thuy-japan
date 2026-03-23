@@ -632,10 +632,18 @@
     <div id="order-receipt" class="bg-gray-50 rounded-2xl p-4 text-sm mb-5"></div>
 
     <!-- Thông báo nếu không có email -->
-    <div id="no-email-messenger" style="display:none" class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-4 mb-5 text-center">
-      <p class="text-blue-800 font-bold text-sm mb-2">📩 Xác nhận đơn hàng qua Messenger</p>
-      <p class="text-blue-600 text-xs mb-3">Bạn chưa nhập email. Hãy nhắn Messenger để nhận xác nhận đơn hàng nhé!</p>
-      <a id="messenger-confirm-link" href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger xác nhận đơn</a>
+    <div id="no-email-messenger" style="display:none" class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-4 mb-5">
+      <p class="text-blue-800 font-bold text-sm mb-2 text-center">📩 Xác nhận đơn hàng qua Messenger</p>
+      <p class="text-blue-600 text-xs mb-3 text-center">Bạn chưa nhập email. Hãy gửi tin nhắn bên dưới qua Messenger để nhận xác nhận nhé!</p>
+      <div class="bg-white border border-blue-200 rounded-xl p-3 mb-3 relative">
+        <p class="text-gray-500 text-xs mb-1">Tin nhắn gửi cho Bếp Thuỷ:</p>
+        <p id="messenger-msg-text" class="text-gray-800 text-sm leading-relaxed"></p>
+        <button onclick="copyMessengerMsg()" class="absolute top-2 right-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-lg font-semibold hover:bg-blue-200">📋 Copy</button>
+      </div>
+      <div class="flex gap-2">
+        <a href="https://m.me/ThuyJapaan" target="_blank" class="flex-1 block text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Mở Messenger</a>
+      </div>
+      <p class="text-blue-400 text-xs mt-2 text-center">Bấm Copy → Mở Messenger → Dán tin nhắn → Gửi</p>
     </div>
 
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
@@ -850,10 +858,10 @@
     // Hiện/ẩn thông báo Messenger nếu không có email
     const noEmailBox = document.getElementById('no-email-messenger');
     if(!email){
-      const msgText = `Xin chào, mình vừa đặt đơn #${orderNo}. Mình muốn xác nhận đơn hàng ạ!`;
-      const msgUrl = 'https://m.me/ThuyJapaan?text=' + encodeURIComponent(msgText);
+      const itemList = cart.map(i=>`${i.name} (${i.size}) x${i.qty}`).join(', ');
+      const msgText = `Xin chào Bếp Thuỷ! Mình vừa đặt đơn #${orderNo}.\n\nHọ tên: ${name}\nSĐT: ${phone}\nĐịa chỉ: 〒${postal} ${pref} ${address}\nSản phẩm: ${itemList}\nTổng: ${yen(total)}\n\nMình muốn xác nhận đơn hàng ạ!`;
       noEmailBox.style.display='block';
-      document.getElementById('messenger-confirm-link').href = msgUrl;
+      document.getElementById('messenger-msg-text').textContent = msgText;
     } else {
       noEmailBox.style.display='none';
     }
@@ -864,6 +872,19 @@
     switchPayment('paypay');
     showStep('order-success');
     document.getElementById('cart-panel').scrollTop = 0;
+  }
+
+  function copyMessengerMsg(){
+    const text = document.getElementById('messenger-msg-text').textContent;
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = document.querySelector('#no-email-messenger button[onclick]');
+      const old = btn.innerHTML; btn.innerHTML='✅ Đã copy!'; setTimeout(()=>btn.innerHTML=old, 2000);
+    }).catch(()=>{
+      const el = document.getElementById('messenger-msg-text');
+      const range = document.createRange(); range.selectNodeContents(el);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      alert('Hãy bấm Copy (Cmd+C / Ctrl+C) rồi dán vào Messenger nhé!');
+    });
   }
 
   function resetAndClose(){
