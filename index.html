@@ -730,7 +730,13 @@
 
   // ── NAVIGATION ──
   function openCart(){ document.getElementById('cart-overlay').style.display='block'; document.getElementById('cart-panel').classList.add('open'); document.body.style.overflow='hidden'; showStep('cart-items-section'); }
-  function closeCart(){ document.getElementById('cart-overlay').style.display='none'; document.getElementById('cart-panel').classList.remove('open'); document.body.style.overflow=''; }
+  function closeCart(){
+    const successVisible = document.getElementById('order-success').style.display !== 'none';
+    document.getElementById('cart-overlay').style.display='none';
+    document.getElementById('cart-panel').classList.remove('open');
+    document.body.style.overflow='';
+    if(successVisible){ cart=[]; shipFee=0; orderNo=''; updateCartUI(); ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-prefecture').value=''; document.getElementById('f-delivery-time').value='0812'; document.getElementById('ship-result-box').classList.add('hidden'); document.getElementById('total-summary-box').classList.add('hidden'); showStep('cart-items-section'); }
+  }
   function showStep(id){ ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; }); }
   function backToCart(){ showStep('cart-items-section'); }
 
