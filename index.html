@@ -632,18 +632,18 @@
     <div id="order-receipt" class="bg-gray-50 rounded-2xl p-4 text-sm mb-5"></div>
 
     <!-- Thông báo nếu không có email -->
-    <div id="no-email-messenger" style="display:none" class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-4 mb-5">
-      <p class="text-blue-800 font-bold text-sm mb-2 text-center">📩 Xác nhận đơn hàng qua Messenger</p>
-      <p class="text-blue-600 text-xs mb-3 text-center">Bạn chưa nhập email. Hãy gửi tin nhắn bên dưới qua Messenger để nhận xác nhận nhé!</p>
-      <div class="bg-white border border-blue-200 rounded-xl p-3 mb-3 relative">
-        <p class="text-gray-500 text-xs mb-1">Tin nhắn gửi cho Bếp Thuỷ:</p>
-        <p id="messenger-msg-text" class="text-gray-800 text-sm leading-relaxed"></p>
-        <button onclick="copyMessengerMsg()" class="absolute top-2 right-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-lg font-semibold hover:bg-blue-200">📋 Copy</button>
+    <div id="group-order-box" style="display:none" class="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mb-5">
+      <p class="text-green-800 font-bold text-sm mb-2 text-center">📢 Post đơn hàng vào nhóm</p>
+      <p class="text-green-600 text-xs mb-3 text-center">Vui lòng copy tin nhắn bên dưới và post vào comment trong nhóm Facebook để xác nhận đơn nhé!</p>
+      <div class="bg-white border border-green-200 rounded-xl p-3 mb-3 relative">
+        <p class="text-gray-500 text-xs mb-1">Nội dung đơn hàng:</p>
+        <pre id="group-order-text" class="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap" style="font-family:inherit"></pre>
+        <button onclick="copyGroupOrder()" class="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-lg font-semibold hover:bg-green-200">📋 Copy</button>
       </div>
       <div class="flex gap-2">
-        <a href="https://m.me/ThuyJapaan" target="_blank" class="flex-1 block text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Mở Messenger</a>
+        <a id="group-fb-link" href="https://www.facebook.com/groups/253344602723261" target="_blank" class="flex-1 block text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#1877F2,#0d5bbf)">📘 Mở nhóm Facebook</a>
       </div>
-      <p class="text-blue-400 text-xs mt-2 text-center">Bấm Copy → Mở Messenger → Dán tin nhắn → Gửi</p>
+      <p class="text-green-500 text-xs mt-2 text-center">Bấm Copy → Mở nhóm → Dán vào comment → Gửi</p>
     </div>
 
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
@@ -855,16 +855,12 @@
       `<div class="flex justify-between font-bold text-sm mt-1"><span>Tổng:</span><span class="text-brand-red">${yen(total)}</span></div>`+
       `<p class="text-xs text-gray-400 mt-2">📮 〒${postal} ${pref} ${address}</p><p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
 
-    // Hiện/ẩn thông báo Messenger nếu không có email
-    const noEmailBox = document.getElementById('no-email-messenger');
-    if(!email){
-      const itemList = cart.map(i=>`${i.name} (${i.size}) x${i.qty}`).join(', ');
-      const msgText = `Xin chào Bếp Thuỷ! Mình vừa đặt đơn #${orderNo}.\n\nHọ tên: ${name}\nSĐT: ${phone}\nĐịa chỉ: 〒${postal} ${pref} ${address}\nSản phẩm: ${itemList}\nTổng: ${yen(total)}\n\nMình muốn xác nhận đơn hàng ạ!`;
-      noEmailBox.style.display='block';
-      document.getElementById('messenger-msg-text').textContent = msgText;
-    } else {
-      noEmailBox.style.display='none';
-    }
+    // Luôn hiện hộp post đơn vào nhóm cho mọi khách
+    const groupBox = document.getElementById('group-order-box');
+    const itemLines = cart.map(i=>`  - ${i.name} (${i.size}) x${i.qty} = ${yen(i.price*i.qty)}`).join('\n');
+    const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\n\nHọ tên: ${name}\nSĐT: ${phone}\nĐịa chỉ: 〒${postal} ${pref} ${address}${email ? '\nEmail: '+email : ''}\n\nSản phẩm:\n${itemLines}\nPhí ship: ${yen(ship)}\nTổng: ${yen(total)}\n\nXin xác nhận đơn hàng ạ!`;
+    document.getElementById('group-order-text').textContent = orderText;
+    groupBox.style.display='block';
 
     // Tạo QR PayPay
     generatePayPayQR(total);
@@ -874,16 +870,16 @@
     document.getElementById('cart-panel').scrollTop = 0;
   }
 
-  function copyMessengerMsg(){
-    const text = document.getElementById('messenger-msg-text').textContent;
+  function copyGroupOrder(){
+    const text = document.getElementById('group-order-text').textContent;
     navigator.clipboard.writeText(text).then(()=>{
-      const btn = document.querySelector('#no-email-messenger button[onclick]');
+      const btn = document.querySelector('#group-order-box button[onclick]');
       const old = btn.innerHTML; btn.innerHTML='✅ Đã copy!'; setTimeout(()=>btn.innerHTML=old, 2000);
     }).catch(()=>{
-      const el = document.getElementById('messenger-msg-text');
+      const el = document.getElementById('group-order-text');
       const range = document.createRange(); range.selectNodeContents(el);
       const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      alert('Hãy bấm Copy (Cmd+C / Ctrl+C) rồi dán vào Messenger nhé!');
+      alert('Hãy bấm Copy (Cmd+C / Ctrl+C) rồi dán vào comment nhóm nhé!');
     });
   }
 
