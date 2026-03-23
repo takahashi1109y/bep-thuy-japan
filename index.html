@@ -782,7 +782,7 @@
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body:JSON.stringify({name,email,phone,prefecture:pref,postal,address,note,deliveryTime,
           items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
-          cartItems:cart.map(i=>({name:i.name,qty:i.qty,wt:i.wt})),
+          cartItems:cart.map(i=>({name:i.name,size:i.size,price:i.price,qty:i.qty,wt:i.wt})),
           subtotal:sub,shipping:ship,total})
       });
       const d=await res.json();
