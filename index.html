@@ -435,7 +435,7 @@
         <input id="f-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-brand-red">*</span></label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
         <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
@@ -786,7 +786,6 @@
     const deliveryTime=document.getElementById('f-delivery-time').value;
 
     if(!name)   { alert('Vui lòng nhập họ và tên.'); return; }
-    if(!email)  { alert('Vui lòng nhập email.'); return; }
 
     if(!pref)   { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
     if(!postal||postal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện đủ 7 chữ số.'); return; }
