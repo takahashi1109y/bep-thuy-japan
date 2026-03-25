@@ -634,6 +634,13 @@
 </section>
 
 <script>
+// Hiện nút "Xem Thực Đơn" khi scroll qua hero
+window.addEventListener('scroll', function() {
+  const btn = document.getElementById('btn-go-menu');
+  const heroHeight = document.querySelector('.hero-bg').offsetHeight;
+  btn.style.display = window.scrollY > heroHeight ? 'block' : 'none';
+});
+
 function switchTab(type) {
   const isLanh = type === 'lanh';
   document.getElementById('table-lanh').classList.toggle('hidden', !isLanh);
@@ -729,8 +736,14 @@ function switchTab(type) {
   </div>
 </div>
 
-<!-- FLOATING CART -->
-<div class="float-cart">
+<!-- FLOATING BUTTONS -->
+<div style="position:fixed;bottom:24px;right:24px;z-index:100;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+  <!-- Nút Xem Thực Đơn - chỉ hiện khi scroll xuống -->
+  <a id="btn-go-menu" href="#products"
+     style="display:none;background:linear-gradient(135deg,#D4A017,#b8860b);color:white;font-weight:700;padding:10px 18px;border-radius:9999px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font-size:13px;text-decoration:none;transition:opacity 0.3s">
+    🍽️ Xem Thực Đơn
+  </a>
+  <!-- Nút Giỏ Hàng -->
   <button onclick="openCart()" class="relative flex items-center gap-2 text-white font-bold px-5 py-3 rounded-full shadow-2xl text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
     🛒 Giỏ Hàng
     <span id="cart-count-badge" class="cart-badge hidden">0</span>
