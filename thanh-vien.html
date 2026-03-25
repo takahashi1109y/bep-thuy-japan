@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng Ký Thành Viên — Bếp Thuỷ Japan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { red: '#C8102E', gold: '#D4A017', cream: '#FFF8F0', dark: '#2C1A0E', warm: '#8B3A0F' }
+          },
+          fontFamily: { serif: ['Georgia','Cambria','serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #FFF8F0; }
+    h1, h2, h3 { font-family: 'Playfair Display', serif; }
+    .hero-bg { background: linear-gradient(135deg, #2C1A0E 0%, #8B3A0F 50%, #C8102E 100%); }
+    .gold-line { width: 60px; height: 3px; background: linear-gradient(90deg, #D4A017, #F5C842, #D4A017); margin: 12px auto; border-radius: 2px; }
+    .benefit-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .benefit-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(200,16,46,0.12); }
+    input, select, textarea { outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: #C8102E !important; }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+    .checkbox-label { cursor: pointer; transition: all 0.2s; }
+    .checkbox-label:hover { border-color: #C8102E; background: #fff5f5; }
+    .checkbox-label.selected { border-color: #C8102E; background: #fff0f0; color: #C8102E; font-weight: 600; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- HERO -->
+<section class="hero-bg text-white py-14 px-4 text-center relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
+  <div class="absolute bottom-0 left-0 w-56 h-56 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(-30%,30%)"></div>
+  <div class="relative z-10 max-w-2xl mx-auto">
+    <a href="/" class="inline-block text-yellow-300 text-sm mb-4 hover:text-white transition-colors">← Quay về Trang Chủ</a>
+    <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Bếp Thuỷ Japan ✦</p>
+    <h1 class="text-3xl md:text-5xl font-bold mb-3 leading-tight">Đăng Ký Thành Viên</h1>
+    <div class="gold-line"></div>
+    <p class="text-yellow-100 text-base mt-4 font-light">Ưu đãi độc quyền · Thông báo sớm · Tích điểm thưởng</p>
+  </div>
+</section>
+
+<!-- BENEFITS -->
+<section class="py-14 px-4 max-w-4xl mx-auto">
+  <div class="text-center mb-10">
+    <p class="text-brand-red text-sm tracking-widest uppercase font-semibold mb-2">Quyền Lợi</p>
+    <h2 class="text-2xl md:text-3xl font-bold text-brand-dark">Thành Viên Được Gì?</h2>
+    <div class="gold-line"></div>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+      <div class="text-4xl mb-3">🔔</div>
+      <h3 class="font-bold text-brand-dark text-lg mb-2">Thông Báo Sớm</h3>
+      <p class="text-gray-500 text-sm">Nhận tin trước khi mở đợt đặt hàng — không bao giờ bị lỡ hàng yêu thích.</p>
+    </div>
+    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+      <div class="text-4xl mb-3">⭐</div>
+      <h3 class="font-bold text-brand-dark text-lg mb-2">Tích Điểm Thưởng</h3>
+      <p class="text-gray-500 text-sm">Mỗi đơn hàng tích điểm. Đủ điểm nhận ưu đãi giảm giá đặc biệt từ Thuỷ.</p>
+    </div>
+    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+      <div class="text-4xl mb-3">🏷️</div>
+      <h3 class="font-bold text-brand-dark text-lg mb-2">Giá Sỉ Ưu Đãi</h3>
+      <p class="text-gray-500 text-sm">Đơn từ 16kg trở lên được báo giá sỉ đặc biệt dành riêng cho thành viên.</p>
+    </div>
+  </div>
+</section>
+
+<!-- REGISTRATION FORM -->
+<section class="pb-16 px-4">
+  <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden">
+    <div class="px-6 py-5" style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F)">
+      <h2 class="text-white font-bold text-xl" style="font-family:'Playfair Display',serif">Điền Thông Tin Đăng Ký</h2>
+      <p class="text-yellow-200 text-sm mt-1">Miễn phí · Không ràng buộc</p>
+    </div>
+    <div class="p-6 space-y-5" id="form-section">
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ và Tên <span class="text-brand-red">*</span></label>
+        <input id="f-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số Điện Thoại <span class="text-brand-red">*</span></label>
+        <input id="f-phone" type="tel" placeholder="080-XXXX-XXXX" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-gray-400 font-normal text-xs">(để nhận thông báo đơn hàng)</span></label>
+        <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span></label>
+        <select id="f-prefecture" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
+          <option value="">-- Chọn tỉnh / thành phố --</option>
+          <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
+          <optgroup label="東北 Tohoku">
+            <option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option>
+            <option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option>
+            <option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option>
+          </optgroup>
+          <optgroup label="関東 Kanto">
+            <option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option>
+            <option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option>
+            <option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option>
+            <option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option>
+          </optgroup>
+          <optgroup label="信越・北陸">
+            <option value="新潟県">新潟県 - Niigata</option><option value="長野県">長野県 - Nagano</option>
+            <option value="富山県">富山県 - Toyama</option><option value="石川県">石川県 - Ishikawa</option>
+            <option value="福井県">福井県 - Fukui</option>
+          </optgroup>
+          <optgroup label="中部 Chubu">
+            <option value="岐阜県">岐阜県 - Gifu</option><option value="静岡県">静岡県 - Shizuoka</option>
+            <option value="愛知県">愛知県 - Aichi</option><option value="三重県">三重県 - Mie</option>
+          </optgroup>
+          <optgroup label="関西 Kansai">
+            <option value="滋賀県">滋賀県 - Shiga</option><option value="京都府">京都府 - Kyoto</option>
+            <option value="大阪府">大阪府 - Osaka</option><option value="兵庫県">兵庫県 - Hyogo</option>
+            <option value="奈良県">奈良県 - Nara</option><option value="和歌山県">和歌山県 - Wakayama</option>
+          </optgroup>
+          <optgroup label="中国 Chugoku">
+            <option value="鳥取県">鳥取県 - Tottori</option><option value="島根県">島根県 - Shimane</option>
+            <option value="岡山県">岡山県 - Okayama</option><option value="広島県">広島県 - Hiroshima</option>
+            <option value="山口県">山口県 - Yamaguchi</option>
+          </optgroup>
+          <optgroup label="四国 Shikoku">
+            <option value="徳島県">徳島県 - Tokushima</option><option value="香川県">香川県 - Kagawa</option>
+            <option value="愛媛県">愛媛県 - Ehime</option><option value="高知県">高知県 - Kochi</option>
+          </optgroup>
+          <optgroup label="九州 Kyushu">
+            <option value="福岡県">福岡県 - Fukuoka</option><option value="佐賀県">佐賀県 - Saga</option>
+            <option value="長崎県">長崎県 - Nagasaki</option><option value="熊本県">熊本県 - Kumamoto</option>
+            <option value="大分県">大分県 - Oita</option><option value="宮崎県">宮崎県 - Miyazaki</option>
+            <option value="鹿児島県">鹿児島県 - Kagoshima</option>
+          </optgroup>
+          <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Sản Phẩm Hay Mua <span class="text-gray-400 font-normal text-xs">(chọn nhiều)</span></label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Gio')">
+            <input type="checkbox" class="hidden" value="Gio"> <span>🍖</span> Giò
+          </label>
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Cha Que')">
+            <input type="checkbox" class="hidden" value="Cha Que"> <span>🧆</span> Chả Quế
+          </label>
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Cha Lua')">
+            <input type="checkbox" class="hidden" value="Cha Lua"> <span>🥩</span> Chả Lụa
+          </label>
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Moc')">
+            <input type="checkbox" class="hidden" value="Moc"> <span>🍡</span> Mọc
+          </label>
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Nem Lui')">
+            <input type="checkbox" class="hidden" value="Nem Lui"> <span>🍢</span> Nem Lụi
+          </label>
+          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Pate')">
+            <input type="checkbox" class="hidden" value="Pate"> <span>🥐</span> Pate
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú / Yêu Cầu Đặc Biệt</label>
+        <textarea id="f-note" rows="3" placeholder="Ví dụ: hay mua 2kg giò mỗi tháng, muốn đặt theo nhóm..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+      </div>
+
+      <button id="submit-btn" onclick="submitMember()"
+        class="w-full py-4 rounded-2xl text-white font-bold text-base shadow-lg transition-all"
+        style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
+        Đăng Ký Thành Viên Ngay →
+      </button>
+      <p class="text-center text-xs text-gray-400">Hoàn toàn miễn phí · Không spam · Có thể hủy bất cứ lúc nào</p>
+    </div>
+
+    <!-- SUCCESS -->
+    <div id="success-section" class="hidden p-8 text-center">
+      <div class="text-6xl mb-4">🎉</div>
+      <h3 class="text-2xl font-bold text-brand-dark mb-2">Đăng Ký Thành Công!</h3>
+      <p class="text-gray-500 mb-2">Cảm ơn bạn đã trở thành thành viên của Bếp Thuỷ Japan!</p>
+      <p class="text-gray-400 text-sm mb-6">Thuỷ sẽ liên hệ xác nhận và thông báo đợt hàng tiếp theo nhé.</p>
+      <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-left text-sm space-y-1">
+        <p class="font-semibold text-green-800 mb-2">Quyền lợi của bạn từ hôm nay:</p>
+        <p class="text-green-700">🔔 Nhận thông báo trước khi mở đặt hàng</p>
+        <p class="text-green-700">⭐ Tích điểm thưởng qua mỗi đơn hàng</p>
+        <p class="text-green-700">🏷️ Báo giá sỉ ưu đãi cho đơn từ 16kg</p>
+      </div>
+      <a href="/" class="inline-block px-8 py-3 rounded-full text-white font-bold text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
+        🛒 Đặt Hàng Ngay
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-brand-dark text-gray-400 py-8 px-4 text-center">
+  <a href="/" class="text-white font-bold text-xl hover:text-yellow-300 transition-colors">Bếp Thuỷ Japan</a>
+  <p class="text-sm italic text-yellow-400 mt-1">"Hạnh phúc là được ăn ngon"</p>
+  <div style="width:60px;height:3px;background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017);margin:12px auto;border-radius:2px"></div>
+  <p class="text-xs mt-2">📞 (+81) 080-5115-6688</p>
+  <p class="text-xs mt-2 text-gray-600">© 2026 Bếp Thuỷ Japan</p>
+</footer>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJYvJ0jfP0rMMRFiRzMzAiV8q3WBhiNaSAzFG5WrSS3j1KPvQ4y3yxdT7mmLe5KWRS/exec';
+
+  const selectedProducts = new Set();
+
+  function toggleProduct(label, value) {
+    if (selectedProducts.has(value)) {
+      selectedProducts.delete(value);
+      label.classList.remove('selected');
+    } else {
+      selectedProducts.add(value);
+      label.classList.add('selected');
+    }
+  }
+
+  async function submitMember() {
+    const name  = document.getElementById('f-name').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const pref  = document.getElementById('f-prefecture').value;
+    const note  = document.getElementById('f-note').value.trim();
+
+    if (!name)  { alert('Vui lòng nhập họ tên.'); return; }
+    if (!phone) { alert('Vui lòng nhập số điện thoại.'); return; }
+    if (!pref)  { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
+
+    const payload = {
+      type: 'member',
+      name, phone, email,
+      prefecture: pref,
+      products: Array.from(selectedProducts).join(', '),
+      note,
+      registeredAt: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+    };
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      document.getElementById('form-section').classList.add('hidden');
+      document.getElementById('success-section').classList.remove('hidden');
+    } catch (err) {
+      alert('Có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ Thuỷ qua Zalo/Messenger.');
+      btn.disabled = false;
+      btn.innerHTML = 'Đăng Ký Thành Viên Ngay →';
+    }
+  }
+</script>
+</body>
+</html>
