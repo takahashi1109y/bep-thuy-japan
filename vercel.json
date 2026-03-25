@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/thanh-vien", "destination": "/thanh-vien.html" }
+  ]
+}
