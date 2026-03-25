@@ -95,7 +95,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-gray-400 font-normal text-xs">(để nhận thông báo đơn hàng)</span></label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-brand-red">*</span></label>
         <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
 
@@ -146,6 +146,11 @@
           </optgroup>
           <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
         </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(số hòm thư tại toà nhà, nếu có)</span></label>
+        <input id="f-mailbox" type="text" placeholder="Ví dụ: 201" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
 
       <div>
@@ -237,15 +242,19 @@
 
     if (!name)  { alert('Vui lòng nhập họ tên.'); return; }
     if (!phone) { alert('Vui lòng nhập số điện thoại.'); return; }
+    if (!email) { alert('Vui lòng nhập email.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email không hợp lệ. Vui lòng kiểm tra lại.'); return; }
     if (!pref)  { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
 
+    const mailbox = document.getElementById('f-mailbox').value.trim();
+
     const payload = {
       type: 'member',
-      name, phone, email,
+      name, phone, email, mailbox,
       prefecture: pref,
       products: Array.from(selectedProducts).join(', '),
       note,
@@ -259,6 +268,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      // Lưu thông tin thành viên vào localStorage để dùng khi đặt hàng
+      try {
+        localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, mailbox, prefecture: pref }));
+      } catch(e) {}
       document.getElementById('form-section').classList.add('hidden');
       document.getElementById('success-section').classList.remove('hidden');
     } catch (err) {

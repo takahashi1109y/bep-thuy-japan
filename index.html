@@ -793,7 +793,18 @@ function switchTab(type) {
       <div class="flex justify-between text-sm font-bold text-brand-dark"><span>Tạm tính:</span><span id="checkout-subtotal" class="text-brand-red"></span></div>
     </div>
 
-    <h3 class="font-bold text-brand-dark text-lg mb-4" style="font-family:'Playfair Display',serif">Thông Tin Giao Hàng</h3>
+    <!-- Member autofill banner -->
+    <div id="member-banner" class="hidden bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-5">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="font-semibold text-green-800 text-sm">👋 Xin chào, <span id="member-banner-name" class="text-green-900"></span>!</p>
+          <p class="text-green-600 text-xs mt-0.5">Dùng thông tin thành viên đã đăng ký?</p>
+        </div>
+        <button onclick="fillMemberInfo()" class="shrink-0 bg-green-600 text-white text-xs px-4 py-2 rounded-xl font-semibold">Điền Tự Động</button>
+      </div>
+    </div>
+
+    <h3 class="font-bold text-brand-dark text-lg mb-4" style="font-family:'Playfair Display',serif">Thông Tin Người Đặt</h3>
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ và Tên <span class="text-brand-red">*</span></label>
@@ -865,6 +876,10 @@ function switchTab(type) {
         <input id="f-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(số hòm thư tại toà nhà, nếu có)</span></label>
+        <input id="f-mailbox" type="text" placeholder="Ví dụ: 201" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+      </div>
+      <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú / Tên Toà Nhà (tuỳ chọn)</label>
         <input id="f-note" type="text" placeholder="Tên toà nhà, phòng số, ghi chú thêm..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
@@ -877,6 +892,62 @@ function switchTab(type) {
           <option value="1820">18～20時 — 18 đến 20 giờ</option>
           <option value="1921">19～21時 — 19 đến 21 giờ</option>
         </select>
+      </div>
+    </div>
+
+    <!-- Đặt cho người khác -->
+    <div class="mt-4 border-2 border-dashed border-orange-200 rounded-2xl p-4">
+      <label class="flex items-start gap-3 cursor-pointer select-none">
+        <input type="checkbox" id="chk-other-address" onchange="toggleOtherAddress(this.checked)" class="mt-0.5 w-4 h-4 shrink-0" style="accent-color:#C8102E">
+        <div>
+          <p class="font-semibold text-gray-700 text-sm">🎁 Đặt tặng / đặt giúp người khác</p>
+          <p class="text-gray-400 text-xs mt-0.5">Hàng giao đến địa chỉ khác với thông tin trên</p>
+        </div>
+      </label>
+
+      <!-- Địa chỉ nhận mới -->
+      <div id="other-address-section" class="hidden mt-4 pt-4 border-t border-orange-100 space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:#C8102E">📦 Thông Tin Địa Chỉ Nhận Mới</p>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tên Người Nhận <span class="text-brand-red">*</span></label>
+          <input id="f-r-name" type="text" placeholder="Tên người nhận hàng" oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">SĐT Người Nhận <span class="text-brand-red">*</span></label>
+          <input id="f-r-phone" type="tel" placeholder="080-XXXX-XXXX" oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span></label>
+          <select id="f-r-prefecture" onchange="calcShippingRecipient(); updateNewAddressConfirm();" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
+            <option value="">-- Chọn tỉnh / thành phố --</option>
+          </select>
+          <div id="ship-result-box-r" class="hidden mt-2"></div>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Bưu Điện <span class="text-brand-red">*</span></label>
+          <input id="f-r-postal" type="text" placeholder="〒 123-4567" maxlength="8" oninput="onPostalInput(this); updateNewAddressConfirm();" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Địa Chỉ Nhận Hàng <span class="text-brand-red">*</span></label>
+          <input id="f-r-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(nếu có)</span></label>
+          <input id="f-r-mailbox" type="text" placeholder="Ví dụ: 201" oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        </div>
+
+        <!-- Xác nhận địa chỉ nhận mới -->
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+          <p class="font-semibold text-amber-800 text-sm mb-3">⚠️ Xác nhận địa chỉ nhận hàng:</p>
+          <div id="new-address-summary" class="bg-white rounded-lg p-3 text-sm text-gray-700 space-y-1 mb-3">
+            <p class="text-gray-400 text-xs italic">Điền thông tin bên trên để xem tóm tắt...</p>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="chk-confirm-new-address" class="w-4 h-4 shrink-0" style="accent-color:#C8102E">
+            <span class="text-sm font-semibold text-amber-800">Tôi đã kiểm tra và xác nhận địa chỉ trên là đúng</span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -1129,7 +1200,7 @@ function switchTab(type) {
     document.getElementById('cart-overlay').style.display='none';
     document.getElementById('cart-panel').classList.remove('open');
     document.body.style.overflow='';
-    if(successVisible){ cart=[]; shipFee=0; orderNo=''; updateCartUI(); ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-prefecture').value=''; document.getElementById('f-delivery-time').value='0812'; document.getElementById('ship-result-box').classList.add('hidden'); document.getElementById('total-summary-box').classList.add('hidden'); showStep('cart-items-section'); }
+    if(successVisible){ resetAndClose(); return; }
   }
   function showStep(id){ ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; }); }
   function backToCart(){ showStep('cart-items-section'); }
@@ -1140,6 +1211,94 @@ function switchTab(type) {
     showStep('checkout-section');
     document.getElementById('cart-panel').scrollTop=0;
     if(document.getElementById('f-prefecture').value) calcShipping();
+    // Show member autofill banner if member data saved
+    try {
+      const m = JSON.parse(localStorage.getItem('bepthuy_member')||'null');
+      if(m && m.name){
+        document.getElementById('member-banner-name').textContent = m.name;
+        document.getElementById('member-banner').classList.remove('hidden');
+      }
+    } catch(e){}
+  }
+
+  function fillMemberInfo(){
+    try {
+      const m = JSON.parse(localStorage.getItem('bepthuy_member')||'null');
+      if(!m) return;
+      if(m.name)       document.getElementById('f-name').value = m.name;
+      if(m.phone)      document.getElementById('f-phone').value = m.phone;
+      if(m.email)      document.getElementById('f-email').value = m.email;
+      if(m.mailbox)    document.getElementById('f-mailbox').value = m.mailbox;
+      if(m.prefecture){
+        document.getElementById('f-prefecture').value = m.prefecture;
+        calcShipping();
+      }
+      document.getElementById('member-banner').classList.add('hidden');
+      showToast('✅ Đã điền thông tin thành viên!');
+    } catch(e){}
+  }
+
+  function toggleOtherAddress(checked){
+    const section = document.getElementById('other-address-section');
+    if(checked){
+      section.classList.remove('hidden');
+      // Clone prefecture options from main select if not already done
+      const src = document.getElementById('f-prefecture');
+      const dest = document.getElementById('f-r-prefecture');
+      if(dest.options.length <= 1){
+        Array.from(src.options).slice(1).forEach(o => dest.appendChild(o.cloneNode(true)));
+      }
+      // Shipping now uses recipient prefecture — hide main ship result
+      document.getElementById('ship-result-box').classList.add('hidden');
+      document.getElementById('total-summary-box').classList.add('hidden');
+      shipFee = 0;
+    } else {
+      section.classList.add('hidden');
+      ['f-r-name','f-r-phone','f-r-postal','f-r-address','f-r-mailbox'].forEach(id=>{
+        const el=document.getElementById(id); if(el) el.value='';
+      });
+      document.getElementById('f-r-prefecture').value='';
+      document.getElementById('chk-confirm-new-address').checked=false;
+      document.getElementById('ship-result-box-r').classList.add('hidden');
+      // Restore shipping calc from main prefecture
+      if(document.getElementById('f-prefecture').value) calcShipping();
+    }
+  }
+
+  function calcShippingRecipient(){
+    const pref = document.getElementById('f-r-prefecture').value;
+    const box = document.getElementById('ship-result-box-r');
+    if(!pref){ box.classList.add('hidden'); shipFee=0; updateTotalBox(); return; }
+    const wt=totalWeight(), sz=getSize(wt);
+    if(!sz){
+      box.innerHTML=`<div class="ship-error"><p class="font-bold text-orange-800">⚠️ Đơn trên 15kg — liên hệ Thuỷ!</p></div>`;
+      box.classList.remove('hidden'); shipFee=0; updateTotalBox(); return;
+    }
+    const fee=shippingFee(pref,wt); shipFee=fee;
+    const r=PREF_REGION[pref];
+    box.innerHTML=`<div class="ship-result"><div class="flex justify-between items-center"><div><p class="text-xs text-green-700 font-semibold">✅ Phí ship đến ${pref}</p><p class="text-xs text-green-600">${REGION_LABEL[r]} · ${SIZE_LABEL[sz]}</p></div><p class="text-green-800 font-bold text-xl">${yen(fee)}</p></div></div>`;
+    box.classList.remove('hidden');
+    updateTotalBox();
+  }
+
+  function updateNewAddressConfirm(){
+    const rName    = document.getElementById('f-r-name').value.trim();
+    const rPhone   = document.getElementById('f-r-phone').value.trim();
+    const rPref    = document.getElementById('f-r-prefecture').value;
+    const rPostal  = document.getElementById('f-r-postal').value.trim();
+    const rAddress = document.getElementById('f-r-address').value.trim();
+    const rMailbox = document.getElementById('f-r-mailbox').value.trim();
+    const box = document.getElementById('new-address-summary');
+    if(!rName && !rPhone && !rPref && !rPostal && !rAddress){
+      box.innerHTML='<p class="text-gray-400 text-xs italic">Điền thông tin bên trên để xem tóm tắt...</p>';
+    } else {
+      box.innerHTML=
+        `<p>👤 ${rName||'—'}</p>`+
+        `<p>📞 ${rPhone||'—'}</p>`+
+        `<p>📮 〒${rPostal} ${rPref} ${rAddress}${rMailbox?' / Hòm thư: '+rMailbox:''}</p>`;
+    }
+    // Reset confirmation when any field changes
+    document.getElementById('chk-confirm-new-address').checked=false;
   }
 
   // ── HELPERS ──
@@ -1155,17 +1314,38 @@ function switchTab(type) {
     const pref=document.getElementById('f-prefecture').value;
     const postal=document.getElementById('f-postal').value.trim();
     const address=document.getElementById('f-address').value.trim();
+    const mailbox=document.getElementById('f-mailbox').value.trim();
     const note=document.getElementById('f-note').value.trim();
     const deliveryTime=document.getElementById('f-delivery-time').value;
 
     if(!name)   { alert('Vui lòng nhập họ và tên.'); return; }
-
     if(!pref)   { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
     if(!postal||postal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện đủ 7 chữ số.'); return; }
     if(!address){ alert('Vui lòng nhập địa chỉ nhận hàng.'); return; }
     if(getSize(totalWeight())===null){ alert('Đơn trên 15kg — vui lòng liên hệ Thuỷ trực tiếp!'); return; }
 
-    const sub=subtotal(), ship=shipFee||shippingFee(pref,totalWeight())||0, total=sub+ship;
+    // Kiểm tra địa chỉ nhận mới nếu đặt cho người khác
+    const useOther = document.getElementById('chk-other-address').checked;
+    let shipPref=pref, shipPostal=postal, shipAddress=address, shipMailbox=mailbox;
+    let recipientName=name, recipientPhone=phone;
+    if(useOther){
+      recipientName  = document.getElementById('f-r-name').value.trim();
+      recipientPhone = document.getElementById('f-r-phone').value.trim();
+      shipPref       = document.getElementById('f-r-prefecture').value;
+      shipPostal     = document.getElementById('f-r-postal').value.trim();
+      shipAddress    = document.getElementById('f-r-address').value.trim();
+      shipMailbox    = document.getElementById('f-r-mailbox').value.trim();
+      if(!recipientName)  { alert('Vui lòng nhập tên người nhận.'); return; }
+      if(!recipientPhone) { alert('Vui lòng nhập số điện thoại người nhận.'); return; }
+      if(!shipPref)       { alert('Vui lòng chọn tỉnh/thành phố người nhận.'); return; }
+      if(!shipPostal||shipPostal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện người nhận.'); return; }
+      if(!shipAddress)    { alert('Vui lòng nhập địa chỉ người nhận.'); return; }
+      if(!document.getElementById('chk-confirm-new-address').checked){
+        alert('Vui lòng xác nhận địa chỉ nhận hàng mới trước khi đặt.'); return;
+      }
+    }
+
+    const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0, total=sub+ship;
 
     const btn=document.getElementById('submit-btn');
     btn.disabled=true; btn.innerHTML='<span class="spin">⏳</span> Đang xử lý...';
@@ -1173,7 +1353,12 @@ function switchTab(type) {
     try {
       const res=await fetch(SCRIPT_URL,{
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({name,email,phone,prefecture:pref,postal,address,note,deliveryTime,
+        body:JSON.stringify({name,email,phone,mailbox,
+          recipientName: useOther?recipientName:undefined,
+          recipientPhone: useOther?recipientPhone:undefined,
+          prefecture:shipPref,postal:shipPostal,address:shipAddress,
+          mailboxRecipient: useOther?shipMailbox:undefined,
+          note,deliveryTime,
           items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
           cartItems:cart.map(i=>({name:i.name,size:i.size,price:i.price,qty:i.qty,wt:i.wt})),
           subtotal:sub,shipping:ship,total})
@@ -1183,7 +1368,8 @@ function switchTab(type) {
     } catch(e){ orderNo=String(Date.now()).slice(-4).padStart(4,'0'); }
 
     btn.disabled=false; btn.innerHTML='✅ Xác Nhận Đặt Hàng';
-    showSuccess({name,email,phone,pref,postal,address,sub,ship,total});
+    showSuccess({name,email,phone,pref:shipPref,postal:shipPostal,address:shipAddress,sub,ship,total,
+      recipientName:useOther?recipientName:null,recipientPhone:useOther?recipientPhone:null});
   }
 
   function switchPayment(type){
@@ -1205,7 +1391,7 @@ function switchTab(type) {
     });
   }
 
-  function showSuccess({name,email,phone,pref,postal,address,sub,ship,total}){
+  function showSuccess({name,email,phone,pref,postal,address,sub,ship,total,recipientName,recipientPhone}){
     document.getElementById('order-no-display').textContent = orderNo;
     document.getElementById('transfer-amount').textContent  = yen(total);
     document.getElementById('paypay-amount-hint').textContent = yen(total);
@@ -1218,7 +1404,9 @@ function switchTab(type) {
       cart.map(i=>`<div class="flex justify-between text-xs mb-1 text-gray-600"><span>${i.name} (${i.size}) × ${i.qty}</span><span>${yen(i.price*i.qty)}</span></div>`).join('')+
       `<hr class="my-2"><div class="flex justify-between text-xs"><span>Phí ship (${pref}):</span><span>${yen(ship)}</span></div>`+
       `<div class="flex justify-between font-bold text-sm mt-1"><span>Tổng:</span><span class="text-brand-red">${yen(total)}</span></div>`+
-      `<p class="text-xs text-gray-400 mt-2">📮 〒${postal} ${pref} ${address}</p><p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
+      `<p class="text-xs text-gray-400 mt-2">📮 〒${postal} ${pref} ${address}</p>`+
+      (recipientName?`<p class="text-xs text-orange-600 font-semibold">🎁 Người nhận: ${recipientName} · ${recipientPhone}</p>`:'')+
+      `<p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
 
     // Luôn hiện hộp post đơn vào nhóm cho mọi khách
     const groupBox = document.getElementById('group-order-box');
@@ -1250,9 +1438,16 @@ function switchTab(type) {
 
   function resetAndClose(){
     cart=[]; shipFee=0; orderNo=''; updateCartUI();
-    ['f-name','f-email','f-phone','f-postal','f-address','f-note'].forEach(id=>document.getElementById(id).value='');
+    ['f-name','f-email','f-phone','f-postal','f-address','f-mailbox','f-note'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f-prefecture').value='';
     document.getElementById('f-delivery-time').value='0812';
+    // Reset other-address
+    document.getElementById('chk-other-address').checked=false;
+    document.getElementById('other-address-section').classList.add('hidden');
+    ['f-r-name','f-r-phone','f-r-postal','f-r-address','f-r-mailbox'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('f-r-prefecture').value='';
+    document.getElementById('chk-confirm-new-address').checked=false;
+    document.getElementById('ship-result-box-r').classList.add('hidden');
     document.getElementById('ship-result-box').classList.add('hidden');
     document.getElementById('total-summary-box').classList.add('hidden');
     showStep('cart-items-section'); closeCart();
