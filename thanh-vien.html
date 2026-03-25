@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng Ký Thành Viên — Bếp Thuỷ Japan</title>
+  <title>Thành Viên — Bếp Thuỷ Japan</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -29,9 +30,20 @@
     input:focus, select:focus, textarea:focus { border-color: #C8102E !important; }
     .spin { animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-    .checkbox-label { cursor: pointer; transition: all 0.2s; }
-    .checkbox-label:hover { border-color: #C8102E; background: #fff5f5; }
-    .checkbox-label.selected { border-color: #C8102E; background: #fff0f0; color: #C8102E; font-weight: 600; }
+    .tab-btn { cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { color: #C8102E; border-bottom: 3px solid #C8102E; font-weight: 700; }
+    .tab-btn:not(.active) { color: #999; border-bottom: 3px solid transparent; }
+    .tab-btn:hover:not(.active) { color: #666; }
+    .dash-tab { cursor: pointer; transition: all 0.2s; border-radius: 12px; padding: 10px 16px; }
+    .dash-tab.active { background: linear-gradient(135deg,#C8102E,#8B3A0F); color: white; font-weight: 600; }
+    .dash-tab:not(.active) { background: white; color: #666; border: 1px solid #e5e7eb; }
+    .dash-tab:hover:not(.active) { border-color: #C8102E; color: #C8102E; }
+    .btn-primary { background: linear-gradient(135deg,#C8102E,#8B3A0F); color: white; font-weight: 700; border-radius: 16px; transition: all 0.2s; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .field-label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .field-input { width: 100%; border: 2px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; font-size: 0.875rem; }
+    .points-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #D4A017, #F5C842); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 8px 24px rgba(212,160,23,0.3); }
   </style>
 </head>
 <body class="min-h-screen">
@@ -43,170 +55,258 @@
   <div class="relative z-10 max-w-2xl mx-auto">
     <a href="/" class="inline-block text-yellow-300 text-sm mb-4 hover:text-white transition-colors">← Quay về Trang Chủ</a>
     <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Bếp Thuỷ Japan ✦</p>
-    <h1 class="text-3xl md:text-5xl font-bold mb-3 leading-tight">Đăng Ký Thành Viên</h1>
+    <h1 id="hero-title" class="text-3xl md:text-5xl font-bold mb-3 leading-tight">Thành Viên</h1>
     <div class="gold-line"></div>
-    <p class="text-yellow-100 text-base mt-4 font-light">Ưu đãi độc quyền · Thông báo sớm · Tích điểm thưởng</p>
+    <p id="hero-subtitle" class="text-yellow-100 text-base mt-4 font-light">Đăng nhập hoặc đăng ký để tích điểm thưởng</p>
   </div>
 </section>
 
-<!-- BENEFITS -->
-<section class="py-14 px-4 max-w-4xl mx-auto">
-  <div class="text-center mb-10">
-    <p class="text-brand-red text-sm tracking-widest uppercase font-semibold mb-2">Quyền Lợi</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-brand-dark">Thành Viên Được Gì?</h2>
-    <div class="gold-line"></div>
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- AUTH SECTION (not logged in) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="auth-section" class="hidden py-10 px-4">
+
+  <!-- Benefits -->
+  <div class="max-w-4xl mx-auto mb-10">
+    <div class="text-center mb-8">
+      <p class="text-brand-red text-sm tracking-widest uppercase font-semibold mb-2">Quyền Lợi</p>
+      <h2 class="text-2xl md:text-3xl font-bold text-brand-dark">Thành Viên Được Gì?</h2>
+      <div class="gold-line"></div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+        <div class="text-4xl mb-3">🔔</div>
+        <h3 class="font-bold text-brand-dark text-lg mb-2">Thông Báo Sớm</h3>
+        <p class="text-gray-500 text-sm">Nhận tin trước khi mở đợt đặt hàng.</p>
+      </div>
+      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+        <div class="text-4xl mb-3">⭐</div>
+        <h3 class="font-bold text-brand-dark text-lg mb-2">Tích Điểm Thưởng</h3>
+        <p class="text-gray-500 text-sm">Cứ ¥100 = 1 điểm. Đổi điểm lấy mã giảm giá.</p>
+      </div>
+      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
+        <div class="text-4xl mb-3">🏷️</div>
+        <h3 class="font-bold text-brand-dark text-lg mb-2">Giá Sỉ Ưu Đãi</h3>
+        <p class="text-gray-500 text-sm">Đơn từ 16kg được báo giá sỉ đặc biệt.</p>
+      </div>
+    </div>
   </div>
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-      <div class="text-4xl mb-3">🔔</div>
-      <h3 class="font-bold text-brand-dark text-lg mb-2">Thông Báo Sớm</h3>
-      <p class="text-gray-500 text-sm">Nhận tin trước khi mở đợt đặt hàng — không bao giờ bị lỡ hàng yêu thích.</p>
-    </div>
-    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-      <div class="text-4xl mb-3">⭐</div>
-      <h3 class="font-bold text-brand-dark text-lg mb-2">Tích Điểm Thưởng</h3>
-      <p class="text-gray-500 text-sm">Mỗi đơn hàng tích điểm. Đủ điểm nhận ưu đãi giảm giá đặc biệt từ Thuỷ.</p>
-    </div>
-    <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-      <div class="text-4xl mb-3">🏷️</div>
-      <h3 class="font-bold text-brand-dark text-lg mb-2">Giá Sỉ Ưu Đãi</h3>
-      <p class="text-gray-500 text-sm">Đơn từ 16kg trở lên được báo giá sỉ đặc biệt dành riêng cho thành viên.</p>
-    </div>
-  </div>
-</section>
 
-<!-- REGISTRATION FORM -->
-<section class="pb-16 px-4">
-  <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden">
-    <div class="px-6 py-5" style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F)">
-      <h2 class="text-white font-bold text-xl" style="font-family:'Playfair Display',serif">Điền Thông Tin Đăng Ký</h2>
-      <p class="text-yellow-200 text-sm mt-1">Miễn phí · Không ràng buộc</p>
+  <!-- Auth Card -->
+  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden">
+    <!-- Tabs -->
+    <div class="flex border-b">
+      <button onclick="switchAuthTab('login')" id="tab-login" class="tab-btn active flex-1 py-4 text-center text-sm">Đăng Nhập</button>
+      <button onclick="switchAuthTab('register')" id="tab-register" class="tab-btn flex-1 py-4 text-center text-sm">Đăng Ký Mới</button>
     </div>
-    <div class="p-6 space-y-5" id="form-section">
 
+    <!-- Login Form -->
+    <div id="form-login" class="p-6 space-y-4">
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ và Tên <span class="text-brand-red">*</span></label>
-        <input id="f-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        <label class="field-label">Email</label>
+        <input id="login-email" type="email" placeholder="email@gmail.com" class="field-input">
       </div>
-
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số Điện Thoại <span class="text-brand-red">*</span></label>
-        <input id="f-phone" type="tel" placeholder="080-XXXX-XXXX" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        <label class="field-label">Mật Khẩu</label>
+        <input id="login-password" type="password" placeholder="••••••••" class="field-input">
       </div>
+      <div id="login-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
+      <button id="login-btn" onclick="doLogin()" class="btn-primary w-full py-4 text-base">Đăng Nhập</button>
+      <p class="text-center">
+        <a href="javascript:void(0)" onclick="doForgotPassword()" class="text-brand-red text-sm hover:underline">Quên mật khẩu?</a>
+      </p>
+    </div>
 
+    <!-- Register Form -->
+    <div id="form-register" class="hidden p-6 space-y-4">
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-brand-red">*</span></label>
-        <input id="f-email" type="email" placeholder="email@gmail.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        <label class="field-label">Email <span class="text-brand-red">*</span></label>
+        <input id="reg-email" type="email" placeholder="email@gmail.com" class="field-input">
       </div>
-
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tỉnh / Thành Phố <span class="text-brand-red">*</span></label>
-        <select id="f-prefecture" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm bg-white">
-          <option value="">-- Chọn tỉnh / thành phố --</option>
+        <label class="field-label">Mật Khẩu <span class="text-brand-red">*</span> <span class="text-gray-400 font-normal text-xs">(tối thiểu 6 ký tự)</span></label>
+        <input id="reg-password" type="password" placeholder="••••••••" class="field-input">
+      </div>
+      <div>
+        <label class="field-label">Xác Nhận Mật Khẩu <span class="text-brand-red">*</span></label>
+        <input id="reg-password2" type="password" placeholder="••••••••" class="field-input">
+      </div>
+      <hr class="border-gray-100">
+      <div>
+        <label class="field-label">Họ và Tên <span class="text-brand-red">*</span></label>
+        <input id="reg-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="field-input">
+      </div>
+      <div>
+        <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
+        <input id="reg-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
+      </div>
+      <div>
+        <label class="field-label">Tỉnh / Thành Phố</label>
+        <select id="reg-prefecture" class="field-input bg-white">
+          <option value="">-- Chọn (tuỳ chọn) --</option>
           <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
-          <optgroup label="東北 Tohoku">
-            <option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option>
-            <option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option>
-            <option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option>
-          </optgroup>
-          <optgroup label="関東 Kanto">
-            <option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option>
-            <option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option>
-            <option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option>
-            <option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option>
-          </optgroup>
-          <optgroup label="信越・北陸">
-            <option value="新潟県">新潟県 - Niigata</option><option value="長野県">長野県 - Nagano</option>
-            <option value="富山県">富山県 - Toyama</option><option value="石川県">石川県 - Ishikawa</option>
-            <option value="福井県">福井県 - Fukui</option>
-          </optgroup>
-          <optgroup label="中部 Chubu">
-            <option value="岐阜県">岐阜県 - Gifu</option><option value="静岡県">静岡県 - Shizuoka</option>
-            <option value="愛知県">愛知県 - Aichi</option><option value="三重県">三重県 - Mie</option>
-          </optgroup>
-          <optgroup label="関西 Kansai">
-            <option value="滋賀県">滋賀県 - Shiga</option><option value="京都府">京都府 - Kyoto</option>
-            <option value="大阪府">大阪府 - Osaka</option><option value="兵庫県">兵庫県 - Hyogo</option>
-            <option value="奈良県">奈良県 - Nara</option><option value="和歌山県">和歌山県 - Wakayama</option>
-          </optgroup>
-          <optgroup label="中国 Chugoku">
-            <option value="鳥取県">鳥取県 - Tottori</option><option value="島根県">島根県 - Shimane</option>
-            <option value="岡山県">岡山県 - Okayama</option><option value="広島県">広島県 - Hiroshima</option>
-            <option value="山口県">山口県 - Yamaguchi</option>
-          </optgroup>
-          <optgroup label="四国 Shikoku">
-            <option value="徳島県">徳島県 - Tokushima</option><option value="香川県">香川県 - Kagawa</option>
-            <option value="愛媛県">愛媛県 - Ehime</option><option value="高知県">高知県 - Kochi</option>
-          </optgroup>
-          <optgroup label="九州 Kyushu">
-            <option value="福岡県">福岡県 - Fukuoka</option><option value="佐賀県">佐賀県 - Saga</option>
-            <option value="長崎県">長崎県 - Nagasaki</option><option value="熊本県">熊本県 - Kumamoto</option>
-            <option value="大分県">大分県 - Oita</option><option value="宮崎県">宮崎県 - Miyazaki</option>
-            <option value="鹿児島県">鹿児島県 - Kagoshima</option>
-          </optgroup>
+          <optgroup label="東北 Tohoku"><option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option><option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option><option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option></optgroup>
+          <optgroup label="関東 Kanto"><option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option><option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option><option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option><option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option></optgroup>
+          <optgroup label="信越・北陸"><option value="新潟県">新潟県 - Niigata</option><option value="長野県">長野県 - Nagano</option><option value="富山県">富山県 - Toyama</option><option value="石川県">石川県 - Ishikawa</option><option value="福井県">福井県 - Fukui</option></optgroup>
+          <optgroup label="中部 Chubu"><option value="岐阜県">岐阜県 - Gifu</option><option value="静岡県">静岡県 - Shizuoka</option><option value="愛知県">愛知県 - Aichi</option><option value="三重県">三重県 - Mie</option></optgroup>
+          <optgroup label="関西 Kansai"><option value="滋賀県">滋賀県 - Shiga</option><option value="京都府">京都府 - Kyoto</option><option value="大阪府">大阪府 - Osaka</option><option value="兵庫県">兵庫県 - Hyogo</option><option value="奈良県">奈良県 - Nara</option><option value="和歌山県">和歌山県 - Wakayama</option></optgroup>
+          <optgroup label="中国 Chugoku"><option value="鳥取県">鳥取県 - Tottori</option><option value="島根県">島根県 - Shimane</option><option value="岡山県">岡山県 - Okayama</option><option value="広島県">広島県 - Hiroshima</option><option value="山口県">山口県 - Yamaguchi</option></optgroup>
+          <optgroup label="四国 Shikoku"><option value="徳島県">徳島県 - Tokushima</option><option value="香川県">香川県 - Kagawa</option><option value="愛媛県">愛媛県 - Ehime</option><option value="高知県">高知県 - Kochi</option></optgroup>
+          <optgroup label="九州 Kyushu"><option value="福岡県">福岡県 - Fukuoka</option><option value="佐賀県">佐賀県 - Saga</option><option value="長崎県">長崎県 - Nagasaki</option><option value="熊本県">熊本県 - Kumamoto</option><option value="大分県">大分県 - Oita</option><option value="宮崎県">宮崎県 - Miyazaki</option><option value="鹿児島県">鹿児島県 - Kagoshima</option></optgroup>
           <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
         </select>
       </div>
-
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(số hòm thư tại toà nhà, nếu có)</span></label>
-        <input id="f-mailbox" type="text" placeholder="Ví dụ: 201" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
-      </div>
-
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-2">Sản Phẩm Hay Mua <span class="text-gray-400 font-normal text-xs">(chọn nhiều)</span></label>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Gio')">
-            <input type="checkbox" class="hidden" value="Gio"> <span>🍖</span> Giò
-          </label>
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Cha Que')">
-            <input type="checkbox" class="hidden" value="Cha Que"> <span>🧆</span> Chả Quế
-          </label>
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Cha Lua')">
-            <input type="checkbox" class="hidden" value="Cha Lua"> <span>🥩</span> Chả Lụa
-          </label>
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Moc')">
-            <input type="checkbox" class="hidden" value="Moc"> <span>🍡</span> Mọc
-          </label>
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Nem Lui')">
-            <input type="checkbox" class="hidden" value="Nem Lui"> <span>🍢</span> Nem Lụi
-          </label>
-          <label class="checkbox-label border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2" onclick="toggleProduct(this,'Pate')">
-            <input type="checkbox" class="hidden" value="Pate"> <span>🥐</span> Pate
-          </label>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú / Yêu Cầu Đặc Biệt</label>
-        <textarea id="f-note" rows="3" placeholder="Ví dụ: hay mua 2kg giò mỗi tháng, muốn đặt theo nhóm..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea>
-      </div>
-
-      <button id="submit-btn" onclick="submitMember()"
-        class="w-full py-4 rounded-2xl text-white font-bold text-base shadow-lg transition-all"
-        style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
-        Đăng Ký Thành Viên Ngay →
-      </button>
-      <p class="text-center text-xs text-gray-400">Hoàn toàn miễn phí · Không spam · Có thể hủy bất cứ lúc nào</p>
-    </div>
-
-    <!-- SUCCESS -->
-    <div id="success-section" class="hidden p-8 text-center">
-      <div class="text-6xl mb-4">🎉</div>
-      <h3 class="text-2xl font-bold text-brand-dark mb-2">Đăng Ký Thành Công!</h3>
-      <p class="text-gray-500 mb-2">Cảm ơn bạn đã trở thành thành viên của Bếp Thuỷ Japan!</p>
-      <p class="text-gray-400 text-sm mb-6">Thuỷ sẽ liên hệ xác nhận và thông báo đợt hàng tiếp theo nhé.</p>
-      <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-left text-sm space-y-1">
-        <p class="font-semibold text-green-800 mb-2">Quyền lợi của bạn từ hôm nay:</p>
-        <p class="text-green-700">🔔 Nhận thông báo trước khi mở đặt hàng</p>
-        <p class="text-green-700">⭐ Tích điểm thưởng qua mỗi đơn hàng</p>
-        <p class="text-green-700">🏷️ Báo giá sỉ ưu đãi cho đơn từ 16kg</p>
-      </div>
-      <a href="/" class="inline-block px-8 py-3 rounded-full text-white font-bold text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">
-        🛒 Đặt Hàng Ngay
-      </a>
+      <div id="reg-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
+      <button id="reg-btn" onclick="doRegister()" class="btn-primary w-full py-4 text-base">Đăng Ký Thành Viên</button>
+      <p class="text-center text-xs text-gray-400">Miễn phí · Không ràng buộc</p>
     </div>
   </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD SECTION (logged in) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="dashboard-section" class="hidden py-10 px-4">
+  <div class="max-w-2xl mx-auto">
+
+    <!-- Welcome Banner -->
+    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 mb-6 text-center">
+      <p class="text-gray-500 text-sm mb-1">Xin chào,</p>
+      <h2 id="dash-name" class="text-2xl font-bold text-brand-dark mb-3"></h2>
+      <div class="points-circle mb-3">
+        <span class="text-white text-3xl font-bold" id="dash-points-big">0</span>
+        <span class="text-white text-xs font-semibold opacity-80">ĐIỂM</span>
+      </div>
+      <p class="text-gray-400 text-xs mt-2">Cứ ¥100 mua hàng = 1 điểm · Đổi từ 500 điểm</p>
+    </div>
+
+    <!-- Dashboard Tabs -->
+    <div class="flex flex-wrap gap-2 mb-6 justify-center">
+      <button onclick="switchDashTab('points')" class="dash-tab active" data-tab="points">📊 Điểm Thưởng</button>
+      <button onclick="switchDashTab('profile')" class="dash-tab" data-tab="profile">👤 Thông Tin</button>
+      <button onclick="switchDashTab('address')" class="dash-tab" data-tab="address">📍 Địa Chỉ</button>
+      <button onclick="switchDashTab('password')" class="dash-tab" data-tab="password">🔐 Mật Khẩu</button>
+    </div>
+
+    <!-- Tab: Points -->
+    <div id="panel-points" class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <!-- Redeem section -->
+      <div id="redeem-box" class="hidden mb-6 bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4">
+        <p class="font-bold text-yellow-800 mb-2">🎉 Bạn có thể đổi điểm!</p>
+        <div class="flex items-center gap-3">
+          <input id="redeem-amount" type="number" min="500" step="100" placeholder="500" class="field-input flex-1">
+          <button onclick="doRedeem()" class="btn-primary px-6 py-3 text-sm shrink-0">Đổi Điểm</button>
+        </div>
+        <p class="text-xs text-yellow-700 mt-2">Tối thiểu 500 điểm · 1 điểm = ¥1</p>
+      </div>
+
+      <!-- Coupon display -->
+      <div id="coupon-result" class="hidden mb-6 bg-green-50 border-2 border-green-300 rounded-xl p-4 text-center">
+        <p class="text-green-800 font-bold mb-2">Mã Giảm Giá Của Bạn:</p>
+        <p id="coupon-code-display" class="text-2xl font-bold text-brand-red tracking-widest mb-2"></p>
+        <button onclick="copyCoupon()" class="text-sm bg-green-600 text-white px-4 py-2 rounded-xl font-semibold">📋 Copy Mã</button>
+        <p class="text-xs text-green-700 mt-2">Nhắn mã này cho Thuỷ khi đặt hàng để nhận giảm giá!</p>
+      </div>
+
+      <!-- My Coupons -->
+      <div id="my-coupons-box" class="hidden mb-6">
+        <h4 class="font-bold text-gray-700 text-sm mb-3">🎟️ Mã Giảm Giá Của Bạn</h4>
+        <div id="my-coupons-list" class="space-y-2"></div>
+      </div>
+
+      <!-- History -->
+      <h4 class="font-bold text-gray-700 text-sm mb-3">📋 Lịch Sử Điểm</h4>
+      <div id="points-history" class="space-y-2">
+        <p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào</p>
+      </div>
+    </div>
+
+    <!-- Tab: Profile -->
+    <div id="panel-profile" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <h4 class="font-bold text-gray-700 mb-4">Thông Tin Cá Nhân</h4>
+      <div class="space-y-4">
+        <div>
+          <label class="field-label">Email <span class="text-gray-400 font-normal text-xs">(không thể thay đổi)</span></label>
+          <input id="prof-email" type="email" disabled class="field-input bg-gray-50 text-gray-500">
+        </div>
+        <div>
+          <label class="field-label">Họ và Tên</label>
+          <input id="prof-name" type="text" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Số Điện Thoại</label>
+          <input id="prof-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
+        </div>
+        <div id="prof-msg" class="hidden text-sm rounded-xl p-3"></div>
+        <button onclick="saveProfile()" class="btn-primary w-full py-3 text-sm">Lưu Thay Đổi</button>
+      </div>
+    </div>
+
+    <!-- Tab: Address -->
+    <div id="panel-address" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <h4 class="font-bold text-gray-700 mb-4">Địa Chỉ Nhận Hàng</h4>
+      <div class="space-y-4">
+        <div>
+          <label class="field-label">Tỉnh / Thành Phố</label>
+          <select id="addr-prefecture" class="field-input bg-white">
+            <option value="">-- Chọn --</option>
+            <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
+            <optgroup label="東北 Tohoku"><option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option><option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option><option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option></optgroup>
+            <optgroup label="関東 Kanto"><option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option><option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option><option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option><option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option></optgroup>
+            <optgroup label="信越・北陸"><option value="新潟県">新潟県 - Niigata</option><option value="長野県">長野県 - Nagano</option><option value="富山県">富山県 - Toyama</option><option value="石川県">石川県 - Ishikawa</option><option value="福井県">福井県 - Fukui</option></optgroup>
+            <optgroup label="中部 Chubu"><option value="岐阜県">岐阜県 - Gifu</option><option value="静岡県">静岡県 - Shizuoka</option><option value="愛知県">愛知県 - Aichi</option><option value="三重県">三重県 - Mie</option></optgroup>
+            <optgroup label="関西 Kansai"><option value="滋賀県">滋賀県 - Shiga</option><option value="京都府">京都府 - Kyoto</option><option value="大阪府">大阪府 - Osaka</option><option value="兵庫県">兵庫県 - Hyogo</option><option value="奈良県">奈良県 - Nara</option><option value="和歌山県">和歌山県 - Wakayama</option></optgroup>
+            <optgroup label="中国 Chugoku"><option value="鳥取県">鳥取県 - Tottori</option><option value="島根県">島根県 - Shimane</option><option value="岡山県">岡山県 - Okayama</option><option value="広島県">広島県 - Hiroshima</option><option value="山口県">山口県 - Yamaguchi</option></optgroup>
+            <optgroup label="四国 Shikoku"><option value="徳島県">徳島県 - Tokushima</option><option value="香川県">香川県 - Kagawa</option><option value="愛媛県">愛媛県 - Ehime</option><option value="高知県">高知県 - Kochi</option></optgroup>
+            <optgroup label="九州 Kyushu"><option value="福岡県">福岡県 - Fukuoka</option><option value="佐賀県">佐賀県 - Saga</option><option value="長崎県">長崎県 - Nagasaki</option><option value="熊本県">熊本県 - Kumamoto</option><option value="大分県">大分県 - Oita</option><option value="宮崎県">宮崎県 - Miyazaki</option><option value="鹿児島県">鹿児島県 - Kagoshima</option></optgroup>
+            <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Mã Bưu Điện (郵便番号)</label>
+          <input id="addr-postal" type="text" placeholder="〒 123-4567" maxlength="8" oninput="formatPostal(this)" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Địa Chỉ Chi Tiết</label>
+          <input id="addr-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(nếu có)</span></label>
+          <input id="addr-mailbox" type="text" placeholder="Ví dụ: 201" class="field-input">
+        </div>
+        <div id="addr-msg" class="hidden text-sm rounded-xl p-3"></div>
+        <button onclick="saveAddress()" class="btn-primary w-full py-3 text-sm">Lưu Địa Chỉ</button>
+      </div>
+    </div>
+
+    <!-- Tab: Password -->
+    <div id="panel-password" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <h4 class="font-bold text-gray-700 mb-4">Đổi Mật Khẩu</h4>
+      <div class="space-y-4">
+        <div>
+          <label class="field-label">Mật Khẩu Mới <span class="text-gray-400 font-normal text-xs">(tối thiểu 6 ký tự)</span></label>
+          <input id="pw-new" type="password" placeholder="••••••••" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Xác Nhận Mật Khẩu Mới</label>
+          <input id="pw-confirm" type="password" placeholder="••••••••" class="field-input">
+        </div>
+        <div id="pw-msg" class="hidden text-sm rounded-xl p-3"></div>
+        <button onclick="changePassword()" class="btn-primary w-full py-3 text-sm">Đổi Mật Khẩu</button>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <div class="text-center mt-6">
+      <button onclick="doLogout()" class="text-gray-400 hover:text-brand-red text-sm transition-colors">🚪 Đăng Xuất</button>
+    </div>
+  </div>
+</section>
+
+<!-- LOADING -->
+<section id="loading-section" class="py-20 px-4 text-center">
+  <div class="spin text-4xl">⏳</div>
+  <p class="text-gray-400 mt-4">Đang tải...</p>
 </section>
 
 <!-- FOOTER -->
@@ -219,67 +319,386 @@
 </footer>
 
 <script>
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJYvJ0jfP0rMMRFiRzMzAiV8q3WBhiNaSAzFG5WrSS3j1KPvQ4y3yxdT7mmLe5KWRS/exec';
+// ═══════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════════════════════════
+// >>> THAY ĐỔI 2 DÒNG NÀY SAU KHI TẠO PROJECT SUPABASE <<<
+const SUPABASE_URL  = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON = 'YOUR_ANON_KEY_HERE';
 
-  const selectedProducts = new Set();
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  function toggleProduct(label, value) {
-    if (selectedProducts.has(value)) {
-      selectedProducts.delete(value);
-      label.classList.remove('selected');
-    } else {
-      selectedProducts.add(value);
-      label.classList.add('selected');
-    }
+let currentUser = null;
+let currentProfile = null;
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadDashboard();
+    showSection('dashboard');
+  } else {
+    showSection('auth');
+  }
+}
+
+function showSection(name) {
+  document.getElementById('loading-section').classList.add('hidden');
+  document.getElementById('auth-section').classList.toggle('hidden', name !== 'auth');
+  document.getElementById('dashboard-section').classList.toggle('hidden', name !== 'dashboard');
+
+  if (name === 'auth') {
+    document.getElementById('hero-title').textContent = 'Thành Viên';
+    document.getElementById('hero-subtitle').textContent = 'Đăng nhập hoặc đăng ký để tích điểm thưởng';
+  } else if (name === 'dashboard') {
+    document.getElementById('hero-title').textContent = 'Xin Chào!';
+    document.getElementById('hero-subtitle').textContent = 'Quản lý tài khoản và điểm thưởng';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+}
+
+function showError(boxId, msg) {
+  const box = document.getElementById(boxId);
+  box.textContent = msg;
+  box.classList.remove('hidden');
+}
+function hideError(boxId) {
+  document.getElementById(boxId).classList.add('hidden');
+}
+
+async function doLogin() {
+  hideError('login-error');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showError('login-error', 'Vui lòng nhập email và mật khẩu.'); return; }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang đăng nhập...';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showError('login-error', error.message === 'Invalid login credentials'
+      ? 'Email hoặc mật khẩu không đúng.' : error.message);
+    btn.disabled = false; btn.textContent = 'Đăng Nhập';
+    return;
   }
 
-  async function submitMember() {
-    const name  = document.getElementById('f-name').value.trim();
-    const phone = document.getElementById('f-phone').value.trim();
-    const email = document.getElementById('f-email').value.trim();
-    const pref  = document.getElementById('f-prefecture').value;
-    const note  = document.getElementById('f-note').value.trim();
+  currentUser = data.user;
+  await loadDashboard();
+  showSection('dashboard');
+  btn.disabled = false; btn.textContent = 'Đăng Nhập';
+}
 
-    if (!name)  { alert('Vui lòng nhập họ tên.'); return; }
-    if (!phone) { alert('Vui lòng nhập số điện thoại.'); return; }
-    if (!email) { alert('Vui lòng nhập email.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email không hợp lệ. Vui lòng kiểm tra lại.'); return; }
-    if (!pref)  { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
+async function doRegister() {
+  hideError('reg-error');
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const password2 = document.getElementById('reg-password2').value;
+  const name = document.getElementById('reg-name').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const prefecture = document.getElementById('reg-prefecture').value;
 
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
+  if (!email) { showError('reg-error', 'Vui lòng nhập email.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('reg-error', 'Email không hợp lệ.'); return; }
+  if (!password || password.length < 6) { showError('reg-error', 'Mật khẩu tối thiểu 6 ký tự.'); return; }
+  if (password !== password2) { showError('reg-error', 'Mật khẩu xác nhận không khớp.'); return; }
+  if (!name) { showError('reg-error', 'Vui lòng nhập họ tên.'); return; }
+  if (!phone) { showError('reg-error', 'Vui lòng nhập số điện thoại.'); return; }
 
-    const mailbox = document.getElementById('f-mailbox').value.trim();
+  const btn = document.getElementById('reg-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
 
-    const payload = {
-      type: 'member',
-      name, phone, email, mailbox,
-      prefecture: pref,
-      products: Array.from(selectedProducts).join(', '),
-      note,
-      registeredAt: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
-    };
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { display_name: name, phone: phone } }
+  });
 
-    try {
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      // Lưu thông tin thành viên vào localStorage để dùng khi đặt hàng
-      try {
-        localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, mailbox, prefecture: pref }));
-      } catch(e) {}
-      document.getElementById('form-section').classList.add('hidden');
-      document.getElementById('success-section').classList.remove('hidden');
-    } catch (err) {
-      alert('Có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ Thuỷ qua Zalo/Messenger.');
-      btn.disabled = false;
-      btn.innerHTML = 'Đăng Ký Thành Viên Ngay →';
-    }
+  if (error) {
+    showError('reg-error', error.message);
+    btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+    return;
   }
+
+  currentUser = data.user;
+
+  // Update profile with additional info
+  if (currentUser) {
+    await sb.from('profiles').update({
+      display_name: name,
+      phone: phone,
+      prefecture: prefecture || null
+    }).eq('id', currentUser.id);
+  }
+
+  // Also save to localStorage for main page checkout
+  try {
+    localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, prefecture }));
+  } catch(e) {}
+
+  await loadDashboard();
+  showSection('dashboard');
+  btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showError('login-error', 'Vui lòng nhập email trước khi bấm "Quên mật khẩu".'); return; }
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/thanh-vien'
+  });
+
+  if (error) { showError('login-error', error.message); return; }
+  hideError('login-error');
+  alert('Đã gửi link đặt lại mật khẩu đến ' + email + '. Vui lòng kiểm tra hộp thư.');
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  currentProfile = null;
+  try { localStorage.removeItem('bepthuy_member'); } catch(e) {}
+  showSection('auth');
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function switchDashTab(tab) {
+  document.querySelectorAll('.dash-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  ['points','profile','address','password'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+  });
+}
+
+async function loadDashboard() {
+  if (!currentUser) return;
+
+  // Load profile
+  const { data: profile } = await sb.from('profiles')
+    .select('*').eq('id', currentUser.id).single();
+
+  currentProfile = profile;
+
+  // Update welcome
+  const displayName = profile?.display_name || currentUser.email;
+  document.getElementById('dash-name').textContent = displayName;
+
+  // Load points balance
+  const { data: bal } = await sb.from('points_balance')
+    .select('total_points').eq('user_id', currentUser.id).single();
+  const totalPoints = bal?.total_points || 0;
+  document.getElementById('dash-points-big').textContent = totalPoints.toLocaleString();
+
+  // Show redeem box if enough points
+  document.getElementById('redeem-box').classList.toggle('hidden', totalPoints < 500);
+  if (totalPoints >= 500) {
+    document.getElementById('redeem-amount').max = totalPoints;
+    document.getElementById('redeem-amount').value = Math.min(500, totalPoints);
+  }
+
+  // Load points history
+  const { data: history } = await sb.from('points_transactions')
+    .select('*').eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false }).limit(50);
+
+  const historyBox = document.getElementById('points-history');
+  if (history && history.length > 0) {
+    historyBox.innerHTML = history.map(h => {
+      const isEarn = h.type === 'earn';
+      const date = new Date(h.created_at).toLocaleDateString('ja-JP');
+      return `<div class="flex items-center justify-between py-2 px-3 rounded-xl ${isEarn ? 'bg-green-50' : 'bg-orange-50'}">
+        <div>
+          <p class="text-sm font-semibold ${isEarn ? 'text-green-800' : 'text-orange-800'}">${isEarn ? '+' : ''}${h.points} điểm</p>
+          <p class="text-xs text-gray-500">${h.description || (h.order_no ? 'Đơn #' + h.order_no : '')}</p>
+        </div>
+        <span class="text-xs text-gray-400">${date}</span>
+      </div>`;
+    }).join('');
+  } else {
+    historyBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào. Đặt hàng để tích điểm!</p>';
+  }
+
+  // Load coupons
+  const { data: coupons } = await sb.from('coupons')
+    .select('*').eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false });
+
+  const couponsBox = document.getElementById('my-coupons-box');
+  const couponsList = document.getElementById('my-coupons-list');
+  if (coupons && coupons.length > 0) {
+    couponsBox.classList.remove('hidden');
+    couponsList.innerHTML = coupons.map(c => {
+      const date = new Date(c.created_at).toLocaleDateString('ja-JP');
+      return `<div class="flex items-center justify-between py-2 px-3 rounded-xl ${c.used ? 'bg-gray-50' : 'bg-green-50'} border ${c.used ? 'border-gray-200' : 'border-green-200'}">
+        <div>
+          <p class="font-mono font-bold text-sm ${c.used ? 'text-gray-400 line-through' : 'text-brand-red'}">${c.code}</p>
+          <p class="text-xs text-gray-500">${date} · ¥${c.value.toLocaleString()} giảm giá</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full font-semibold ${c.used ? 'bg-gray-200 text-gray-500' : 'bg-green-200 text-green-800'}">${c.used ? 'Đã dùng' : 'Chưa dùng'}</span>
+      </div>`;
+    }).join('');
+  } else {
+    couponsBox.classList.add('hidden');
+  }
+
+  // Fill profile form
+  document.getElementById('prof-email').value = currentUser.email || '';
+  document.getElementById('prof-name').value = profile?.display_name || '';
+  document.getElementById('prof-phone').value = profile?.phone || '';
+
+  // Fill address form
+  document.getElementById('addr-prefecture').value = profile?.prefecture || '';
+  document.getElementById('addr-postal').value = profile?.postal || '';
+  document.getElementById('addr-address').value = profile?.address || '';
+  document.getElementById('addr-mailbox').value = profile?.mailbox || '';
+
+  // Update localStorage for main page
+  try {
+    localStorage.setItem('bepthuy_member', JSON.stringify({
+      name: profile?.display_name, phone: profile?.phone, email: currentUser.email,
+      mailbox: profile?.mailbox, prefecture: profile?.prefecture,
+      postal: profile?.postal, address: profile?.address,
+      userId: currentUser.id
+    }));
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE / ADDRESS / PASSWORD
+// ═══════════════════════════════════════════════════════════
+function showMsg(boxId, msg, isSuccess) {
+  const box = document.getElementById(boxId);
+  box.textContent = msg;
+  box.className = `text-sm rounded-xl p-3 ${isSuccess ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-600'}`;
+  box.classList.remove('hidden');
+  setTimeout(() => box.classList.add('hidden'), 4000);
+}
+
+async function saveProfile() {
+  const name = document.getElementById('prof-name').value.trim();
+  const phone = document.getElementById('prof-phone').value.trim();
+  if (!name) { showMsg('prof-msg', 'Vui lòng nhập họ tên.', false); return; }
+
+  const { error } = await sb.from('profiles').update({
+    display_name: name, phone: phone
+  }).eq('id', currentUser.id);
+
+  if (error) { showMsg('prof-msg', error.message, false); return; }
+  showMsg('prof-msg', 'Đã lưu thông tin!', true);
+  document.getElementById('dash-name').textContent = name;
+
+  // Update localStorage
+  if (currentProfile) { currentProfile.display_name = name; currentProfile.phone = phone; }
+  try {
+    const stored = JSON.parse(localStorage.getItem('bepthuy_member') || '{}');
+    stored.name = name; stored.phone = phone;
+    localStorage.setItem('bepthuy_member', JSON.stringify(stored));
+  } catch(e) {}
+}
+
+async function saveAddress() {
+  const prefecture = document.getElementById('addr-prefecture').value;
+  const postal = document.getElementById('addr-postal').value.trim();
+  const address = document.getElementById('addr-address').value.trim();
+  const mailbox = document.getElementById('addr-mailbox').value.trim();
+
+  const { error } = await sb.from('profiles').update({
+    prefecture: prefecture || null, postal: postal || null,
+    address: address || null, mailbox: mailbox || null
+  }).eq('id', currentUser.id);
+
+  if (error) { showMsg('addr-msg', error.message, false); return; }
+  showMsg('addr-msg', 'Đã lưu địa chỉ!', true);
+
+  // Update localStorage
+  try {
+    const stored = JSON.parse(localStorage.getItem('bepthuy_member') || '{}');
+    stored.prefecture = prefecture; stored.postal = postal;
+    stored.address = address; stored.mailbox = mailbox;
+    localStorage.setItem('bepthuy_member', JSON.stringify(stored));
+  } catch(e) {}
+}
+
+async function changePassword() {
+  const pw = document.getElementById('pw-new').value;
+  const pw2 = document.getElementById('pw-confirm').value;
+  if (!pw || pw.length < 6) { showMsg('pw-msg', 'Mật khẩu tối thiểu 6 ký tự.', false); return; }
+  if (pw !== pw2) { showMsg('pw-msg', 'Mật khẩu xác nhận không khớp.', false); return; }
+
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { showMsg('pw-msg', error.message, false); return; }
+  showMsg('pw-msg', 'Đã đổi mật khẩu thành công!', true);
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// POINTS REDEMPTION
+// ═══════════════════════════════════════════════════════════
+async function doRedeem() {
+  const amount = parseInt(document.getElementById('redeem-amount').value);
+  if (!amount || amount < 500) { alert('Tối thiểu 500 điểm.'); return; }
+  if (!confirm(`Đổi ${amount} điểm thành mã giảm giá ¥${amount.toLocaleString()}?`)) return;
+
+  const { data, error } = await sb.rpc('redeem_points', { amount });
+  if (error) { alert(error.message); return; }
+
+  // Show coupon
+  document.getElementById('coupon-code-display').textContent = data;
+  document.getElementById('coupon-result').classList.remove('hidden');
+
+  // Reload dashboard
+  await loadDashboard();
+}
+
+function copyCoupon() {
+  const code = document.getElementById('coupon-code-display').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    alert('Đã copy mã: ' + code);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function formatPostal(el) {
+  let v = el.value.replace(/\D/g, '').substring(0, 7);
+  if (v.length > 3) v = v.substring(0, 3) + '-' + v.substring(3);
+  el.value = v;
+}
+
+// Listen for auth state changes (e.g. password reset redirect)
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    showSection('dashboard');
+    switchDashTab('password');
+    alert('Vui lòng nhập mật khẩu mới.');
+  }
+  if (event === 'SIGNED_IN' && session && !currentUser) {
+    currentUser = session.user;
+    await loadDashboard();
+    showSection('dashboard');
+  }
+});
+
+// Start
+init();
 </script>
 </body>
 </html>

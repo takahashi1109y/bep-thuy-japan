@@ -6,6 +6,7 @@
   <title>Bếp Thuỷ Japan — Đặc Sản Hà Nội Tại Nhật</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -96,7 +97,7 @@
       <a href="#huong-dan" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">📋 Hướng Dẫn Bảo Quản</a>
       <a href="#shipping" class="inline-block border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🚚 Bảng Phí Ship</a>
       <button onclick="openCart()" class="border border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-yellow-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">🛍️ Giỏ Hàng</button>
-      <a href="/thanh-vien" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">⭐ Đăng Ký Thành Viên</a>
+      <a id="hero-member-btn" href="/thanh-vien" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">⭐ Đăng Ký Thành Viên</a>
       <button onclick="openSiPopup()" class="border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🤝 Liên Hệ Mua Sỉ</button>
     </div>
   </div>
@@ -1465,6 +1466,104 @@ function switchTab(type) {
   }
 
   updateCartUI();
+
+  // ═══════════════════════════════════════════════════════════
+  // SUPABASE INTEGRATION
+  // ═══════════════════════════════════════════════════════════
+  // >>> THAY ĐỔI 2 DÒNG NÀY SAU KHI TẠO PROJECT SUPABASE <<<
+  const SUPA_URL  = 'https://YOUR_PROJECT_ID.supabase.co';
+  const SUPA_ANON = 'YOUR_ANON_KEY_HERE';
+  let sbClient = null, sbUser = null, sbProfile = null;
+
+  async function initSupabase() {
+    try {
+      sbClient = supabase.createClient(SUPA_URL, SUPA_ANON);
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (session) {
+        sbUser = session.user;
+        const { data: profile } = await sbClient.from('profiles')
+          .select('*').eq('id', sbUser.id).single();
+        sbProfile = profile;
+        updateMemberUI();
+      }
+    } catch(e) { /* Supabase not configured yet */ }
+  }
+
+  function updateMemberUI() {
+    const btn = document.getElementById('hero-member-btn');
+    if (sbUser && sbProfile) {
+      const name = sbProfile.display_name || sbUser.email;
+      btn.textContent = '👤 ' + name;
+      btn.href = '/thanh-vien';
+    }
+  }
+
+  // Override fillMemberInfo to use Supabase profile if available
+  const originalFillMemberInfo = typeof fillMemberInfo === 'function' ? fillMemberInfo : null;
+  fillMemberInfo = function() {
+    if (sbProfile) {
+      document.getElementById('f-name').value = sbProfile.display_name || '';
+      document.getElementById('f-phone').value = sbProfile.phone || '';
+      document.getElementById('f-email').value = sbUser?.email || '';
+      document.getElementById('f-mailbox').value = sbProfile.mailbox || '';
+      if (sbProfile.prefecture) {
+        document.getElementById('f-prefecture').value = sbProfile.prefecture;
+        calcShipping();
+      }
+      if (sbProfile.postal) document.getElementById('f-postal').value = sbProfile.postal;
+      if (sbProfile.address) document.getElementById('f-address').value = sbProfile.address;
+      document.getElementById('member-banner').classList.add('hidden');
+      showToast('✅ Đã điền thông tin thành viên!');
+    } else if (originalFillMemberInfo) {
+      originalFillMemberInfo();
+    }
+  };
+
+  // Override goToCheckout to show Supabase member info
+  const originalGoToCheckout = goToCheckout;
+  goToCheckout = function() {
+    originalGoToCheckout();
+    if (sbUser && sbProfile) {
+      document.getElementById('member-banner-name').textContent = sbProfile.display_name || sbUser.email;
+      document.getElementById('member-banner').classList.remove('hidden');
+    }
+  };
+
+  // Patch submitOrder to include userId for points
+  const originalSubmitOrder = submitOrder;
+  submitOrder = async function() {
+    // Inject userId into the fetch body
+    const origFetch = window.fetch;
+    window.fetch = function(url, opts) {
+      if (url === SCRIPT_URL && opts && opts.body && sbUser) {
+        try {
+          const body = JSON.parse(opts.body);
+          body.userId = sbUser.id;
+          opts.body = JSON.stringify(body);
+        } catch(e) {}
+      }
+      return origFetch.call(this, url, opts);
+    };
+    await originalSubmitOrder();
+    window.fetch = origFetch;
+
+    // Show points earned message
+    if (sbUser) {
+      const totalEl = document.getElementById('final-total');
+      if (totalEl) {
+        const totalText = totalEl.textContent.replace(/[^0-9]/g, '');
+        const earnedPts = Math.floor(parseInt(totalText || '0') / 100);
+        if (earnedPts > 0) {
+          const receipt = document.getElementById('order-receipt');
+          if (receipt) {
+            receipt.innerHTML += `<p class="text-xs text-yellow-600 font-semibold mt-2">🌟 Bạn sẽ nhận ${earnedPts} điểm thưởng cho đơn này!</p>`;
+          }
+        }
+      }
+    }
+  };
+
+  initSupabase();
 </script>
 </body>
 </html>
