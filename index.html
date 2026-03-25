@@ -895,16 +895,16 @@ function switchTab(type) {
   const REGION_LABEL = {hokkaido:'北海道',kita_tohoku:'北東北',minami_tohoku:'南東北',kanto:'関東',shinetsu:'信越',hokuriku:'北陸',chubu:'中部',kansai:'関西',chugoku:'中国',shikoku:'四国',kyushu:'九州',okinawa:'沖縄'};
   const REGION_IDX  = ['hokkaido','kita_tohoku','minami_tohoku','kanto','shinetsu','hokuriku','chubu','kansai','chugoku','shikoku','kyushu','okinawa'];
 
-  // Base rate (Kanto発) + クール宅急便 surcharge already added
+  // Yamato クール宅急便 2026 — actual rates
   const SHIP = {
-    60: [1570,900,800,800,800,800,800,900,950,950,1570,1570],
-    80: [1880,1100,1050,1050,1050,1050,1050,1100,1200,1200,1880,2180],
-    100:[2260,1400,1350,1350,1350,1350,1350,1400,1500,1500,2260,2860],
-    120:[2800,1850,1750,1750,1750,1750,1750,1850,1900,1900,2800,3700],
-    140:[2460,1350,1300,1300,1300,1300,1300,1350,1400,1400,2460,3660],
+    b1: [1740,1000, 950, 950, 950, 950, 950,1050,1100,1100,1780,1730],
+    b2: [2100,1240,1190,1190,1190,1190,1190,1240,1350,1350,2100,2430],
+    b3: [2550,1650,1600,1600,1600,1600,1600,1650,1710,1710,2550,3210],
+    b4: [3120,2070,1960,1960,1960,1960,1960,2070,2130,2130,3150,4110],
   };
+  const SIZE_LABEL = {b1:'0.5–2kg',b2:'2.5–5kg',b3:'5.5–10kg',b4:'10.5–15kg'};
 
-  function getSize(kg){ return kg<=2?60:kg<=5?80:kg<=10?100:kg<=15?120:kg<=20?140:null; }
+  function getSize(kg){ return kg<=2?'b1':kg<=5?'b2':kg<=10?'b3':kg<=15?'b4':null; }
 
   function shippingFee(pref,kg){
     const sz=getSize(kg); if(!sz) return null;
@@ -947,7 +947,7 @@ function switchTab(type) {
       </div></div>`).join('');
     const wt=totalWeight(), sz=getSize(wt);
     document.getElementById('cart-subtotal').textContent=yen(subtotal());
-    document.getElementById('cart-weight-display').textContent=wt.toFixed(1)+'kg'+(sz?' → Size '+sz:' → Quá 20kg, liên hệ Thuỷ');
+    document.getElementById('cart-weight-display').textContent=wt.toFixed(1)+'kg'+(sz?' → '+SIZE_LABEL[sz]:' → Quá 15kg, liên hệ Thuỷ');
   }
 
   // ── SHIPPING CALC ──
@@ -957,12 +957,12 @@ function switchTab(type) {
     if(!pref){ box.classList.add('hidden'); return; }
     const wt=totalWeight(), sz=getSize(wt);
     if(!sz){
-      box.innerHTML=`<div class="ship-error"><p class="font-bold text-orange-800">⚠️ Đơn trên 20kg — liên hệ Thuỷ để có giá ship tốt hơn!</p><a href="tel:+810805115688" class="text-orange-600 font-bold underline text-sm">📞 080-5115-6688</a></div>`;
+      box.innerHTML=`<div class="ship-error"><p class="font-bold text-orange-800">⚠️ Đơn trên 15kg — liên hệ Thuỷ để có giá ship tốt hơn!</p><a href="tel:+810805115688" class="text-orange-600 font-bold underline text-sm">📞 080-5115-6688</a></div>`;
       box.classList.remove('hidden'); shipFee=0; updateTotalBox(); return;
     }
     const fee=shippingFee(pref,wt); shipFee=fee;
     const r=PREF_REGION[pref];
-    box.innerHTML=`<div class="ship-result"><div class="flex justify-between items-center"><div><p class="text-xs text-green-700 font-semibold">✅ Phí ship đến ${pref}</p><p class="text-xs text-green-600">${REGION_LABEL[r]} · Size ${sz} · クール宅急便</p></div><p class="text-green-800 font-bold text-xl">${yen(fee)}</p></div></div>`;
+    box.innerHTML=`<div class="ship-result"><div class="flex justify-between items-center"><div><p class="text-xs text-green-700 font-semibold">✅ Phí ship đến ${pref}</p><p class="text-xs text-green-600">${REGION_LABEL[r]} · ${SIZE_LABEL[sz]} · クール宅急便</p></div><p class="text-green-800 font-bold text-xl">${yen(fee)}</p></div></div>`;
     box.classList.remove('hidden');
     updateTotalBox();
   }
@@ -1017,7 +1017,7 @@ function switchTab(type) {
     if(!pref)   { alert('Vui lòng chọn tỉnh/thành phố.'); return; }
     if(!postal||postal.replace('-','').length<7){ alert('Vui lòng nhập mã bưu điện đủ 7 chữ số.'); return; }
     if(!address){ alert('Vui lòng nhập địa chỉ nhận hàng.'); return; }
-    if(getSize(totalWeight())===null){ alert('Đơn trên 20kg — vui lòng liên hệ Thuỷ trực tiếp!'); return; }
+    if(getSize(totalWeight())===null){ alert('Đơn trên 15kg — vui lòng liên hệ Thuỷ trực tiếp!'); return; }
 
     const sub=subtotal(), ship=shipFee||shippingFee(pref,totalWeight())||0, total=sub+ship;
 
