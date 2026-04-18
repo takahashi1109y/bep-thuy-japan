@@ -263,10 +263,10 @@
         <div class="h-48 relative overflow-hidden"><img src="images/nem-lui.jpg" alt="Nem Lụi Huế" class="w-full h-full object-cover"><span class="absolute top-3 left-3 tag-special text-xs font-bold px-3 py-1 rounded-full">Đặc Sản Huế</span></div>
         <div class="p-5">
           <div class="flex items-center gap-2 mb-1"><h3 class="font-bold text-brand-dark text-lg">Nem Lụi Huế</h3><span class="bg-gray-100 text-gray-500 text-xs font-mono font-bold px-2 py-0.5 rounded">Nem</span></div>
-          <p class="text-gray-500 text-xs">Hộp 500g · 10 cây + sốt Huế</p>
-          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Nem lụi thịt heo xiên que — ướp sả, tỏi, mắm ruốc. Nướng lên thơm cực kỳ!</p>
+          <p class="text-gray-500 text-xs">Đặc Sản Huế</p>
+          <p class="text-gray-600 text-sm mt-3 leading-relaxed">Nem lụi thịt heo quấn sả — ướp tỏi tiêu nước mắm và gia vị Huế truyền thống. Nướng lên thơm ngon cực kỳ! Hộp 10 cây + sốt Huế.</p>
           <div class="mt-4">
-            <div class="flex justify-between items-center mb-3"><span class="text-brand-red font-bold text-xl">¥1,100</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
+            <div class="flex justify-between items-center mb-3"><span class="text-brand-red font-bold text-xl">¥1,100</span><span class="text-gray-400 text-xs">/ hộp</span></div>
             <div class="box-selector" data-id="8" data-name="[Nem] Nem lụi cuốn sả Huế" data-price="1100" data-max="10"></div>
           </div>
         </div>
@@ -1506,13 +1506,13 @@ function switchTab(type) {
     addToCart(id, name, kgSize(kg), kgPrice(kg, halfPrice), kg);
   }
 
-  // Box selector (for nem lụi, pate — sold by hộp 500g)
+  // Box selector (for nem lụi, pate — sold by hộp; internal weight = 0.5kg/hộp for shipping)
   function initBoxSelector(el) {
     const basePrice = parseInt(el.dataset.price, 10);
     const maxN = parseInt(el.dataset.max || 10, 10);
     let opts = '';
     for (let n = 1; n <= maxN; n++) {
-      opts += `<option value="${n}">${n} hộp (${(n*0.5).toFixed(1)} kg) — ${yen(n*basePrice)}</option>`;
+      opts += `<option value="${n}">${n} hộp — ${yen(n*basePrice)}</option>`;
     }
     el.innerHTML = `
       <label class="qty-selector-label">Số lượng:</label>
@@ -1534,7 +1534,8 @@ function switchTab(type) {
     const id = parseInt(wrap.dataset.id, 10);
     const name = wrap.dataset.name;
     const basePrice = parseInt(wrap.dataset.price, 10);
-    const size = n === 1 ? 'hộp 500g' : (n + ' × hộp 500g');
+    const size = n === 1 ? '1 hộp' : (n + ' hộp');
+    // weight still 0.5kg/box internally for accurate shipping calculation
     addToCart(id, name, size, n * basePrice, n * 0.5);
   }
 
