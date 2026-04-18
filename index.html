@@ -874,13 +874,10 @@ function switchTab(type) {
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Địa Chỉ Nhận Hàng <span class="text-brand-red">*</span></label>
         <input id="f-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
+      <input id="f-mailbox" type="hidden" value="">
       <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(số hòm thư tại toà nhà, nếu có)</span></label>
-        <input id="f-mailbox" type="text" placeholder="Ví dụ: 201" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
-      </div>
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi Chú / Tên Toà Nhà (tuỳ chọn)</label>
-        <input id="f-note" type="text" placeholder="Tên toà nhà, phòng số, ghi chú thêm..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Lời Nhắn <span class="text-gray-400 font-normal text-xs">(nếu có)</span></label>
+        <input id="f-note" type="text" placeholder="Ví dụ: gọi trước khi giao, để hàng trước cửa..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
       </div>
       <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Giờ Giao Hàng (配達時間帯)</label>
@@ -931,10 +928,7 @@ function switchTab(type) {
           <label class="block text-sm font-semibold text-gray-700 mb-1.5">Địa Chỉ Nhận Hàng <span class="text-brand-red">*</span></label>
           <input id="f-r-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
         </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(nếu có)</span></label>
-          <input id="f-r-mailbox" type="text" placeholder="Ví dụ: 201" oninput="updateNewAddressConfirm()" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
-        </div>
+        <input id="f-r-mailbox" type="hidden" value="">
 
         <!-- Xác nhận địa chỉ nhận mới -->
         <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
