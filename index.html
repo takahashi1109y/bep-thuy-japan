@@ -944,9 +944,25 @@ function switchTab(type) {
       </div>
     </div>
 
+    <!-- Points redemption box (only visible when logged in member has points) -->
+    <div id="points-redeem-box" class="hidden mt-5 rounded-2xl p-4 border-2" style="background:linear-gradient(135deg,#FEF3C7,#FFF8F0);border-color:#D4A017">
+      <div class="flex items-start gap-3">
+        <div class="text-3xl">⭐</div>
+        <div class="flex-1">
+          <p class="font-bold text-brand-warm text-sm">Bạn có <span id="points-balance-display" class="text-brand-red font-black text-base">0</span> điểm thưởng</p>
+          <p class="text-xs text-gray-500 mt-0.5">1 điểm = ¥1 · Có thể trừ tối đa <span id="points-max-usable" class="font-semibold">0</span> điểm cho đơn này</p>
+          <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
+            <input type="checkbox" id="chk-use-points" onchange="togglePointsUsage()" class="w-4 h-4 shrink-0" style="accent-color:#C8102E">
+            <span class="text-sm font-semibold text-brand-dark">Dùng <span id="points-usable-num" class="text-brand-red">0</span> điểm → trừ <span id="points-discount-yen" class="text-brand-red">¥0</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <div id="total-summary-box" class="hidden mt-5 bg-red-50 rounded-2xl p-4">
       <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Tiền hàng:</span><span id="final-subtotal" class="font-semibold"></span></div>
-      <div class="flex justify-between text-sm text-gray-600 mb-2"><span>Phí ship (クール宅急便):</span><span id="final-ship" class="font-semibold text-blue-700"></span></div>
+      <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Phí ship (クール宅急便):</span><span id="final-ship" class="font-semibold text-blue-700"></span></div>
+      <div id="final-discount-row" class="hidden flex justify-between text-sm mb-2"><span class="text-green-700 font-semibold">⭐ Dùng điểm thưởng:</span><span id="final-discount" class="font-semibold text-green-700"></span></div>
       <hr class="border-red-200 mb-2">
       <div class="flex justify-between font-bold text-brand-dark text-base"><span>TỔNG CỘNG:</span><span id="final-total" class="text-brand-red text-xl"></span></div>
     </div>
@@ -1180,9 +1196,21 @@ function switchTab(type) {
   function updateTotalBox(){
     const box=document.getElementById('total-summary-box');
     if(!shipFee){ box.classList.add('hidden'); return; }
-    document.getElementById('final-subtotal').textContent=yen(subtotal());
+    const sub = subtotal();
+    const gross = sub + shipFee;
+    // Clamp pointsUsed to current usable amount (e.g., if shipping changed)
+    if (pointsUsed > gross) pointsUsed = gross;
+    const net = Math.max(0, gross - pointsUsed);
+    document.getElementById('final-subtotal').textContent=yen(sub);
     document.getElementById('final-ship').textContent=yen(shipFee);
-    document.getElementById('final-total').textContent=yen(subtotal()+shipFee);
+    const discRow = document.getElementById('final-discount-row');
+    if (pointsUsed > 0) {
+      document.getElementById('final-discount').textContent = '−' + yen(pointsUsed);
+      discRow.classList.remove('hidden');
+    } else {
+      discRow.classList.add('hidden');
+    }
+    document.getElementById('final-total').textContent=yen(net);
     box.classList.remove('hidden');
   }
 
@@ -1556,9 +1584,11 @@ function switchTab(type) {
   // SUPABASE INTEGRATION
   // ═══════════════════════════════════════════════════════════
   // >>> THAY ĐỔI 2 DÒNG NÀY SAU KHI TẠO PROJECT SUPABASE <<<
-  const SUPA_URL  = 'https://YOUR_PROJECT_ID.supabase.co';
-  const SUPA_ANON = 'YOUR_ANON_KEY_HERE';
+  const SUPA_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
+  const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1cmNzdnd2amtqZXd0b25raG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MTczNzksImV4cCI6MjA5MjA5MzM3OX0.LSZ1A1TRYGHVw5nZusNtv-gsU6oFCNy0hiA07kWZ2P0';
   let sbClient = null, sbUser = null, sbProfile = null;
+  let sbPointsBalance = 0;   // Total points member has
+  let pointsUsed = 0;         // Points applied to current order (0 or a value)
 
   async function initSupabase() {
     try {
@@ -1569,9 +1599,41 @@ function switchTab(type) {
         const { data: profile } = await sbClient.from('profiles')
           .select('*').eq('id', sbUser.id).single();
         sbProfile = profile;
+        // Load points balance
+        const { data: bal } = await sbClient.from('points_balance')
+          .select('total_points').eq('user_id', sbUser.id).single();
+        sbPointsBalance = bal?.total_points || 0;
         updateMemberUI();
       }
     } catch(e) { /* Supabase not configured yet */ }
+  }
+
+  // Max points redeemable for THIS order = min(balance, subtotal + ship)
+  function maxUsablePoints() {
+    if (!sbUser || sbPointsBalance <= 0) return 0;
+    const orderTotal = subtotal() + (shipFee || 0);
+    return Math.min(sbPointsBalance, orderTotal);
+  }
+
+  function togglePointsUsage() {
+    const chk = document.getElementById('chk-use-points');
+    pointsUsed = chk.checked ? maxUsablePoints() : 0;
+    updateTotalBox();
+  }
+
+  function showPointsBox() {
+    const box = document.getElementById('points-redeem-box');
+    if (!sbUser || sbPointsBalance <= 0) { box.classList.add('hidden'); return; }
+    const usable = maxUsablePoints();
+    document.getElementById('points-balance-display').textContent = sbPointsBalance.toLocaleString('ja-JP');
+    document.getElementById('points-max-usable').textContent = usable.toLocaleString('ja-JP');
+    document.getElementById('points-usable-num').textContent = usable.toLocaleString('ja-JP');
+    document.getElementById('points-discount-yen').textContent = yen(usable);
+    box.classList.remove('hidden');
+    // Reset checkbox when checkout opens
+    const chk = document.getElementById('chk-use-points');
+    chk.checked = false;
+    pointsUsed = 0;
   }
 
   function updateMemberUI() {
@@ -1604,26 +1666,34 @@ function switchTab(type) {
     }
   };
 
-  // Override goToCheckout to show Supabase member info
+  // Override goToCheckout to show Supabase member info + points redemption
   const originalGoToCheckout = goToCheckout;
   goToCheckout = function() {
     originalGoToCheckout();
     if (sbUser && sbProfile) {
       document.getElementById('member-banner-name').textContent = sbProfile.display_name || sbUser.email;
       document.getElementById('member-banner').classList.remove('hidden');
+      showPointsBox();
     }
   };
 
-  // Patch submitOrder to include userId for points
+  // Patch submitOrder to include userId + pointsUsed for points tracking
   const originalSubmitOrder = submitOrder;
   submitOrder = async function() {
-    // Inject userId into the fetch body
+    // Snapshot pointsUsed at time of submit (before fetch override replaces the body)
+    const pointsUsedThisOrder = pointsUsed;
     const origFetch = window.fetch;
     window.fetch = function(url, opts) {
       if (url === SCRIPT_URL && opts && opts.body && sbUser) {
         try {
           const body = JSON.parse(opts.body);
           body.userId = sbUser.id;
+          body.pointsUsed = pointsUsedThisOrder;
+          // Adjust total to reflect discount (GAS uses this for earning calc too)
+          if (typeof body.total === 'number') {
+            body.grossTotal = body.total;
+            body.total = Math.max(0, body.total - pointsUsedThisOrder);
+          }
           opts.body = JSON.stringify(body);
         } catch(e) {}
       }
@@ -1632,20 +1702,34 @@ function switchTab(type) {
     await originalSubmitOrder();
     window.fetch = origFetch;
 
-    // Show points earned message
+    // Optimistically update local balance (real balance refreshes on next page load)
+    if (sbUser && pointsUsedThisOrder > 0) {
+      sbPointsBalance = Math.max(0, sbPointsBalance - pointsUsedThisOrder);
+    }
+
+    // Show points earned/used message on receipt
     if (sbUser) {
       const totalEl = document.getElementById('final-total');
       if (totalEl) {
         const totalText = totalEl.textContent.replace(/[^0-9]/g, '');
-        const earnedPts = Math.floor(parseInt(totalText || '0') / 100);
-        if (earnedPts > 0) {
-          const receipt = document.getElementById('order-receipt');
-          if (receipt) {
-            receipt.innerHTML += `<p class="text-xs text-yellow-600 font-semibold mt-2">🌟 Bạn sẽ nhận ${earnedPts} điểm thưởng cho đơn này!</p>`;
+        const netTotal = parseInt(totalText || '0');
+        const earnedPts = Math.floor(netTotal / 100); // earn based on AMOUNT PAID (net)
+        const receipt = document.getElementById('order-receipt');
+        if (receipt) {
+          if (pointsUsedThisOrder > 0) {
+            receipt.innerHTML += `<p class="text-xs text-green-700 font-semibold mt-2">✅ Đã trừ ${pointsUsedThisOrder.toLocaleString('ja-JP')} điểm (−${yen(pointsUsedThisOrder)}) vào đơn này.</p>`;
+          }
+          if (earnedPts > 0) {
+            receipt.innerHTML += `<p class="text-xs text-yellow-600 font-semibold mt-1">🌟 Bạn sẽ nhận ${earnedPts} điểm thưởng cho đơn này!</p>`;
           }
         }
       }
     }
+
+    // Reset pointsUsed for potential next order
+    pointsUsed = 0;
+    const chk = document.getElementById('chk-use-points');
+    if (chk) chk.checked = false;
   };
 
   initSupabase();
