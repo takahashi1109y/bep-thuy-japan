@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bếp Thuỷ Japan — Đặc Sản Hà Nội Tại Nhật</title>
+  <title>Bếp Thuỷ Japan — Đặc Sản Phố Cổ Hà Nội Tại Nhật</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -37,6 +37,26 @@
     .btn-1kg:hover { background: linear-gradient(135deg, #8B3A0F, #C8102E); }
     .btn-box { background: linear-gradient(135deg, #D4A017, #b8860b); color: white; }
     .btn-box:hover { background: linear-gradient(135deg, #b8860b, #D4A017); }
+    /* Amazon-style weight/box selector */
+    .qty-select {
+      width: 100%; border: 2px solid #FED7AA; border-radius: 10px;
+      padding: 10px 36px 10px 12px; font-size: 14px; font-weight: 600;
+      background: white; color: #2C1A0E; cursor: pointer; transition: border-color .2s;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8102E' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      font-family: inherit;
+    }
+    .qty-select:hover, .qty-select:focus { border-color: #C8102E; outline: none; box-shadow: 0 0 0 3px rgba(200,16,46,.1); }
+    .qty-add-btn {
+      width: 100%; padding: 11px; border-radius: 12px; font-weight: 700; font-size: 14px;
+      background: linear-gradient(135deg,#C8102E,#8B3A0F); color: white; border: none; cursor: pointer;
+      transition: all .2s; margin-top: 8px;
+    }
+    .qty-add-btn:hover { background: linear-gradient(135deg,#8B3A0F,#C8102E); transform: translateY(-1px); box-shadow: 0 6px 14px rgba(200,16,46,.25); }
+    .qty-add-btn.box-style { background: linear-gradient(135deg, #D4A017, #b8860b); }
+    .qty-add-btn.box-style:hover { background: linear-gradient(135deg, #b8860b, #D4A017); box-shadow: 0 6px 14px rgba(212,160,23,.3); }
+    .qty-selector-label { font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; display: block; }
     .float-cart { position: fixed; bottom: 24px; right: 24px; z-index: 100; }
     .cart-badge { position: absolute; top: -8px; right: -8px; background: #C8102E; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
     .toast { position: fixed; bottom: 90px; right: 24px; z-index: 200; transform: translateX(120%); transition: transform 0.3s ease; }
@@ -87,7 +107,7 @@
   <div class="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
   <div class="absolute bottom-0 left-0 w-56 h-56 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(-30%,30%)"></div>
   <div class="relative z-10 max-w-2xl mx-auto">
-    <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Đặc Sản Hà Nội Tại Nhật ✦</p>
+    <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật ✦</p>
     <h1 class="text-4xl md:text-6xl font-bold mb-3 leading-tight">Bếp Thuỷ Japan</h1>
     <div class="gold-line"></div>
     <p class="text-yellow-100 text-lg mt-4 font-light italic">"Hạnh phúc là được ăn ngon"</p>
@@ -135,10 +155,7 @@
           <p class="text-gray-500 text-xs">Chuẩn vị Hà Nội</p>
           <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
           <p class="text-gray-600 text-sm mt-3 leading-relaxed">Giò gói lá chuối thơm, thịt heo xay mịn, chuẩn vị Hà Nội truyền thống.</p>
-          <div class="mt-4 flex gap-2">
-            <button onclick="addToCart(1,'[GT] Giò có tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-sm font-semibold">+ 500g<br><span class="text-xs font-normal">¥950</span></button>
-            <button onclick="addToCart(1,'[GT] Giò có tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-sm font-semibold">+ 1kg<br><span class="text-xs opacity-80">¥1,850</span></button>
-          </div>
+          <div class="mt-4 weight-selector" data-id="1" data-name="[GT] Giò có tiêu" data-default="1" data-half-price="925"></div>
         </div>
       </div>
       <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
@@ -148,10 +165,7 @@
           <p class="text-gray-500 text-xs">Chuẩn vị Hà Nội</p>
           <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
           <p class="text-gray-600 text-sm mt-3 leading-relaxed">Phù hợp cho trẻ em và người không ăn được cay. Thịt mịn, hương vị nhẹ nhàng.</p>
-          <div class="mt-4 flex gap-2">
-            <button onclick="addToCart(2,'[GKT] Giò không tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-sm font-semibold">+ 500g<br><span class="text-xs font-normal">¥950</span></button>
-            <button onclick="addToCart(2,'[GKT] Giò không tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-sm font-semibold">+ 1kg<br><span class="text-xs opacity-80">¥1,850</span></button>
-          </div>
+          <div class="mt-4 weight-selector" data-id="2" data-name="[GKT] Giò không tiêu" data-default="1" data-half-price="925"></div>
         </div>
       </div>
     </div>
@@ -169,10 +183,7 @@
           <p class="text-gray-500 text-xs">Thơm quế đặc trưng</p>
           <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Chả quế vàng ươm, thơm mùi quế tự nhiên, có hạt tiêu. Ăn kèm bánh mì sáng cực hợp.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(3,'[C] Chả quế có tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(3,'[C] Chả quế có tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="3" data-name="[C] Chả quế có tiêu" data-default="1" data-half-price="925"></div>
         </div>
       </div>
       <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
@@ -182,10 +193,7 @@
           <p class="text-gray-500 text-xs">Thơm quế đặc trưng</p>
           <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Hương quế thơm nức, không tiêu — cả gia đình đều ăn được, kể cả bé nhỏ.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(4,'[CKT] Chả quế không tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(4,'[CKT] Chả quế không tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="4" data-name="[CKT] Chả quế không tiêu" data-default="1" data-half-price="925"></div>
         </div>
       </div>
       <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
@@ -198,10 +206,7 @@
             <span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 rounded-full font-medium">Không Quế</span>
           </div>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Chả lụa trắng mịn, không quế, có hạt tiêu thơm. Vị đậm đà hơn chả lụa thường.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(10,'[CLUA TIEU] Chả lụa không quế có tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(10,'[CLUA TIEU] Chả lụa không quế có tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="10" data-name="[CLUA TIEU] Chả lụa không quế có tiêu" data-default="1" data-half-price="925"></div>
         </div>
       </div>
       <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
@@ -214,10 +219,7 @@
             <span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 rounded-full font-medium">Không Quế</span>
           </div>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Trắng mịn, vị thanh. Thích hợp cho người thích vị thuần túy.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(5,'[CLUA] Chả lụa không tiêu, không quế','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(5,'[CLUA] Chả lụa không tiêu, không quế','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="5" data-name="[CLUA] Chả lụa không tiêu, không quế" data-default="1" data-half-price="925"></div>
         </div>
       </div>
     </div>
@@ -235,10 +237,7 @@
           <p class="text-gray-500 text-xs">Viên mọc thịt heo</p>
           <span class="tag-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Có Tiêu</span>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Đậm đà vị tiêu thơm. Nấu bún mọc, lẩu, hay chiên đều ngon.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(6,'[M] Mọc có tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(6,'[M] Mọc có tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="6" data-name="[M] Mọc có tiêu" data-default="1" data-half-price="875"></div>
         </div>
       </div>
       <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-orange-100">
@@ -248,10 +247,7 @@
           <p class="text-gray-500 text-xs">Viên mọc thịt heo</p>
           <span class="tag-no-pepper text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-2">Không Tiêu</span>
           <p class="text-gray-600 text-xs mt-2 leading-relaxed">Thịt tươi mềm ngon — cả gia đình có trẻ nhỏ đều ăn được.</p>
-          <div class="mt-3 flex gap-2">
-            <button onclick="addToCart(7,'[MKT] Mọc không tiêu','500g',950,0.5)" class="btn-add btn-500 flex-1 py-2 rounded-xl text-xs font-semibold">+ 500g<br>¥950</button>
-            <button onclick="addToCart(7,'[MKT] Mọc không tiêu','1kg',1850,1.0)" class="btn-add btn-1kg flex-1 py-2 rounded-xl text-xs font-semibold">+ 1kg<br>¥1,850</button>
-          </div>
+          <div class="mt-3 weight-selector" data-id="7" data-name="[MKT] Mọc không tiêu" data-default="1" data-half-price="875"></div>
         </div>
       </div>
     </div>
@@ -269,8 +265,8 @@
           <p class="text-gray-500 text-xs">Hộp 500g · 10 cây + sốt Huế</p>
           <p class="text-gray-600 text-sm mt-3 leading-relaxed">Nem lụi thịt heo xiên que — ướp sả, tỏi, mắm ruốc. Nướng lên thơm cực kỳ!</p>
           <div class="mt-4">
-            <div class="flex justify-between items-center mb-2"><span class="text-brand-red font-bold text-xl">¥1,100</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
-            <button onclick="addToCart(8,'[Nem] Nem lụi cuốn sả Huế','hộp 500g',1100,0.5)" class="btn-add btn-box w-full py-2.5 rounded-xl text-sm font-semibold">+ Thêm vào giỏ</button>
+            <div class="flex justify-between items-center mb-3"><span class="text-brand-red font-bold text-xl">¥1,100</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
+            <div class="box-selector" data-id="8" data-name="[Nem] Nem lụi cuốn sả Huế" data-price="1100" data-max="10"></div>
           </div>
         </div>
       </div>
@@ -281,8 +277,8 @@
           <p class="text-gray-500 text-xs">Hộp 500g</p>
           <p class="text-gray-600 text-sm mt-3 leading-relaxed">Pate gan heo béo ngậy theo công thức phố cổ. Phết bánh mì sáng sớm — tuyệt!</p>
           <div class="mt-4">
-            <div class="flex justify-between items-center mb-2"><span class="text-brand-red font-bold text-xl">¥1,350</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
-            <button onclick="addToCart(9,'[Pte] PA TE','hộp 500g',1350,0.5)" class="btn-add btn-box w-full py-2.5 rounded-xl text-sm font-semibold">+ Thêm vào giỏ</button>
+            <div class="flex justify-between items-center mb-3"><span class="text-brand-red font-bold text-xl">¥1,350</span><span class="text-gray-400 text-xs">/ hộp 500g</span></div>
+            <div class="box-selector" data-id="9" data-name="[Pte] PA TE" data-price="1350" data-max="10"></div>
           </div>
         </div>
       </div>
@@ -737,6 +733,7 @@ function switchTab(type) {
     <p class="text-center text-xs text-gray-400 pb-5 pt-2">Thuỷ sẽ phản hồi trong vòng 30 phút ❤️</p>
   </div>
 </div>
+
 
 <!-- FLOATING BUTTONS -->
 <div style="position:fixed;bottom:24px;right:24px;z-index:100;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
@@ -1453,6 +1450,98 @@ function switchTab(type) {
     document.getElementById('total-summary-box').classList.add('hidden');
     showStep('cart-items-section'); closeCart();
   }
+
+  // ── AMAZON-STYLE QUANTITY SELECTORS ──
+  // Pricing: linear (cấp số nhân) = halfPrice * 2 * kg
+  //   Giò/Chả: halfPrice = 925 → 0.5kg=925, 1kg=1850, 2kg=3700...
+  //   Mọc:      halfPrice = 875 → 0.5kg=875, 1kg=1750, 2kg=3500...
+  function kgPrice(kg, halfPrice) {
+    kg = parseFloat(kg);
+    halfPrice = parseFloat(halfPrice) || 925;
+    return Math.round(halfPrice * 2 * kg);
+  }
+  function kgLabel(kg) {
+    return (kg === Math.floor(kg) ? String(kg) : kg.toFixed(1)) + ' kg';
+  }
+  function kgSize(kg) {
+    return (kg === Math.floor(kg) ? String(kg) : kg.toFixed(1)) + 'kg';
+  }
+
+  function buildKgOptions(selectedKg, halfPrice) {
+    let html = '';
+    for (let i = 1; i <= 30; i++) {
+      const kg = i * 0.5;
+      const sel = (kg === selectedKg) ? ' selected' : '';
+      html += `<option value="${kg}"${sel}>${kgLabel(kg)} — ${yen(kgPrice(kg, halfPrice))}</option>`;
+    }
+    return html;
+  }
+
+  function initWeightSelector(el) {
+    const selectedKg = parseFloat(el.dataset.default || 1);
+    const halfPrice = parseFloat(el.dataset.halfPrice || 925);
+    el.innerHTML = `
+      <label class="qty-selector-label">Khối lượng:</label>
+      <select class="qty-select" onchange="onWeightChange(this)">${buildKgOptions(selectedKg, halfPrice)}</select>
+      <button class="qty-add-btn" onclick="addWeightFromSelector(this)">
+        🛒 Thêm Vào Giỏ — <span class="wprice">${yen(kgPrice(selectedKg, halfPrice))}</span>
+      </button>`;
+  }
+
+  function onWeightChange(selectEl) {
+    const wrap = selectEl.closest('.weight-selector');
+    const kg = parseFloat(selectEl.value);
+    const halfPrice = parseFloat(wrap.dataset.halfPrice || 925);
+    wrap.querySelector('.wprice').textContent = yen(kgPrice(kg, halfPrice));
+  }
+
+  function addWeightFromSelector(btn) {
+    const wrap = btn.closest('.weight-selector');
+    const sel = wrap.querySelector('.qty-select');
+    const kg = parseFloat(sel.value);
+    const halfPrice = parseFloat(wrap.dataset.halfPrice || 925);
+    const id = parseInt(wrap.dataset.id, 10);
+    const name = wrap.dataset.name;
+    addToCart(id, name, kgSize(kg), kgPrice(kg, halfPrice), kg);
+  }
+
+  // Box selector (for nem lụi, pate — sold by hộp 500g)
+  function initBoxSelector(el) {
+    const basePrice = parseInt(el.dataset.price, 10);
+    const maxN = parseInt(el.dataset.max || 10, 10);
+    let opts = '';
+    for (let n = 1; n <= maxN; n++) {
+      opts += `<option value="${n}">${n} hộp (${(n*0.5).toFixed(1)} kg) — ${yen(n*basePrice)}</option>`;
+    }
+    el.innerHTML = `
+      <label class="qty-selector-label">Số lượng:</label>
+      <select class="qty-select" onchange="onBoxChange(this)">${opts}</select>
+      <button class="qty-add-btn box-style" onclick="addBoxFromSelector(this)">
+        🛒 Thêm Vào Giỏ — <span class="bprice">${yen(basePrice)}</span>
+      </button>`;
+  }
+  function onBoxChange(selectEl) {
+    const wrap = selectEl.closest('.box-selector');
+    const n = parseInt(selectEl.value, 10);
+    const basePrice = parseInt(wrap.dataset.price, 10);
+    wrap.querySelector('.bprice').textContent = yen(n * basePrice);
+  }
+  function addBoxFromSelector(btn) {
+    const wrap = btn.closest('.box-selector');
+    const sel = wrap.querySelector('.qty-select');
+    const n = parseInt(sel.value, 10);
+    const id = parseInt(wrap.dataset.id, 10);
+    const name = wrap.dataset.name;
+    const basePrice = parseInt(wrap.dataset.price, 10);
+    const size = n === 1 ? 'hộp 500g' : (n + ' × hộp 500g');
+    addToCart(id, name, size, n * basePrice, n * 0.5);
+  }
+
+  // Init all selectors on DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.weight-selector').forEach(initWeightSelector);
+    document.querySelectorAll('.box-selector').forEach(initBoxSelector);
+  });
 
   function openSiPopup(){
     document.getElementById('si-overlay').style.display='block';
