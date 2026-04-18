@@ -48,14 +48,15 @@
       font-family: inherit;
     }
     .qty-select:hover, .qty-select:focus { border-color: #C8102E; outline: none; box-shadow: 0 0 0 3px rgba(200,16,46,.1); }
+    /* Amazon-style yellow "Add to Cart" button — unified across all products */
     .qty-add-btn {
-      width: 100%; padding: 11px; border-radius: 12px; font-weight: 700; font-size: 14px;
-      background: linear-gradient(135deg,#C8102E,#8B3A0F); color: white; border: none; cursor: pointer;
-      transition: all .2s; margin-top: 8px;
+      width: 100%; padding: 11px; border-radius: 999px; font-weight: 700; font-size: 14px;
+      background: #FFD814; color: #111; border: 1px solid #FCD200; cursor: pointer;
+      transition: all .15s ease; margin-top: 8px;
+      box-shadow: 0 2px 5px rgba(213,217,217,.5);
     }
-    .qty-add-btn:hover { background: linear-gradient(135deg,#8B3A0F,#C8102E); transform: translateY(-1px); box-shadow: 0 6px 14px rgba(200,16,46,.25); }
-    .qty-add-btn.box-style { background: linear-gradient(135deg, #D4A017, #b8860b); }
-    .qty-add-btn.box-style:hover { background: linear-gradient(135deg, #b8860b, #D4A017); box-shadow: 0 6px 14px rgba(212,160,23,.3); }
+    .qty-add-btn:hover { background: #F7CA00; border-color: #F2C200; box-shadow: 0 3px 8px rgba(213,217,217,.7); }
+    .qty-add-btn:active { background: #F0B800; box-shadow: inset 0 1px 2px rgba(0,0,0,.15); }
     .qty-selector-label { font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; display: block; }
     .float-cart { position: fixed; bottom: 24px; right: 24px; z-index: 100; }
     .cart-badge { position: absolute; top: -8px; right: -8px; background: #C8102E; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
@@ -111,7 +112,7 @@
     <h1 class="text-4xl md:text-6xl font-bold mb-3 leading-tight">Bếp Thuỷ Japan</h1>
     <div class="gold-line"></div>
     <p class="text-yellow-100 text-lg mt-4 font-light italic">"Hạnh phúc là được ăn ngon"</p>
-    <p class="text-gray-300 mt-3 text-sm">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Hà Nội, làm tại Nhật</p>
+    <p class="text-gray-300 mt-3 text-sm">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Phố Cổ Hà Nội, làm tại Nhật</p>
     <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
       <a href="#products" class="inline-block text-white font-semibold px-8 py-3 rounded-full shadow-lg text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">🛒 Xem Thực Đơn</a>
       <a href="#huong-dan" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">📋 Hướng Dẫn Bảo Quản</a>
@@ -1516,7 +1517,7 @@ function switchTab(type) {
     el.innerHTML = `
       <label class="qty-selector-label">Số lượng:</label>
       <select class="qty-select" onchange="onBoxChange(this)">${opts}</select>
-      <button class="qty-add-btn box-style" onclick="addBoxFromSelector(this)">
+      <button class="qty-add-btn" onclick="addBoxFromSelector(this)">
         🛒 Thêm Vào Giỏ — <span class="bprice">${yen(basePrice)}</span>
       </button>`;
   }
