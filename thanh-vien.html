@@ -937,16 +937,26 @@ function showMsg(boxId, msg, isSuccess) {
 }
 
 async function saveProfile() {
+  if (!currentUser?.id) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) currentUser = session.user;
+    else { showMsg('prof-msg', 'Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.', false); return; }
+  }
+
   const name = document.getElementById('prof-name').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
   if (!name) { showMsg('prof-msg', 'Vui lòng nhập họ tên.', false); return; }
 
-  const { error } = await sb.from('profiles').update({
-    display_name: name, phone: phone
-  }).eq('id', currentUser.id);
+  try {
+    const { error } = await sb.from('profiles').update({
+      display_name: name, phone: phone
+    }).eq('id', currentUser.id);
+    if (error) { showMsg('prof-msg', 'Lỗi: ' + error.message, false); return; }
+  } catch (e) {
+    showMsg('prof-msg', 'Lỗi kết nối: ' + (e.message || e), false); return;
+  }
 
-  if (error) { showMsg('prof-msg', error.message, false); return; }
-  showMsg('prof-msg', 'Đã lưu thông tin!', true);
+  showMsg('prof-msg', '✅ Đã lưu thông tin!', true);
   document.getElementById('dash-name').textContent = name;
 
   // Update localStorage
@@ -959,18 +969,29 @@ async function saveProfile() {
 }
 
 async function saveAddress() {
+  // Guard: ensure user is authenticated (race with init())
+  if (!currentUser?.id) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) currentUser = session.user;
+    else { showMsg('addr-msg', 'Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.', false); return; }
+  }
+
   const prefecture = document.getElementById('addr-prefecture').value;
   const postal = document.getElementById('addr-postal').value.trim();
   const address = document.getElementById('addr-address').value.trim();
   const mailbox = document.getElementById('addr-mailbox').value.trim();
 
-  const { error } = await sb.from('profiles').update({
-    prefecture: prefecture || null, postal: postal || null,
-    address: address || null, mailbox: mailbox || null
-  }).eq('id', currentUser.id);
+  try {
+    const { error } = await sb.from('profiles').update({
+      prefecture: prefecture || null, postal: postal || null,
+      address: address || null, mailbox: mailbox || null
+    }).eq('id', currentUser.id);
+    if (error) { showMsg('addr-msg', 'Lỗi: ' + error.message, false); return; }
+  } catch (e) {
+    showMsg('addr-msg', 'Lỗi kết nối: ' + (e.message || e), false); return;
+  }
 
-  if (error) { showMsg('addr-msg', error.message, false); return; }
-  showMsg('addr-msg', 'Đã lưu địa chỉ!', true);
+  showMsg('addr-msg', '✅ Đã lưu địa chỉ!', true);
 
   // Update localStorage
   try {
@@ -982,14 +1003,25 @@ async function saveAddress() {
 }
 
 async function changePassword() {
+  if (!currentUser?.id) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) currentUser = session.user;
+    else { showMsg('pw-msg', 'Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.', false); return; }
+  }
+
   const pw = document.getElementById('pw-new').value;
   const pw2 = document.getElementById('pw-confirm').value;
   if (!pw || pw.length < 6) { showMsg('pw-msg', 'Mật khẩu tối thiểu 6 ký tự.', false); return; }
   if (pw !== pw2) { showMsg('pw-msg', 'Mật khẩu xác nhận không khớp.', false); return; }
 
-  const { error } = await sb.auth.updateUser({ password: pw });
-  if (error) { showMsg('pw-msg', error.message, false); return; }
-  showMsg('pw-msg', 'Đã đổi mật khẩu thành công!', true);
+  try {
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) { showMsg('pw-msg', 'Lỗi: ' + error.message, false); return; }
+  } catch (e) {
+    showMsg('pw-msg', 'Lỗi kết nối: ' + (e.message || e), false); return;
+  }
+
+  showMsg('pw-msg', '✅ Đã đổi mật khẩu thành công!', true);
   document.getElementById('pw-new').value = '';
   document.getElementById('pw-confirm').value = '';
 }
