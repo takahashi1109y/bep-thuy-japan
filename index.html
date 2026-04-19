@@ -25,6 +25,7 @@
     .product-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(200,16,46,0.12); }
     .img-placeholder { background: linear-gradient(135deg, #f5e6d3 0%, #e8c99a 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
     .badge { background: linear-gradient(135deg, #C8102E, #8B3A0F); }
+    .btn-cta-primary:hover { background: linear-gradient(135deg,#8B3A0F,#C8102E) !important; transform: translateY(-2px); box-shadow: 0 12px 28px rgba(200,16,46,0.45); }
     .btn-add { transition: all 0.2s ease; }
     .btn-add:hover { transform: scale(1.03); }
     .btn-500 { background: #fff; border: 2px solid #C8102E; color: #C8102E; }
@@ -110,7 +111,7 @@
     <p class="text-yellow-100 text-lg mt-4 font-light italic">"Hạnh phúc là được ăn ngon"</p>
     <p class="text-gray-300 mt-3 text-sm">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Phố Cổ Hà Nội, làm tại Nhật</p>
     <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-      <a href="#products" class="inline-block text-white font-semibold px-8 py-3 rounded-full shadow-lg text-sm" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">🛒 Xem Thực Đơn</a>
+      <a href="#products" class="btn-cta-primary inline-block text-white font-semibold px-8 py-3 rounded-full shadow-lg text-sm transition-all" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">🛒 Xem Thực Đơn</a>
       <a href="#huong-dan" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">📋 Hướng Dẫn Bảo Quản</a>
       <a href="#shipping" class="inline-block border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🚚 Bảng Phí Ship</a>
       <button onclick="openCart()" class="border border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-yellow-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">🛍️ Giỏ Hàng</button>
