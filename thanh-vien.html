@@ -434,16 +434,36 @@ async function init() {
 async function tryClaimWelcomeBonus() {
   try {
     const { data, error } = await sb.rpc('claim_welcome_bonus');
-    if (error) { console.warn('Welcome claim error:', error); return; }
+    if (error) {
+      console.error('Welcome claim error:', error);
+      showWelcomeClaimError(error.message || 'Lỗi không xác định. Vui lòng liên hệ support@thuyjapan.com');
+      return;
+    }
     if (data && data.ok) {
-      // Thanh cong -> hien banner chuc mung
       showWelcomeClaimSuccess(data.points || 100);
+      // Refresh points cache so UI updates immediately
+      try {
+        const cur = parseInt(localStorage.getItem('bepthuy_points') || '0', 10);
+        localStorage.setItem('bepthuy_points', String(cur + (data.points || 100)));
+      } catch(e) {}
     } else if (data && data.error === 'already_claimed') {
       showWelcomeClaimAlreadyClaimed();
+    } else {
+      showWelcomeClaimError('Phản hồi không hợp lệ từ server. Liên hệ support@thuyjapan.com');
     }
   } catch (e) {
-    console.warn('Claim RPC failed:', e);
+    console.error('Claim RPC failed:', e);
+    showWelcomeClaimError('Lỗi kết nối: ' + (e.message || e));
   }
+}
+
+function showWelcomeClaimError(msg) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#FEE2E2;border:2px solid #DC2626;border-radius:12px;padding:16px 22px;z-index:9999;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,0.15)';
+  banner.innerHTML = '<p style="margin:0 0 8px;color:#7F1D1D;font-weight:bold">⚠️ Không nhận được điểm</p>' +
+    '<p style="margin:0;color:#991B1B;font-size:13px">' + msg + '</p>' +
+    '<button onclick="this.parentElement.remove()" style="margin-top:10px;background:#DC2626;color:white;border:none;padding:6px 16px;border-radius:6px;font-weight:bold;cursor:pointer">Đóng</button>';
+  document.body.appendChild(banner);
 }
 
 function showWelcomeClaimSuccess(pts) {
@@ -652,11 +672,21 @@ async function doForgotPassword() {
 }
 
 async function doLogout() {
-  await sb.auth.signOut();
+  // Clear local state IMMEDIATELY (don't wait for network)
   currentUser = null;
   currentProfile = null;
-  try { localStorage.removeItem('bepthuy_member'); } catch(e) {}
+  try {
+    localStorage.removeItem('bepthuy_member');
+    localStorage.removeItem('bepthuy_points');
+  } catch(e) {}
+
+  // Show auth section ngay (don't block on signOut)
   showSection('auth');
+
+  // Reload page to reset all state cleanly
+  // (signOut runs in background; reload handles UI fully)
+  try { await sb.auth.signOut(); } catch(e) { console.warn('signOut err:', e); }
+  window.location.href = '/thanh-vien';
 }
 
 // ═══════════════════════════════════════════════════════════
