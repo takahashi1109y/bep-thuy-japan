@@ -1671,8 +1671,16 @@ function switchTab(type) {
   goToCheckout = function() {
     originalGoToCheckout();
     if (sbUser && sbProfile) {
-      document.getElementById('member-banner-name').textContent = sbProfile.display_name || sbUser.email;
-      document.getElementById('member-banner').classList.remove('hidden');
+      // Auto-fill form fields immediately (no need to click banner)
+      fillMemberInfo();
+      // Show a subtle logged-in confirmation banner instead of "click to fill"
+      const banner = document.getElementById('member-banner');
+      const bannerName = document.getElementById('member-banner-name');
+      bannerName.textContent = sbProfile.display_name || sbUser.email;
+      banner.innerHTML = `<div class="flex items-center gap-2">
+        <p class="font-semibold text-green-800 text-sm">✅ Đã đăng nhập: <span class="text-green-900">${sbProfile.display_name || sbUser.email}</span> — Thông tin đã được điền tự động.</p>
+      </div>`;
+      banner.classList.remove('hidden');
       showPointsBox();
     }
   };

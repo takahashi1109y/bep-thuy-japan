@@ -432,7 +432,19 @@ async function doRegister() {
     return;
   }
 
-  currentUser = data.user;
+  // If email confirmation is enabled, signUp returns user but no session.
+  // Immediately sign in to establish a session so user stays logged in on reload.
+  if (!data.session) {
+    const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
+    if (loginErr) {
+      showError('reg-error', 'Đăng ký thành công nhưng chưa đăng nhập được tự động. Vui lòng kiểm tra email để xác nhận tài khoản, rồi đăng nhập lại.');
+      btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+      return;
+    }
+    currentUser = loginData.user;
+  } else {
+    currentUser = data.user;
+  }
 
   // Update profile with additional info
   if (currentUser) {
