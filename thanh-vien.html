@@ -118,7 +118,8 @@
     </div>
 
     <!-- Register Form -->
-    <div id="form-register" class="hidden p-6 space-y-4">
+    <div id="form-register" class="hidden p-6">
+     <div id="reg-form-wrap" class="space-y-4">
       <div>
         <label class="field-label">Email <span class="text-brand-red">*</span></label>
         <input id="reg-email" type="email" placeholder="email@gmail.com" class="field-input">
@@ -159,6 +160,28 @@
       <div id="reg-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
       <button id="reg-btn" onclick="doRegister()" class="btn-primary w-full py-4 text-base">Đăng Ký Thành Viên</button>
       <p class="text-center text-xs text-gray-400">Miễn phí · Không ràng buộc</p>
+     </div>
+
+     <!-- Email confirmation screen (shown after successful signup) -->
+     <div id="reg-confirm-box" class="hidden text-center py-6 space-y-5">
+       <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#FEF3C7,#FFF8F0);border:3px solid #D4A017">📧</div>
+       <h3 class="text-2xl font-bold text-brand-dark">Kiểm Tra Email Của Anh/Chị</h3>
+       <p class="text-gray-600 text-sm leading-relaxed">
+         Chúng em đã gửi link xác nhận đến:<br>
+         <span id="reg-confirm-email" class="font-bold text-brand-red text-base block mt-1"></span>
+       </p>
+       <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left text-sm text-yellow-900 space-y-2">
+         <p class="font-semibold">📌 Các bước tiếp theo:</p>
+         <ol class="list-decimal ml-5 space-y-1">
+           <li>Mở hộp thư (kể cả thư mục <strong>Spam / Quảng cáo</strong>)</li>
+           <li>Tìm email từ <strong>Bếp Thuỷ Japan</strong> hoặc <strong>Supabase</strong></li>
+           <li>Bấm vào nút/link <strong>"Confirm your email"</strong></li>
+           <li>Trang sẽ tự quay về đây và đăng nhập tự động ✅</li>
+         </ol>
+       </div>
+       <p class="text-xs text-gray-500">Không nhận được email? Đợi 2-3 phút rồi kiểm tra lại Spam. Hoặc dùng <a href="javascript:void(0)" onclick="location.reload()" class="text-brand-red underline">đăng ký lại</a> với email khác.</p>
+       <button onclick="switchAuthTab('login'); document.getElementById('reg-confirm-box').classList.add('hidden'); document.getElementById('reg-form-wrap').classList.remove('hidden');" class="btn-primary w-full py-3 text-sm">← Quay lại đăng nhập</button>
+     </div>
     </div>
   </div>
 </section>
@@ -423,7 +446,10 @@ async function doRegister() {
 
   const { data, error } = await sb.auth.signUp({
     email, password,
-    options: { data: { display_name: name, phone: phone } }
+    options: {
+      data: { display_name: name, phone: phone, prefecture: prefecture || null },
+      emailRedirectTo: window.location.origin + '/thanh-vien'
+    }
   });
 
   if (error) {
@@ -432,19 +458,28 @@ async function doRegister() {
     return;
   }
 
-  // If email confirmation is enabled, signUp returns user but no session.
-  // Immediately sign in to establish a session so user stays logged in on reload.
+  // Email confirmation is REQUIRED — signUp returns user but NO session.
+  // Show "check your email" screen instead of dashboard.
   if (!data.session) {
-    const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
-    if (loginErr) {
-      showError('reg-error', 'Đăng ký thành công nhưng chưa đăng nhập được tự động. Vui lòng kiểm tra email để xác nhận tài khoản, rồi đăng nhập lại.');
-      btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
-      return;
+    // Save registration info to localStorage so checkout form can prefill
+    // even before the user confirms their email
+    try {
+      localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, prefecture }));
+    } catch(e) {}
+
+    document.getElementById('reg-form-wrap').classList.add('hidden');
+    const confirmBox = document.getElementById('reg-confirm-box');
+    if (confirmBox) {
+      document.getElementById('reg-confirm-email').textContent = email;
+      confirmBox.classList.remove('hidden');
+    } else {
+      alert('✅ Đăng ký thành công!\n\nChúng tôi đã gửi email xác nhận đến ' + email + '.\n\nVui lòng kiểm tra hộp thư (kể cả Spam) và bấm vào link xác nhận để hoàn tất đăng ký.');
     }
-    currentUser = loginData.user;
-  } else {
-    currentUser = data.user;
+    btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+    return;
   }
+
+  currentUser = data.user;
 
   // Update profile with additional info
   if (currentUser) {
