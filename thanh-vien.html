@@ -800,21 +800,27 @@ async function submitForgotPassword() {
 }
 
 async function doLogout() {
-  // Clear local state IMMEDIATELY (don't wait for network)
   currentUser = null;
   currentProfile = null;
+
+  // Clear ALL Supabase-related localStorage keys + our own cache
   try {
-    localStorage.removeItem('bepthuy_member');
-    localStorage.removeItem('bepthuy_points');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-') || k === 'bepthuy_member' || k === 'bepthuy_points') {
+        localStorage.removeItem(k);
+      }
+    });
+    // Same for sessionStorage
+    Object.keys(sessionStorage).forEach(k => {
+      if (k.startsWith('sb-')) sessionStorage.removeItem(k);
+    });
   } catch(e) {}
 
-  // Show auth section ngay (don't block on signOut)
-  showSection('auth');
-
-  // Reload page to reset all state cleanly
-  // (signOut runs in background; reload handles UI fully)
+  // Then call signOut (server-side invalidate)
   try { await sb.auth.signOut(); } catch(e) { console.warn('signOut err:', e); }
-  window.location.href = '/thanh-vien';
+
+  // Navigate to HOMEPAGE (not /thanh-vien) — user expects to go "out"
+  window.location.href = '/';
 }
 
 // ═══════════════════════════════════════════════════════════
