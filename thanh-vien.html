@@ -305,10 +305,8 @@
           <label class="field-label">Địa Chỉ Chi Tiết</label>
           <input id="addr-address" type="text" placeholder="Quận/Huyện, Số nhà, Tên đường..." class="field-input">
         </div>
-        <div>
-          <label class="field-label">Mã Hòm Thư <span class="text-gray-400 font-normal text-xs">(nếu có)</span></label>
-          <input id="addr-mailbox" type="text" placeholder="Ví dụ: 201" class="field-input">
-        </div>
+        <!-- Mailbox field removed — can be confused with Mã Bưu Điện (郵便番号) -->
+        <input id="addr-mailbox" type="hidden" value="">
         <div id="addr-msg" class="hidden text-sm rounded-xl p-3"></div>
         <button onclick="saveAddress()" class="btn-primary w-full py-3 text-sm">Lưu Địa Chỉ</button>
       </div>
