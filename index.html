@@ -4,23 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bếp Thuỷ Japan — Đặc Sản Phố Cổ Hà Nội Tại Nhật</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: { red: '#C8102E', gold: '#D4A017', cream: '#FFF8F0', dark: '#2C1A0E', warm: '#8B3A0F' }
-          },
-          fontFamily: { serif: ['Georgia', 'Cambria', 'serif'] }
-        }
-      }
-    }
-  </script>
+  <!-- Performance: preconnect to external origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://curcsvwvjkjewtonkhnr.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"></noscript>
+  <!-- Pre-compiled Tailwind (24KB instead of 300KB CDN) -->
+  <link rel="stylesheet" href="/assets/tailwind.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #FFF8F0; }
     h1, h2, h3 { font-family: 'Playfair Display', serif; }
     .hero-bg { background: linear-gradient(135deg, #2C1A0E 0%, #8B3A0F 50%, #C8102E 100%); }
@@ -1096,6 +1092,10 @@ function switchTab(type) {
     <button onclick="resetAndClose()" class="w-full text-gray-500 text-sm hover:text-gray-700 underline py-2">Đặt thêm hàng</button>
   </div>
 </div>
+
+<!-- External JS libraries loaded at end of body (non-blocking page render) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
   // ── CONFIG ──

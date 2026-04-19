@@ -4,22 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Thành Viên — Bếp Thuỷ Japan</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: { red: '#C8102E', gold: '#D4A017', cream: '#FFF8F0', dark: '#2C1A0E', warm: '#8B3A0F' }
-          },
-          fontFamily: { serif: ['Georgia','Cambria','serif'] }
-        }
-      }
-    }
-  </script>
+  <!-- Performance: preconnect to external origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://curcsvwvjkjewtonkhnr.supabase.co" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"></noscript>
+  <!-- Pre-compiled Tailwind (24KB instead of 300KB CDN) -->
+  <link rel="stylesheet" href="/assets/tailwind.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #FFF8F0; }
     h1, h2, h3 { font-family: 'Playfair Display', serif; }
     .hero-bg { background: linear-gradient(135deg, #2C1A0E 0%, #8B3A0F 50%, #C8102E 100%); }
@@ -358,6 +353,8 @@
   <p class="text-xs mt-2 text-gray-600">© 2026 Bếp Thuỷ Japan</p>
 </footer>
 
+<!-- Supabase JS loaded at end of body to not block page render -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SUPABASE CONFIG
