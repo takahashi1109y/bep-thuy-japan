@@ -546,9 +546,12 @@ async function doLogin() {
     }
   } catch(e) {}
 
-  await loadDashboard();
+  // Show dashboard NGAY (don't wait for queries)
   showSection('dashboard');
   btn.disabled = false; btn.textContent = 'Đăng Nhập';
+
+  // Load data in background — errors won't block the UI
+  loadDashboard().catch(e => console.error('loadDashboard err:', e));
 }
 
 async function doRegister() {
@@ -704,14 +707,14 @@ function switchDashTab(tab) {
 async function loadDashboard() {
   if (!currentUser) return;
 
-  // Run all 4 queries in PARALLEL (was sequential — 4× faster)
+  // Run all 4 queries in PARALLEL with allSettled (1 fail won't break others)
   const uid = currentUser.id;
-  const [profileRes, balRes, historyRes, couponsRes] = await Promise.all([
+  const [profileRes, balRes, historyRes, couponsRes] = await Promise.allSettled([
     sb.from('profiles').select('*').eq('id', uid).single(),
     sb.from('points_balance').select('total_points').eq('user_id', uid).single(),
     sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
     sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false })
-  ]);
+  ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason }));
 
   const profile = profileRes.data;
   currentProfile = profile;
