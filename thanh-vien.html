@@ -157,6 +157,15 @@
           <optgroup label="沖縄 Okinawa"><option value="沖縄県">沖縄県 - Okinawa</option></optgroup>
         </select>
       </div>
+      <div>
+        <label class="field-label">Mã Bưu Điện (〒Postal Code)</label>
+        <input id="reg-postal" type="text" placeholder="123-4567" class="field-input">
+      </div>
+      <div>
+        <label class="field-label">Địa Chỉ Đầy Đủ</label>
+        <textarea id="reg-address" rows="2" placeholder="Ví dụ: 〇〇市〇〇町1-2-3 アパート名 101号室" class="field-input"></textarea>
+        <p class="text-xs text-gray-400 mt-1">Địa chỉ này sẽ tự động điền vào form đặt hàng.</p>
+      </div>
       <div id="reg-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
       <button id="reg-btn" onclick="doRegister()" class="btn-primary w-full py-4 text-base">Đăng Ký Thành Viên</button>
       <p class="text-center text-xs text-gray-400">Miễn phí · Không ràng buộc</p>
@@ -191,6 +200,14 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 <section id="dashboard-section" class="hidden py-10 px-4">
   <div class="max-w-2xl mx-auto">
+
+    <!-- Top Bar: Home + Logout -->
+    <div class="flex justify-between items-center mb-4">
+      <a href="/" class="text-sm text-gray-600 hover:text-brand-red transition-colors">← Trang Chủ</a>
+      <button onclick="doLogout()" class="flex items-center gap-2 bg-white border-2 border-brand-red text-brand-red hover:bg-brand-red hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
+        🚪 Đăng Xuất
+      </button>
+    </div>
 
     <!-- Welcome Banner -->
     <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 mb-6 text-center">
@@ -433,6 +450,8 @@ async function doRegister() {
   const name = document.getElementById('reg-name').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
   const prefecture = document.getElementById('reg-prefecture').value;
+  const postal = document.getElementById('reg-postal').value.trim();
+  const address = document.getElementById('reg-address').value.trim();
 
   if (!email) { showError('reg-error', 'Vui lòng nhập email.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('reg-error', 'Email không hợp lệ.'); return; }
@@ -447,7 +466,13 @@ async function doRegister() {
   const { data, error } = await sb.auth.signUp({
     email, password,
     options: {
-      data: { display_name: name, phone: phone, prefecture: prefecture || null },
+      data: {
+        display_name: name,
+        phone: phone,
+        prefecture: prefecture || null,
+        postal: postal || null,
+        address: address || null
+      },
       emailRedirectTo: window.location.origin + '/thanh-vien'
     }
   });
@@ -464,7 +489,7 @@ async function doRegister() {
     // Save registration info to localStorage so checkout form can prefill
     // even before the user confirms their email
     try {
-      localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, prefecture }));
+      localStorage.setItem('bepthuy_member', JSON.stringify({ name, phone, email, prefecture, postal, address }));
     } catch(e) {}
 
     // Dong bo sang Google Sheet "Thanh Vien" + GetResponse de remarketing
@@ -481,6 +506,8 @@ async function doRegister() {
           phone: phone,
           email: email,
           prefecture: prefecture || '',
+          postal: postal || '',
+          address: address || '',
           products: '',
           note: 'Dang ky qua trang thanh-vien'
         })
@@ -506,7 +533,9 @@ async function doRegister() {
     await sb.from('profiles').update({
       display_name: name,
       phone: phone,
-      prefecture: prefecture || null
+      prefecture: prefecture || null,
+      postal: postal || null,
+      address: address || null
     }).eq('id', currentUser.id);
   }
 
