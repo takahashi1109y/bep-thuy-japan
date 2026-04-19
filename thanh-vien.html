@@ -369,23 +369,60 @@ let currentProfile = null;
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
+// Optimistic render: hien dashboard NGAY tu localStorage, refresh tu Supabase sau
+function renderDashboardFromCache() {
+  try {
+    const m = JSON.parse(localStorage.getItem('bepthuy_member') || 'null');
+    const cachedPoints = parseInt(localStorage.getItem('bepthuy_points') || '0', 10);
+    if (m && m.userId && m.email) {
+      // Co cached user -> show dashboard skeleton ngay (khong doi Supabase)
+      document.getElementById('dash-name').textContent = m.name || m.email;
+      document.getElementById('dash-points-big').textContent = cachedPoints.toLocaleString();
+      // Pre-fill forms from cache
+      const setIfExists = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+      setIfExists('prof-email', m.email);
+      setIfExists('prof-name', m.name);
+      setIfExists('prof-phone', m.phone);
+      setIfExists('addr-prefecture', m.prefecture);
+      setIfExists('addr-postal', m.postal);
+      setIfExists('addr-address', m.address);
+      showSection('dashboard');
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 async function init() {
+  // BUOC 1: Render tu cache truoc -> user thay UI ngay lap tuc
+  const renderedFromCache = renderDashboardFromCache();
+  if (!renderedFromCache) {
+    // Khong co cache -> show auth ngay (nhanh hon "loading")
+    showSection('auth');
+  }
+
+  // BUOC 2: Verify session voi Supabase (background)
   const { data: { session } } = await sb.auth.getSession();
+
   if (session) {
     currentUser = session.user;
 
-    // Kiem tra link kich hoat tu welcome email: /thanh-vien?claim=welcome
+    // Kiem tra link kich hoat tu welcome email
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('claim') === 'welcome') {
       await tryClaimWelcomeBonus();
-      // Xoa query param khoi URL (giu lich su sach)
       history.replaceState({}, '', '/thanh-vien');
     }
 
-    await loadDashboard();
-    showSection('dashboard');
+    // Neu chua hien dashboard tu cache -> hien ngay
+    if (!renderedFromCache) showSection('dashboard');
+
+    // Refresh data tu Supabase (background, khong block UI)
+    loadDashboard().catch(e => console.warn('Dashboard refresh err:', e));
   } else {
-    // Chua dang nhap nhung co link claim -> nho tu dong claim sau khi login
+    // Session khong hop le -> clear cache + show auth
+    localStorage.removeItem('bepthuy_member');
+    localStorage.removeItem('bepthuy_points');
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('claim') === 'welcome') {
       try { sessionStorage.setItem('pending_welcome_claim', '1'); } catch(e) {}
@@ -655,6 +692,7 @@ async function loadDashboard() {
 
   const totalPoints = balRes.data?.total_points || 0;
   document.getElementById('dash-points-big').textContent = totalPoints.toLocaleString();
+  try { localStorage.setItem('bepthuy_points', String(totalPoints)); } catch(e) {}
 
   // Show redeem box if enough points
   document.getElementById('redeem-box').classList.toggle('hidden', totalPoints < 500);
