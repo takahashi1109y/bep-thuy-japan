@@ -234,6 +234,42 @@
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SET NEW PASSWORD SECTION (after clicking reset link) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="reset-pw-section" class="hidden py-10 px-4">
+  <div class="max-w-md mx-auto">
+    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 sm:p-8">
+      <div class="text-center mb-6">
+        <div class="text-5xl mb-3">🔑</div>
+        <h2 class="text-2xl font-bold text-brand-dark font-serif">Đặt Mật Khẩu Mới</h2>
+        <p class="text-gray-500 text-sm mt-2">Anh/chị đã xác nhận email. Vui lòng nhập mật khẩu mới để hoàn tất.</p>
+      </div>
+
+      <div id="reset-pw-form-wrap" class="space-y-4">
+        <div>
+          <label class="field-label">Mật khẩu mới <span class="text-brand-red">*</span> <span class="text-gray-400 font-normal text-xs">(tối thiểu 6 ký tự)</span></label>
+          <input id="reset-pw-new" type="password" placeholder="••••••••" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Xác nhận mật khẩu mới <span class="text-brand-red">*</span></label>
+          <input id="reset-pw-confirm" type="password" placeholder="••••••••" class="field-input">
+        </div>
+        <div id="reset-pw-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
+        <button id="reset-pw-btn" onclick="submitNewPassword()" class="btn-primary w-full py-4 text-base">Đặt Mật Khẩu Mới</button>
+      </div>
+
+      <!-- Success state -->
+      <div id="reset-pw-success" class="hidden text-center space-y-4">
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#D1FAE5,#FFF8F0);border:3px solid #10B981">✅</div>
+        <h3 class="text-xl font-bold text-brand-dark">Đổi mật khẩu thành công!</h3>
+        <p class="text-gray-600 text-sm">Mật khẩu của anh/chị đã được cập nhật. Bây giờ có thể đăng nhập bình thường.</p>
+        <button onclick="showSection('auth'); switchAuthTab('login');" class="btn-primary w-full py-3 text-sm">→ Đăng Nhập Ngay</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- DASHBOARD SECTION (logged in) -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <section id="dashboard-section" class="hidden py-10 px-4">
@@ -436,7 +472,20 @@ function renderDashboardFromCache() {
   return false;
 }
 
+// Detect if URL contains password recovery token (Supabase puts it in #hash)
+function isPasswordRecoveryUrl() {
+  const h = window.location.hash || '';
+  return h.includes('type=recovery') || h.includes('type=password_recovery');
+}
+
 async function init() {
+  // BUOC 0: Neu URL co recovery token -> hien trang dat mat khau moi NGAY
+  if (isPasswordRecoveryUrl()) {
+    showSection('reset-pw');
+    // Don't run normal init flow
+    return;
+  }
+
   // BUOC 1: Render tu cache truoc -> user thay UI ngay lap tuc
   const renderedFromCache = renderDashboardFromCache();
   if (!renderedFromCache) {
@@ -534,6 +583,8 @@ function showSection(name) {
   document.getElementById('dashboard-section').classList.toggle('hidden', name !== 'dashboard');
   const fs = document.getElementById('forgot-section');
   if (fs) fs.classList.toggle('hidden', name !== 'forgot');
+  const rs = document.getElementById('reset-pw-section');
+  if (rs) rs.classList.toggle('hidden', name !== 'reset-pw');
   if (name === 'forgot') {
     // Reset form state when entering
     document.getElementById('forgot-form-wrap').classList.remove('hidden');
@@ -972,12 +1023,42 @@ function formatPostal(el) {
   el.value = v;
 }
 
+// Submit new password (sau khi click link reset email)
+async function submitNewPassword() {
+  hideError('reset-pw-error');
+  const pw = document.getElementById('reset-pw-new').value;
+  const pw2 = document.getElementById('reset-pw-confirm').value;
+  if (!pw || pw.length < 6) { showError('reset-pw-error', 'Mật khẩu tối thiểu 6 ký tự.'); return; }
+  if (pw !== pw2) { showError('reset-pw-error', 'Mật khẩu xác nhận không khớp.'); return; }
+
+  const btn = document.getElementById('reset-pw-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang cập nhật...';
+
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) {
+    showError('reset-pw-error', error.message);
+    btn.disabled = false; btn.textContent = 'Đặt Mật Khẩu Mới';
+    return;
+  }
+
+  // Sign out so user must log in with new password (clean state)
+  try { await sb.auth.signOut(); } catch(e) {}
+  try {
+    localStorage.removeItem('bepthuy_member');
+    localStorage.removeItem('bepthuy_points');
+  } catch(e) {}
+
+  // Show success state
+  document.getElementById('reset-pw-form-wrap').classList.add('hidden');
+  document.getElementById('reset-pw-success').classList.remove('hidden');
+  // Clean URL hash
+  history.replaceState({}, '', '/thanh-vien');
+}
+
 // Listen for auth state changes (e.g. password reset redirect)
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
-    showSection('dashboard');
-    switchDashTab('password');
-    alert('Vui lòng nhập mật khẩu mới.');
+    showSection('reset-pw');
   }
   if (event === 'SIGNED_IN' && session && !currentUser) {
     currentUser = session.user;
