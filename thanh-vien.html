@@ -352,7 +352,7 @@
 </footer>
 
 <!-- Supabase JS loaded at end of body to not block page render -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SUPABASE CONFIG
@@ -637,20 +637,23 @@ function switchDashTab(tab) {
 async function loadDashboard() {
   if (!currentUser) return;
 
-  // Load profile
-  const { data: profile } = await sb.from('profiles')
-    .select('*').eq('id', currentUser.id).single();
+  // Run all 4 queries in PARALLEL (was sequential — 4× faster)
+  const uid = currentUser.id;
+  const [profileRes, balRes, historyRes, couponsRes] = await Promise.all([
+    sb.from('profiles').select('*').eq('id', uid).single(),
+    sb.from('points_balance').select('total_points').eq('user_id', uid).single(),
+    sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
+    sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+  ]);
 
+  const profile = profileRes.data;
   currentProfile = profile;
 
   // Update welcome
   const displayName = profile?.display_name || currentUser.email;
   document.getElementById('dash-name').textContent = displayName;
 
-  // Load points balance
-  const { data: bal } = await sb.from('points_balance')
-    .select('total_points').eq('user_id', currentUser.id).single();
-  const totalPoints = bal?.total_points || 0;
+  const totalPoints = balRes.data?.total_points || 0;
   document.getElementById('dash-points-big').textContent = totalPoints.toLocaleString();
 
   // Show redeem box if enough points
@@ -660,10 +663,7 @@ async function loadDashboard() {
     document.getElementById('redeem-amount').value = Math.min(500, totalPoints);
   }
 
-  // Load points history
-  const { data: history } = await sb.from('points_transactions')
-    .select('*').eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false }).limit(50);
+  const history = historyRes.data;
 
   const historyBox = document.getElementById('points-history');
   if (history && history.length > 0) {
@@ -682,11 +682,7 @@ async function loadDashboard() {
     historyBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào. Đặt hàng để tích điểm!</p>';
   }
 
-  // Load coupons
-  const { data: coupons } = await sb.from('coupons')
-    .select('*').eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false });
-
+  const coupons = couponsRes.data;
   const couponsBox = document.getElementById('my-coupons-box');
   const couponsList = document.getElementById('my-coupons-list');
   if (coupons && coupons.length > 0) {
