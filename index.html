@@ -946,11 +946,14 @@ function switchTab(type) {
         <div class="text-3xl">⭐</div>
         <div class="flex-1">
           <p class="font-bold text-brand-warm text-sm">Bạn có <span id="points-balance-display" class="text-brand-red font-black text-base">0</span> điểm thưởng</p>
-          <p class="text-xs text-gray-500 mt-0.5">1 điểm = ¥1 · Có thể trừ tối đa <span id="points-max-usable" class="font-semibold">0</span> điểm cho đơn này</p>
-          <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
-            <input type="checkbox" id="chk-use-points" onchange="togglePointsUsage()" class="w-4 h-4 shrink-0" style="accent-color:#C8102E">
-            <span class="text-sm font-semibold text-brand-dark">Dùng <span id="points-usable-num" class="text-brand-red">0</span> điểm → trừ <span id="points-discount-yen" class="text-brand-red">¥0</span></span>
-          </label>
+          <p class="text-xs text-gray-500 mt-0.5">1 điểm = ¥1 · Dùng theo bội số <strong>50 điểm</strong> · Tối đa <span id="points-max-usable" class="font-semibold">0</span> điểm cho đơn này</p>
+          <div class="mt-3 flex items-center gap-2">
+            <label for="select-points" class="text-sm font-semibold text-brand-dark shrink-0">Dùng:</label>
+            <select id="select-points" onchange="onPointsSelectChange()" class="flex-1 border-2 border-amber-300 bg-white rounded-xl px-3 py-2 text-sm font-semibold focus:border-brand-red focus:outline-none">
+              <option value="0">Không dùng điểm</option>
+            </select>
+            <span class="text-sm font-semibold text-brand-red shrink-0">→ trừ <span id="points-discount-yen">¥0</span></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1608,32 +1611,51 @@ function switchTab(type) {
     } catch(e) { /* Supabase not configured yet */ }
   }
 
-  // Max points redeemable for THIS order = min(balance, subtotal + ship)
+  // Max points redeemable for THIS order, FLOOR to multiple of 50
+  const POINTS_STEP = 50;
   function maxUsablePoints() {
     if (!sbUser || sbPointsBalance <= 0) return 0;
     const orderTotal = subtotal() + (shipFee || 0);
-    return Math.min(sbPointsBalance, orderTotal);
+    const raw = Math.min(sbPointsBalance, orderTotal);
+    return Math.floor(raw / POINTS_STEP) * POINTS_STEP;
   }
 
-  function togglePointsUsage() {
-    const chk = document.getElementById('chk-use-points');
-    pointsUsed = chk.checked ? maxUsablePoints() : 0;
+  function onPointsSelectChange() {
+    const sel = document.getElementById('select-points');
+    pointsUsed = parseInt(sel.value || '0', 10);
+    document.getElementById('points-discount-yen').textContent = yen(pointsUsed);
     updateTotalBox();
   }
 
   function showPointsBox() {
     const box = document.getElementById('points-redeem-box');
     if (!sbUser || sbPointsBalance <= 0) { box.classList.add('hidden'); return; }
-    const usable = maxUsablePoints();
+    const maxUse = maxUsablePoints();
     document.getElementById('points-balance-display').textContent = sbPointsBalance.toLocaleString('ja-JP');
-    document.getElementById('points-max-usable').textContent = usable.toLocaleString('ja-JP');
-    document.getElementById('points-usable-num').textContent = usable.toLocaleString('ja-JP');
-    document.getElementById('points-discount-yen').textContent = yen(usable);
-    box.classList.remove('hidden');
-    // Reset checkbox when checkout opens
-    const chk = document.getElementById('chk-use-points');
-    chk.checked = false;
+    document.getElementById('points-max-usable').textContent = maxUse.toLocaleString('ja-JP');
+
+    // Build dropdown options: 0, 50, 100, ..., maxUse
+    const sel = document.getElementById('select-points');
+    sel.innerHTML = '<option value="0">Không dùng điểm</option>';
+    for (let p = POINTS_STEP; p <= maxUse; p += POINTS_STEP) {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p.toLocaleString('ja-JP') + ' điểm  (− ' + yen(p) + ')';
+      sel.appendChild(opt);
+    }
+    sel.value = '0';
     pointsUsed = 0;
+    document.getElementById('points-discount-yen').textContent = yen(0);
+
+    // Neu maxUse = 0 (balance < 50) -> hien thong bao
+    if (maxUse === 0) {
+      sel.disabled = true;
+      sel.innerHTML = '<option>Cần tối thiểu 50 điểm để dùng</option>';
+    } else {
+      sel.disabled = false;
+    }
+
+    box.classList.remove('hidden');
   }
 
   function updateMemberUI() {
@@ -1736,8 +1758,8 @@ function switchTab(type) {
 
     // Reset pointsUsed for potential next order
     pointsUsed = 0;
-    const chk = document.getElementById('chk-use-points');
-    if (chk) chk.checked = false;
+    const sel = document.getElementById('select-points');
+    if (sel) sel.value = '0';
   };
 
   initSupabase();

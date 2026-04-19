@@ -373,11 +373,59 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
+
+    // Kiem tra link kich hoat tu welcome email: /thanh-vien?claim=welcome
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('claim') === 'welcome') {
+      await tryClaimWelcomeBonus();
+      // Xoa query param khoi URL (giu lich su sach)
+      history.replaceState({}, '', '/thanh-vien');
+    }
+
     await loadDashboard();
     showSection('dashboard');
   } else {
+    // Chua dang nhap nhung co link claim -> nho tu dong claim sau khi login
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('claim') === 'welcome') {
+      try { sessionStorage.setItem('pending_welcome_claim', '1'); } catch(e) {}
+    }
     showSection('auth');
   }
+}
+
+async function tryClaimWelcomeBonus() {
+  try {
+    const { data, error } = await sb.rpc('claim_welcome_bonus');
+    if (error) { console.warn('Welcome claim error:', error); return; }
+    if (data && data.ok) {
+      // Thanh cong -> hien banner chuc mung
+      showWelcomeClaimSuccess(data.points || 100);
+    } else if (data && data.error === 'already_claimed') {
+      showWelcomeClaimAlreadyClaimed();
+    }
+  } catch (e) {
+    console.warn('Claim RPC failed:', e);
+  }
+}
+
+function showWelcomeClaimSuccess(pts) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:3px solid #D4A017;border-radius:16px;padding:20px 28px;box-shadow:0 12px 32px rgba(0,0,0,0.15);z-index:9999;max-width:90%;text-align:center;animation:fadeInDown 0.4s ease';
+  banner.innerHTML = '<div style="font-size:40px;margin-bottom:8px">🎉</div>' +
+    '<h3 style="margin:0 0 6px;color:#8B3A0F;font-size:20px;font-weight:bold">Kích hoạt thành công!</h3>' +
+    '<p style="margin:0;color:#92400E;font-size:14px">Anh/chị vừa nhận <strong style="color:#C8102E;font-size:18px">' + pts + ' điểm</strong> — sẵn sàng dùng cho đơn đầu tiên 🛒</p>' +
+    '<button onclick="this.parentElement.remove()" style="margin-top:12px;background:#C8102E;color:white;border:none;padding:8px 20px;border-radius:8px;font-weight:bold;cursor:pointer">Đóng</button>';
+  document.body.appendChild(banner);
+  setTimeout(() => { if (banner.parentElement) banner.style.opacity = '0'; banner.style.transition = 'opacity 0.5s'; setTimeout(()=>banner.remove(), 500); }, 8000);
+}
+
+function showWelcomeClaimAlreadyClaimed() {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#FEE2E2;border:2px solid #FCA5A5;border-radius:12px;padding:14px 22px;z-index:9999;max-width:90%;text-align:center';
+  banner.innerHTML = '<p style="margin:0;color:#991B1B;font-size:14px">ℹ️ Thưởng chào mừng đã được nhận trước đó. Xem điểm hiện tại ở Dashboard bên dưới.</p>';
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 5000);
 }
 
 function showSection(name) {
@@ -432,6 +480,15 @@ async function doLogin() {
   }
 
   currentUser = data.user;
+
+  // Neu truoc do co ?claim=welcome ma chua dang nhap -> claim ngay sau login
+  try {
+    if (sessionStorage.getItem('pending_welcome_claim') === '1') {
+      sessionStorage.removeItem('pending_welcome_claim');
+      await tryClaimWelcomeBonus();
+    }
+  } catch(e) {}
+
   await loadDashboard();
   showSection('dashboard');
   btn.disabled = false; btn.textContent = 'Đăng Nhập';
