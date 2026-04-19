@@ -191,6 +191,49 @@
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FORGOT PASSWORD SECTION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="forgot-section" class="hidden py-10 px-4">
+  <div class="max-w-md mx-auto">
+    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 sm:p-8">
+      <button onclick="showSection('auth')" class="text-gray-500 hover:text-brand-red text-sm mb-4 transition-colors">← Quay lại đăng nhập</button>
+
+      <div class="text-center mb-6">
+        <div class="text-5xl mb-3">🔐</div>
+        <h2 class="text-2xl font-bold text-brand-dark font-serif">Quên Mật Khẩu</h2>
+        <p class="text-gray-500 text-sm mt-2">Nhập email anh/chị đã đăng ký. Chúng em sẽ gửi link đặt lại mật khẩu qua email.</p>
+      </div>
+
+      <!-- Form -->
+      <div id="forgot-form-wrap" class="space-y-4">
+        <div>
+          <label class="field-label">Email đăng ký <span class="text-brand-red">*</span></label>
+          <input id="forgot-email" type="email" placeholder="email@gmail.com" class="field-input">
+        </div>
+        <div id="forgot-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
+        <button id="forgot-btn" onclick="submitForgotPassword()" class="btn-primary w-full py-4 text-base">Gửi Link Đặt Lại Mật Khẩu</button>
+      </div>
+
+      <!-- Success state (sau khi gửi) -->
+      <div id="forgot-success" class="hidden text-center space-y-4">
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#D1FAE5,#FFF8F0);border:3px solid #10B981">📧</div>
+        <h3 class="text-xl font-bold text-brand-dark">Đã gửi link!</h3>
+        <p class="text-gray-600 text-sm">Chúng em đã gửi link đặt lại mật khẩu đến:<br><strong id="forgot-success-email" class="text-brand-red"></strong></p>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-left text-sm text-yellow-900">
+          <p class="font-semibold mb-1">📌 Bước tiếp theo:</p>
+          <ol class="list-decimal ml-5 space-y-1 text-xs">
+            <li>Mở hộp thư (kể cả Spam/Quảng cáo)</li>
+            <li>Bấm vào link trong email từ Bếp Thuỷ Japan</li>
+            <li>Đặt mật khẩu mới và đăng nhập lại</li>
+          </ol>
+        </div>
+        <button onclick="showSection('auth')" class="btn-primary w-full py-3 text-sm">← Về trang đăng nhập</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- DASHBOARD SECTION (logged in) -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <section id="dashboard-section" class="hidden py-10 px-4">
@@ -489,6 +532,18 @@ function showSection(name) {
   document.getElementById('loading-section').classList.add('hidden');
   document.getElementById('auth-section').classList.toggle('hidden', name !== 'auth');
   document.getElementById('dashboard-section').classList.toggle('hidden', name !== 'dashboard');
+  const fs = document.getElementById('forgot-section');
+  if (fs) fs.classList.toggle('hidden', name !== 'forgot');
+  if (name === 'forgot') {
+    // Reset form state when entering
+    document.getElementById('forgot-form-wrap').classList.remove('hidden');
+    document.getElementById('forgot-success').classList.add('hidden');
+    document.getElementById('forgot-error').classList.add('hidden');
+    // Pre-fill email if user typed in login form
+    const loginEmail = document.getElementById('login-email')?.value.trim();
+    if (loginEmail) document.getElementById('forgot-email').value = loginEmail;
+    setTimeout(() => document.getElementById('forgot-email')?.focus(), 100);
+  }
 
   if (name === 'auth') {
     document.getElementById('hero-title').textContent = 'Thành Viên';
@@ -661,17 +716,36 @@ async function doRegister() {
   btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
 }
 
-async function doForgotPassword() {
-  const email = document.getElementById('login-email').value.trim();
-  if (!email) { showError('login-error', 'Vui lòng nhập email trước khi bấm "Quên mật khẩu".'); return; }
+// "Quên mật khẩu?" link → chuyển sang trang forgot
+function doForgotPassword() {
+  showSection('forgot');
+}
+
+// Submit form trên trang forgot
+async function submitForgotPassword() {
+  hideError('forgot-error');
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) { showError('forgot-error', 'Vui lòng nhập email.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('forgot-error', 'Email không hợp lệ.'); return; }
+
+  const btn = document.getElementById('forgot-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang gửi...';
 
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + '/thanh-vien'
   });
 
-  if (error) { showError('login-error', error.message); return; }
-  hideError('login-error');
-  alert('Đã gửi link đặt lại mật khẩu đến ' + email + '. Vui lòng kiểm tra hộp thư.');
+  if (error) {
+    showError('forgot-error', error.message);
+    btn.disabled = false; btn.textContent = 'Gửi Link Đặt Lại Mật Khẩu';
+    return;
+  }
+
+  // Show success state
+  document.getElementById('forgot-form-wrap').classList.add('hidden');
+  document.getElementById('forgot-success-email').textContent = email;
+  document.getElementById('forgot-success').classList.remove('hidden');
+  btn.disabled = false; btn.textContent = 'Gửi Link Đặt Lại Mật Khẩu';
 }
 
 async function doLogout() {
