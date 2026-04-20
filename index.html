@@ -1155,10 +1155,25 @@ function switchTab(type) {
   let cart=[]; let shipFee=0; let orderNo='';
 
   function addToCart(id,name,size,price,wt){
-    const key=id+'_'+size;
-    const ex=cart.find(i=>i.key===key);
-    if(ex) ex.qty++; else cart.push({key,id,name,size,price,wt,qty:1});
-    updateCartUI(); showToast('✓ '+name+' '+size);
+    // Cong don theo id: cung 1 san pham (ke ca khac size) -> gop chung 1 dong
+    const ex = cart.find(i => i.id === id);
+    const isBox = /hộp|hop/i.test(size);
+    if (ex) {
+      ex.wt    += wt;
+      ex.price += price;
+      // Cap nhat size string -> tong khoi luong / so hop
+      if (isBox) {
+        const totalBoxes = Math.round(ex.wt / 0.5);
+        ex.size = totalBoxes + ' hộp';
+      } else {
+        // wt la kg (vd 0.5, 1, 1.5...) -> bo so 0 thua
+        ex.size = (Math.round(ex.wt * 10) / 10) + 'kg';
+      }
+    } else {
+      cart.push({ key: id, id, name, size, price, wt, qty: 1 });
+    }
+    updateCartUI();
+    showToast('✓ ' + name + ' ' + size);
   }
   function removeFromCart(key){ cart=cart.filter(i=>i.key!==key); updateCartUI(); }
   function changeQty(key,d){ const i=cart.find(x=>x.key===key); if(!i) return; i.qty+=d; if(i.qty<=0) removeFromCart(key); else updateCartUI(); }
