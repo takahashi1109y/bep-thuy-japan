@@ -1242,8 +1242,38 @@ function switchTab(type) {
 
   // Recalc price based on wt + unitPrice
   function recalcPrice(item) {
-    if (!item.unitPrice) return item.price; // fallback
+    // Migrate: neu item cu khong co unitPrice, tu tinh tu price/wt hien tai
+    if (!item.unitPrice && item.wt > 0 && item.price > 0) {
+      item.unitPrice = Math.round(item.price / (item.wt / 0.5));
+    }
+    if (!item.unitPrice) return item.price;
     return Math.round(item.unitPrice * (item.wt / 0.5));
+  }
+
+  // Migrate cu items khi load: dien unitPrice + isBox (box ids: 8=Nem, 9=Pte)
+  function migrateCart() {
+    let changed = false;
+    cart.forEach(i => {
+      if (i.unitPrice == null && i.wt > 0 && i.price > 0) {
+        i.unitPrice = Math.round(i.price / (i.wt / 0.5));
+        changed = true;
+      }
+      if (i.isBox == null) {
+        // Derive from size string or product id
+        i.isBox = /hộp|hop/i.test(i.size || '') || i.id === 8 || i.id === 9;
+        changed = true;
+      }
+      // Ensure qty = 1 (old carts may have qty > 1)
+      if (i.qty !== 1) {
+        i.price = (i.price || 0) * (i.qty || 1);
+        i.wt    = (i.wt    || 0) * (i.qty || 1);
+        i.qty = 1;
+        if (i.unitPrice && i.wt > 0) i.price = Math.round(i.unitPrice * (i.wt / 0.5));
+        i.size = i.isBox ? Math.max(1, Math.round(i.wt / 0.5)) + ' hộp' : (Math.round(i.wt * 10) / 10) + 'kg';
+        changed = true;
+      }
+    });
+    return changed;
   }
   function formatCartSize(item) {
     if (item.isBox) {
