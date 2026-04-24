@@ -449,59 +449,81 @@ function buildInactiveEmail_(u) {
   var pct = u.discount_percent || 0;
   var result = { subject: '', html: '' };
 
-  var discountBox = '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
-    '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
-    '<strong style="color:#C8102E;font-size:24px">GIẢM ' + pct + '%</strong><br>' +
-    '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo</span>' +
-  '</p>';
+  var discountBox = pct > 0 ? (
+    '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
+      '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
+      '<strong style="color:#C8102E;font-size:24px">GIẢM ' + pct + '%</strong><br>' +
+      '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo</span>' +
+    '</p>'
+  ) : '';
 
-  var autoApplyNote = '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
-    '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>';
+  var autoApplyNote = pct > 0 ? (
+    '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
+    '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>'
+  ) : '';
 
+  // ── TIER 1: 45 days — miss you, NO discount ──
   if (u.email_type === 'inactive_45') {
-    result.subject = '💔 Bếp Thuỷ nhớ ' + title + ' ' + name + '! Tặng ưu đãi 5%';
+    result.subject = '💔 Bếp Thuỷ nhớ ' + title + ' ' + name + '!';
     result.html = emailTemplate_({
       title: '💔 Bếp Thuỷ Nhớ ' + titleCap + '!',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
         '<p>Đã <strong>' + u.days_inactive + ' ngày</strong> không thấy ' + title + ' ghé Bếp Thuỷ. Bếp nhớ ' + title + ' lắm! 🥺</p>' +
-        '<p>Để chào mừng ' + title + ' quay lại, Bếp Thuỷ xin tặng:</p>' +
-        discountBox +
-        autoApplyNote +
-        '<p><strong>Bếp vẫn hàng ngày chế biến tươi mới:</strong></p>' +
+        '<p>Bếp vẫn hàng ngày chế biến tươi mới, sẵn sàng phục vụ ' + title + ':</p>' +
         '<ul style="margin:8px 0 12px 20px;color:#78350F">' +
           '<li>🥩 Giò lụa, chả quế — chuẩn vị Hà Nội</li>' +
           '<li>🍡 Nem lụi Huế gia vị truyền thống</li>' +
           '<li>🧈 Pate phố cổ béo ngậy</li>' +
           '<li>🍳 Mọc sống, mọc chín đủ loại</li>' +
-        '</ul>',
+        '</ul>' +
+        '<p>Hãy thưởng thức lại hương vị quê hương nhé! Giao hàng toàn Nhật, tươi ngon đảm bảo. 🇻🇳</p>',
+      cta: '🛒 Xem Thực Đơn',
+      cta_url: url + '#products'
+    });
+  }
+  // ── TIER 2: 60 days — 5% ──
+  else if (u.email_type === 'inactive_60') {
+    result.subject = '🎁 Tặng ' + title + ' ' + name + ' ưu đãi 5%!';
+    result.html = emailTemplate_({
+      title: '🎁 Ưu Đãi 5% Đặc Biệt',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Đã <strong>2 tháng</strong> không gặp ' + title + '. Bếp Thuỷ thực sự nhớ ' + title + '! 💝</p>' +
+        discountBox +
+        autoApplyNote +
+        '<p>Hàng tươi mới mỗi ngày, giao đúng hẹn toàn Nhật. Đừng bỏ lỡ cơ hội thưởng thức lại hương vị quê hương nhé!</p>',
       cta: '🛒 Đặt Hàng — Giảm 5%',
       cta_url: url + '#products'
     });
-  } else if (u.email_type === 'inactive_60') {
+  }
+  // ── TIER 3: 90 days — 8% ──
+  else if (u.email_type === 'inactive_90') {
     result.subject = '🎁 Nâng ưu đãi lên 8% — ' + titleCap + ' ' + name;
     result.html = emailTemplate_({
-      title: '🎁 Ưu Đãi Nâng Cấp: 8%',
+      title: '🎁 Nâng Cấp Ưu Đãi: 8%',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
-        '<p>Đã <strong>2 tháng</strong> không gặp ' + title + '. Bếp Thuỷ muốn ưu đãi hơn nữa để ' + title + ' quay lại:</p>' +
+        '<p>Đã <strong>3 tháng</strong> rồi ' + title + ' ơi! Bếp Thuỷ muốn tặng thêm để ' + title + ' sớm quay lại:</p>' +
         discountBox +
         autoApplyNote +
-        '<p>Hàng tươi mới mỗi ngày, giao đúng hẹn toàn Nhật. Đừng bỏ lỡ! 💝</p>',
+        '<p>Bếp cam kết hàng tươi mới mỗi ngày. Đây là ưu đãi hiếm có, hãy tận dụng nhé! 💝</p>',
       cta: '🛒 Đặt Hàng — Giảm 8%',
       cta_url: url + '#products'
     });
-  } else if (u.email_type === 'inactive_90') {
+  }
+  // ── TIER 4: 120 days — 10% MAX ──
+  else if (u.email_type === 'inactive_120') {
     result.subject = '🎁 Ưu đãi MAX 10% — Bếp Thuỷ chờ ' + title + ' ' + name;
     result.html = emailTemplate_({
       title: '🎁 Ưu Đãi Cao Nhất: 10%',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
-        '<p>Đã <strong>3 tháng</strong> rồi ' + title + ' ơi... Bếp Thuỷ thực sự nhớ ' + title + '. 💔</p>' +
-        '<p>Xin tặng ưu đãi <strong>cao nhất</strong> để chào mừng ' + title + ' trở lại:</p>' +
+        '<p>Đã <strong>4 tháng</strong> rồi ' + title + ' ơi... Bếp Thuỷ thực sự nhớ ' + title + '. 💔</p>' +
+        '<p>Xin tặng ưu đãi <strong>cao nhất của Bếp</strong> để chào mừng ' + title + ' trở lại:</p>' +
         discountBox +
         autoApplyNote +
-        '<p>Đây là mức ưu đãi đặc biệt nhất của Bếp Thuỷ. Hãy cho Bếp cơ hội phục vụ ' + title + ' nhé! 🙏</p>',
+        '<p>Đây là mức ưu đãi đặc biệt nhất. Hãy cho Bếp cơ hội phục vụ ' + title + ' lại nhé! 🙏</p>',
       cta: '🛒 Đặt Hàng — Giảm 10%',
       cta_url: url + '#products'
     });
