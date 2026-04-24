@@ -257,17 +257,25 @@ function backfillOrdersToSupabase() {
   Logger.log('Dang fetch danh sach order_no da co trong Supabase...');
   var existing = {};
   try {
-    var resExist = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders?select=order_no', {
+    var resExist = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders?select=order_no&limit=10000', {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
       },
       muteHttpExceptions: true
     });
-    var existArr = JSON.parse(resExist.getContentText() || '[]');
-    existArr.forEach(function(o) { existing[String(o.order_no)] = true; });
+    var existCode = resExist.getResponseCode();
+    var existText = resExist.getContentText() || '[]';
+    Logger.log('Existing fetch HTTP ' + existCode + ' - first 200 chars: ' + existText.substring(0, 200));
+    var existArr = JSON.parse(existText);
+    if (!Array.isArray(existArr)) {
+      Logger.log('CANH BAO: response khong phai array. Skip duplicate check, co the bi insert lap.');
+      existArr = [];
+    }
+    existArr.forEach(function(o) { if (o && o.order_no) existing[String(o.order_no)] = true; });
     Logger.log('Co ' + Object.keys(existing).length + ' don da ton tai trong Supabase');
-  } catch (e) { Logger.log('Loi fetch existing: ' + e); return; }
+  } catch (e) { Logger.log('Loi fetch existing (van tiep tuc): ' + e); }
 
   // Lay tat ca user (id, email) tu auth.users de match
   Logger.log('Dang fetch danh sach user de match email...');
@@ -276,15 +284,20 @@ function backfillOrdersToSupabase() {
     var resUsers = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/admin/users?per_page=1000', {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
       },
       muteHttpExceptions: true
     });
-    var usersData = JSON.parse(resUsers.getContentText() || '{}');
-    var users = usersData.users || [];
-    users.forEach(function(u) { if (u.email) emailToUserId[u.email.toLowerCase()] = u.id; });
+    var usersCode = resUsers.getResponseCode();
+    var usersText = resUsers.getContentText() || '{}';
+    Logger.log('Users fetch HTTP ' + usersCode + ' - first 200 chars: ' + usersText.substring(0, 200));
+    var usersData = JSON.parse(usersText);
+    var users = (usersData && usersData.users) || [];
+    if (!Array.isArray(users)) users = [];
+    users.forEach(function(u) { if (u && u.email) emailToUserId[u.email.toLowerCase()] = u.id; });
     Logger.log('Co ' + Object.keys(emailToUserId).length + ' user co email');
-  } catch (e) { Logger.log('Loi fetch users: ' + e); }
+  } catch (e) { Logger.log('Loi fetch users (van tiep tuc): ' + e); }
 
   // Doc tat ca rows tu sheet
   var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
