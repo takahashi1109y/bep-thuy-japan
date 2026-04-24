@@ -320,8 +320,8 @@
           <li>Không thể hủy đơn đã được xác nhận thanh toán hoặc đã gửi hàng</li>
         </ul>
       </div>
-      <!-- Debug panel (shown on error for mobile debugging) -->
-      <div id="order-debug" class="hidden bg-gray-900 text-green-300 text-xs rounded-xl p-3 mb-3 font-mono" style="font-family:monospace;max-height:200px;overflow-y:auto"></div>
+      <!-- Debug panel — an` by default, only visible on ?debug=1 URL param -->
+      <div id="order-debug" class="hidden bg-gray-900 text-green-300 text-xs rounded-xl p-3 mb-3 font-mono" style="font-family:monospace;max-height:200px;overflow-y:auto;display:none"></div>
       <div id="order-history" class="space-y-2 mb-6">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
       </div>
@@ -1237,14 +1237,20 @@ async function loadDashboard(retryAttempt = 0) {
   return _loadDashboardImpl(retryAttempt);
 }
 
+// Debug panel — chi hien khi URL co ?debug=1 (de debug khi khach gap loi)
+var _debugEnabled = false;
+try { _debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1'; } catch(e) {}
 function dbgLog(msg) {
   try {
-    var panel = document.getElementById('order-debug');
-    if (panel) {
-      panel.classList.remove('hidden');
-      var t = new Date().toLocaleTimeString('ja-JP');
-      panel.innerHTML += '<div>[' + t + '] ' + msg + '</div>';
-      panel.scrollTop = panel.scrollHeight;
+    if (_debugEnabled) {
+      var panel = document.getElementById('order-debug');
+      if (panel) {
+        panel.classList.remove('hidden');
+        panel.style.display = 'block';
+        var t = new Date().toLocaleTimeString('ja-JP');
+        panel.innerHTML += '<div>[' + t + '] ' + msg + '</div>';
+        panel.scrollTop = panel.scrollHeight;
+      }
     }
   } catch(e) {}
   console.log('[DBG]', msg);
