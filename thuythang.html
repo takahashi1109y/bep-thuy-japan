@@ -150,7 +150,7 @@
   <div class="tabs">
     <div class="container" style="display: flex; gap: 4px; padding: 0;">
       <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tổng Quan</button>
-      <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng</button>
+      <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng <span id="tt-pending-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">📈 Thống Kê</button>
@@ -380,8 +380,50 @@ async function checkAdminAndLoad(user) {
   showSection('admin-ui');
   await loadDashboard();
   checkUnreadMessages();
-  // Poll for new messages every 60s
-  setInterval(checkUnreadMessages, 60000);
+  checkPendingPayments();
+  // Poll for new messages + new payment confirmations every 30s
+  setInterval(checkUnreadMessages, 30000);
+  setInterval(checkPendingPayments, 30000);
+}
+
+// Track last count to detect NEW submissions + play alert
+let _lastPendingPaymentsCount = -1;
+async function checkPendingPayments() {
+  try {
+    const { count } = await sb.from('orders').select('id', { count:'exact', head:true }).eq('status', 'customer_paid');
+    const badge = document.getElementById('tt-pending-badge');
+    if (!badge) return;
+    const n = count || 0;
+    if (n > 0) { badge.textContent = n; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+
+    // Alert if count increased (new payment came in)
+    if (_lastPendingPaymentsCount >= 0 && n > _lastPendingPaymentsCount) {
+      playPaymentAlert();
+      showToast('🔔 Có ' + (n - _lastPendingPaymentsCount) + ' đơn mới khách báo TT!', 'success');
+    }
+    _lastPendingPaymentsCount = n;
+
+    // Update page title with badge
+    document.title = (n > 0 ? '(' + n + ') ' : '') + 'Quản Lý · Bếp Thuỷ Japan';
+  } catch(e) {}
+}
+
+function playPaymentAlert() {
+  try {
+    // Create short beep sound (no external file needed)
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880; gain.gain.value = 0.1;
+    osc.start(); osc.stop(ctx.currentTime + 0.15);
+    setTimeout(() => {
+      const osc2 = ctx.createOscillator(); osc2.connect(gain);
+      osc2.frequency.value = 1320;
+      osc2.start(); osc2.stop(ctx.currentTime + 0.15);
+    }, 200);
+  } catch(e) {}
 }
 
 function showLogin() { showSection('login-section'); }

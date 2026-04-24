@@ -122,6 +122,12 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'member' });
     }
 
+    // Payment proof notification (khach gui bien lai chuyen tien)
+    if (data.type === 'payment_received') {
+      try { sendPaymentReceivedNotification_(data); } catch(e) { Logger.log('Payment notif err: ' + e); }
+      return buildResponse({ success: true, type: 'payment_received' });
+    }
+
     const orderNo = getNextOrderNo(ss);
     saveOrder(ss, orderNo, data);
     saveYamato(orderNo, data);
@@ -190,6 +196,71 @@ function saveMember(ss, data) {
   var bg = (newRow % 2 === 0) ? '#FFF8F0' : '#FFFFFF';
   sheet.getRange(newRow, 1, 1, 8).setBackground(bg);
   Logger.log('Da luu thanh vien moi: ' + data.name);
+}
+
+// ============================================================
+// PAYMENT PROOF NOTIFICATION — Gui email cho shop khi khach upload bien lai
+// ============================================================
+function sendPaymentReceivedNotification_(data) {
+  var shopEmail = 'support@thuyjapan.com';
+  var orderNo = data.orderNo || '?';
+  var customerName = data.customerName || 'Khach';
+  var amount = data.amount || 0;
+  var method = data.method === 'paypay' ? '💳 PayPay' : '🏦 Chuyển khoản NH';
+  var note = data.note || '';
+  var dashboardUrl = 'https://www.thuyjapan.com/thuythang';
+
+  var subject = '🔔 [Bếp Thuỷ] Khách gửi biên lai TT — Đơn #' + orderNo;
+  var body =
+    'Xin chào Thuỷ,\n\n' +
+    'Khách hàng vừa gửi biên lai thanh toán cho đơn hàng. Cần xác nhận trên dashboard.\n\n' +
+    '─────────────────────────\n' +
+    '📦 Đơn: #' + orderNo + '\n' +
+    '👤 Khách: ' + customerName + '\n' +
+    '💵 Số tiền: ¥' + Number(amount).toLocaleString() + '\n' +
+    '🔖 Phương thức: ' + method + '\n' +
+    (note ? '📝 Ghi chú: ' + note + '\n' : '') +
+    '─────────────────────────\n\n' +
+    '👉 Mở dashboard để xem ảnh + xác nhận:\n' +
+    dashboardUrl + '\n\n' +
+    '⏱ Thời gian: ' + Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm') + '\n\n' +
+    '(Email tự động từ hệ thống Bếp Thuỷ Japan)';
+
+  try {
+    MailApp.sendEmail({
+      to: shopEmail,
+      subject: subject,
+      body: body,
+      name: 'Bếp Thuỷ Japan'
+    });
+    Logger.log('Sent payment notification email to ' + shopEmail + ' for order ' + orderNo);
+  } catch (e) {
+    Logger.log('MailApp error: ' + e);
+  }
+
+  // Optional: Telegram notification (neu anh da setup Telegram bot)
+  try { sendTelegramNotification_(data); } catch(e) { /* skip if not configured */ }
+}
+
+// Optional: Telegram bot notification
+function sendTelegramNotification_(data) {
+  var botToken = _prop('TELEGRAM_BOT_TOKEN', '');
+  var chatId = _prop('TELEGRAM_CHAT_ID', '');
+  if (!botToken || !chatId) return; // Not configured, skip
+
+  var text = '🔔 *Khách gửi biên lai TT*\n\n' +
+    '📦 Đơn: #' + (data.orderNo || '?') + '\n' +
+    '👤 ' + (data.customerName || 'Khách') + '\n' +
+    '💵 ¥' + Number(data.amount || 0).toLocaleString() + '\n' +
+    '🔖 ' + (data.method === 'paypay' ? 'PayPay' : 'Bank transfer') + '\n\n' +
+    '👉 [Mở Dashboard](https://www.thuyjapan.com/thuythang)';
+
+  UrlFetchApp.fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' }),
+    muteHttpExceptions: true
+  });
 }
 
 // ============================================================
