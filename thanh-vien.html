@@ -721,7 +721,7 @@ function renderOrdersToUI(orders) {
   const orderBox = document.getElementById('order-history');
   if (!orderBox) return;
   if (!orders || orders.length === 0) {
-    orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+    orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/#products" class="text-brand-red underline">Đặt hàng ngay</a></p>';
     return;
   }
   const STATUS_BADGE = {
@@ -1441,7 +1441,7 @@ async function _loadDashboardImpl(retryAttempt) {
         orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tìm đơn hàng (lần ' + nextRetry + '/3)...</p>';
         setTimeout(() => loadDashboard(nextRetry), 3000);
       } else {
-        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/#products" class="text-brand-red underline">Đặt hàng ngay</a></p>';
       }
     }
   }
