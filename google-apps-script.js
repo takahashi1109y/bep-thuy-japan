@@ -8,17 +8,34 @@ const SHEET_NAME_COUNTER = 'Counter';
 const SHEET_NAME_STATS   = 'Thong Ke San Xuat';
 const SHEET_NAME_MEMBERS = 'Thanh Vien';
 
-// ---- SUPABASE CONFIG (de tich diem tu dong) ----
-// >>> THAY DOI 2 DONG NAY SAU KHI TAO PROJECT SUPABASE <<<
-const SUPABASE_URL = 'https://curcsvwvjkjewtonkhnr.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1cmNzdnd2amtqZXd0b25raG5yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjUxNzM3OSwiZXhwIjoyMDkyMDkzMzc5fQ.fFb-ta6YFTaHW6L_wQ1iqChzJcQ-Ke22xF0R6sBGPOk';
+// ---- SUPABASE & GETRESPONSE CONFIG ----
+// SECURITY: KHONG hardcode keys vao day. Dat trong Script Properties:
+//   Apps Script Editor -> Project Settings (banh rang) -> Script Properties -> Add script property
+//   Can set cac keys sau:
+//     SUPABASE_URL         = https://curcsvwvjkjewtonkhnr.supabase.co
+//     SUPABASE_SERVICE_KEY = <paste service_role key moi sau khi rotate>
+//     GR_API_KEY           = <paste GetResponse API key>
+//     GR_CAMPAIGN_ID       = fwvbg
+//     GR_FIELD_PHONE       = nBzLBu
+//     GR_FIELD_PREFECTURE  = nQVOld
+//     GR_FIELD_SOURCE      = nQVOtI
 
-// ---- GETRESPONSE CONFIG (de luu email khach cho remarketing) ----
-const GR_API_KEY      = 'a88xdj5jnok22zhj21phllrsdt1xt1en';
-const GR_CAMPAIGN_ID  = 'fwvbg';           // Bep Thuy Japan Customers
-const GR_FIELD_PHONE      = 'nBzLBu';
-const GR_FIELD_PREFECTURE = 'nQVOld';
-const GR_FIELD_SOURCE     = 'nQVOtI';
+function _prop(key, fallback) {
+  try {
+    var v = PropertiesService.getScriptProperties().getProperty(key);
+    return v || fallback || '';
+  } catch (e) {
+    return fallback || '';
+  }
+}
+
+const SUPABASE_URL         = _prop('SUPABASE_URL', 'https://curcsvwvjkjewtonkhnr.supabase.co');
+const SUPABASE_SERVICE_KEY = _prop('SUPABASE_SERVICE_KEY', '');
+const GR_API_KEY           = _prop('GR_API_KEY', '');
+const GR_CAMPAIGN_ID       = _prop('GR_CAMPAIGN_ID', 'fwvbg');
+const GR_FIELD_PHONE       = _prop('GR_FIELD_PHONE', 'nBzLBu');
+const GR_FIELD_PREFECTURE  = _prop('GR_FIELD_PREFECTURE', 'nQVOld');
+const GR_FIELD_SOURCE      = _prop('GR_FIELD_SOURCE', 'nQVOtI');
 
 // ID cua spreadsheet YAMATO_ORDER
 const YAMATO_SS_ID = '13QMRQsEeODAOc-gb9mtqnNcvvyqqz8nN05X6OJevK_A';
