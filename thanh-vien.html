@@ -153,9 +153,6 @@
           <input id="reg-birthday" type="date" class="field-input bg-white" max="2026-12-31">
         </div>
       </div>
-      <div class="bg-pink-50 border border-pink-200 rounded-xl p-2">
-        <p class="text-xs text-pink-700">🎁 <strong>Quà sinh nhật:</strong> Giảm 10% tất cả đơn hàng trong ngày sinh nhật!</p>
-      </div>
       <div>
         <label class="field-label">Tỉnh / Thành Phố</label>
         <select id="reg-prefecture" class="field-input bg-white">
@@ -429,12 +426,9 @@
             </select>
           </div>
           <div>
-            <label class="field-label">Ngày Sinh 🎂</label>
+            <label class="field-label">Ngày Sinh 🎂 <span id="prof-birthday-locked-label" class="hidden text-gray-400 font-normal text-xs">(không thể thay đổi)</span></label>
             <input id="prof-birthday" type="date" class="field-input bg-white">
           </div>
-        </div>
-        <div class="bg-pink-50 border border-pink-200 rounded-xl p-2">
-          <p class="text-xs text-pink-700">🎁 <strong>Quà sinh nhật:</strong> Ngày sinh nhật → giảm 10% tất cả đơn hàng!</p>
         </div>
         <div id="prof-msg" class="hidden text-sm rounded-xl p-3"></div>
         <button onclick="saveProfile()" class="btn-primary w-full py-3 text-sm">Lưu Thay Đổi</button>
@@ -1117,7 +1111,22 @@ async function doRegister() {
   });
 
   if (error) {
-    showError('reg-error', error.message);
+    // Friendly error messages
+    var msg = error.message || '';
+    var lc = msg.toLowerCase();
+    var friendly = msg;
+    if (lc.indexOf('already registered') !== -1 || lc.indexOf('already exists') !== -1 ||
+        lc.indexOf('user_already_exists') !== -1 || lc.indexOf('user already registered') !== -1 ||
+        lc.indexOf('duplicate') !== -1 || error.code === 'user_already_exists') {
+      friendly = '❌ Email này đã được đăng ký. Vui lòng chọn email khác hoặc đăng nhập.';
+    } else if (lc.indexOf('password') !== -1 && lc.indexOf('weak') !== -1) {
+      friendly = '❌ Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn (tối thiểu 6 ký tự).';
+    } else if (lc.indexOf('rate limit') !== -1) {
+      friendly = '⏳ Quá nhiều lần thử. Vui lòng chờ vài phút rồi thử lại.';
+    } else if (lc.indexOf('captcha') !== -1) {
+      friendly = '❌ Xác minh CAPTCHA thất bại. Vui lòng thử lại.';
+    }
+    showError('reg-error', friendly);
     btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
     return;
   }
@@ -1527,7 +1536,17 @@ async function _loadDashboardImpl(retryAttempt) {
   document.getElementById('prof-name').value = profile?.display_name || '';
   document.getElementById('prof-phone').value = profile?.phone || '';
   var profGender = document.getElementById('prof-gender'); if (profGender) profGender.value = profile?.gender || '';
-  var profBirth = document.getElementById('prof-birthday'); if (profBirth) profBirth.value = profile?.birthday || '';
+  var profBirth = document.getElementById('prof-birthday');
+  if (profBirth) {
+    profBirth.value = profile?.birthday || '';
+    // Lock birthday field if already set — khach ko the doi sau khi da chon
+    if (profile?.birthday) {
+      profBirth.disabled = true;
+      profBirth.classList.add('bg-gray-50','text-gray-500');
+      var lockLabel = document.getElementById('prof-birthday-locked-label');
+      if (lockLabel) lockLabel.classList.remove('hidden');
+    }
+  }
 
   // Fill address form
   document.getElementById('addr-prefecture').value = profile?.prefecture || '';
