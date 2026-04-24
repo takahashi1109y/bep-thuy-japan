@@ -1468,7 +1468,21 @@ async function _loadDashboardImpl(retryAttempt) {
   // Render FULL ORDER HISTORY from orders table
   const orderBox = document.getElementById('order-history');
   if (orderBox) {
-    const orders = ordersRes.data || [];
+    let orders = ordersRes.data || [];
+
+    // MERGE optimistic orders from cache (orders just placed, may not be in DB yet)
+    try {
+      const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+      if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders)) {
+        const existingNos = new Set(orders.map(o => String(o.order_no)));
+        const optimisticOnly = cached.orders.filter(o => o._optimistic && !existingNos.has(String(o.order_no)));
+        if (optimisticOnly.length > 0) {
+          orders = [...optimisticOnly, ...orders];
+          console.log('[cache] merged', optimisticOnly.length, 'optimistic orders');
+        }
+      }
+    } catch(e) {}
+
     // CACHE orders to localStorage for instant next-load render
     if (ordersRes.data && !ordersRes.error) {
       try {

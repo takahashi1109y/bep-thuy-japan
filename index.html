@@ -1201,7 +1201,7 @@ function switchTab(type) {
     </div>
 
     <!-- Member-only: Link to order history -->
-    <a id="goto-history-btn" href="/thanh-vien?tab=orders" class="hidden block w-full text-center py-3 rounded-2xl text-white font-bold text-sm mb-3" style="background:linear-gradient(135deg,#10B981,#059669)">📋 Xem Lịch Sử Đơn Hàng (Hủy đơn nếu cần)</a>
+    <a id="goto-history-btn" href="/thanh-vien?tab=orders" class="hidden block w-full text-center py-3 rounded-2xl text-white font-bold text-sm mb-3" style="background:linear-gradient(135deg,#10B981,#059669)">📋 Xem Lịch Sử Đơn Hàng</a>
 
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
     <a href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger</a>
@@ -1598,6 +1598,41 @@ function switchTab(type) {
     } catch(e){ orderNo=String(Date.now()).slice(-4).padStart(4,'0'); }
 
     btn.disabled=false; btn.innerHTML='✅ Xác Nhận Đặt Hàng';
+
+    // OPTIMISTIC CACHE: save order ngay vao localStorage de /thanh-vien load nhanh
+    if (sbUser) {
+      try {
+        const optimisticOrder = {
+          order_no: orderNo,
+          user_id: sbUser.id,
+          customer_name: name,
+          customer_email: email,
+          customer_phone: phone,
+          ship_prefecture: shipPref,
+          ship_postal: shipPostal,
+          ship_address: shipAddress,
+          items: cart.map(i => ({ name: i.name, size: i.size, price: i.price, qty: 1, wt: i.wt })),
+          subtotal: sub,
+          shipping_fee: ship,
+          total: total,
+          points_used: pointsUsed || 0,
+          points_earned: Math.floor(total / 100),
+          points_awarded: false,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          _optimistic: true
+        };
+        // Merge with existing cache
+        const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+        let orders = (cached && cached.userId === sbUser.id) ? (cached.orders || []) : [];
+        // Put new order at top
+        orders = [optimisticOrder, ...orders.filter(o => o.order_no !== orderNo)];
+        localStorage.setItem('bepthuy_orders_cache', JSON.stringify({
+          userId: sbUser.id, orders: orders, ts: Date.now()
+        }));
+      } catch(e) { console.warn('Optimistic cache err:', e); }
+    }
+
     showSuccess({name,email,phone,pref:shipPref,postal:shipPostal,address:shipAddress,sub,ship,total,
       recipientName:useOther?recipientName:null,recipientPhone:useOther?recipientPhone:null});
   }
