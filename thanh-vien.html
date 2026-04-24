@@ -464,6 +464,65 @@
   <p class="text-gray-400 mt-4">Đang tải...</p>
 </section>
 
+<!-- PAYMENT UPLOAD MODAL -->
+<div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);" onclick="if(event.target===this)closePaymentUpload()">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h3 class="font-bold text-lg text-brand-dark">💳 Gửi Hóa Đơn Thanh Toán</h3>
+        <p class="text-xs text-gray-500 mt-1">Đơn: <span id="pm-order-no" class="font-bold text-brand-red">#0000</span> · Số tiền: <span id="pm-amount" class="font-bold text-brand-red">¥0</span></p>
+      </div>
+      <button onclick="closePaymentUpload()" class="text-gray-400 hover:text-gray-700 text-xl">✕</button>
+    </div>
+
+    <!-- Method selector -->
+    <label class="field-label text-xs">Phương Thức Thanh Toán</label>
+    <div class="grid grid-cols-2 gap-2 mb-4">
+      <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
+        <input type="radio" name="pm-method" value="bank_transfer" checked>
+        <span class="text-sm font-semibold">🏦 Chuyển khoản NH</span>
+      </label>
+      <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
+        <input type="radio" name="pm-method" value="paypay">
+        <span class="text-sm font-semibold">💳 PayPay</span>
+      </label>
+    </div>
+
+    <!-- File input -->
+    <label class="field-label text-xs">Ảnh Chụp Màn Hình Thanh Toán <span class="text-red-600">*</span></label>
+    <input id="pm-file" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="field-input mb-2" onchange="previewPaymentFile(this)">
+    <p class="text-xs text-gray-500 mb-3">📸 Chụp màn hình rõ: số tiền · tên người nhận · thời gian giao dịch</p>
+
+    <!-- Preview -->
+    <div id="pm-preview-wrap" class="hidden mb-3">
+      <img id="pm-preview" class="w-full rounded-xl border border-gray-200 max-h-64 object-contain bg-gray-50">
+    </div>
+
+    <!-- Note -->
+    <label class="field-label text-xs">Ghi Chú <span class="text-gray-400">(tùy chọn)</span></label>
+    <textarea id="pm-note" rows="2" placeholder="Vd: Chuyển từ Rakuten Bank lúc 14:30" class="field-input mb-3" maxlength="500"></textarea>
+
+    <!-- Error -->
+    <div id="pm-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3 mb-3"></div>
+
+    <!-- Warning -->
+    <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
+      <p class="text-xs text-yellow-800"><strong>⚠️ Lưu ý quan trọng:</strong></p>
+      <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
+        <li>Chỉ gửi hóa đơn <strong>sau khi đã chuyển tiền</strong> thành công</li>
+        <li>Số tiền phải khớp với đơn hàng</li>
+        <li>Tối đa 3 lần gửi/đơn (nếu shop từ chối, có thể gửi lại)</li>
+        <li>Gian lận sẽ bị khóa tài khoản vĩnh viễn</li>
+      </ul>
+    </div>
+
+    <div class="flex gap-2">
+      <button onclick="closePaymentUpload()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm">Hủy</button>
+      <button id="pm-submit" onclick="submitPaymentProof()" class="flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm">📤 Gửi</button>
+    </div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer class="bg-brand-dark text-gray-400 py-8 px-4 text-center">
   <a href="/" class="text-white font-bold text-xl hover:text-yellow-300 transition-colors">Bếp Thuỷ Japan</a>
@@ -1054,12 +1113,19 @@ async function loadDashboard() {
             cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
           }
         }
+        // Payment proof button: for pending (not submitted yet) and customer_paid (can re-submit if rejected)
+        let paymentBtn = '';
+        if (o.status === 'pending') {
+          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total})" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Gửi hóa đơn TT</button>`;
+        } else if (o.status === 'customer_paid') {
+          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total})" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💳 Gửi thêm hóa đơn</button>`;
+        }
         return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
           <div class="flex items-center justify-between mb-2">
             <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
             <span class="text-xs text-gray-500">${date}</span>
           </div>
-          <div class="mb-2 flex items-center gap-2"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${cancelBtn}</div>
+          <div class="mb-2 flex items-center gap-2 flex-wrap"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${paymentBtn}${cancelBtn}</div>
           ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
           <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
             <div>
@@ -1313,6 +1379,116 @@ sb.auth.onAuthStateChange(async (event, session) => {
     showSection('dashboard');
   }
 });
+
+// ═══════════════════════════════════════════════════════════
+// PAYMENT PROOF UPLOAD
+// ═══════════════════════════════════════════════════════════
+let pmCurrentOrder = null;
+let pmCurrentAmount = 0;
+
+function openPaymentUpload(orderNo, amount) {
+  pmCurrentOrder = orderNo;
+  pmCurrentAmount = amount;
+  document.getElementById('pm-order-no').textContent = '#' + orderNo;
+  document.getElementById('pm-amount').textContent = '¥' + Number(amount).toLocaleString();
+  document.getElementById('pm-file').value = '';
+  document.getElementById('pm-note').value = '';
+  document.getElementById('pm-preview-wrap').classList.add('hidden');
+  document.getElementById('pm-error').classList.add('hidden');
+  document.getElementById('payment-modal').classList.remove('hidden');
+}
+
+function closePaymentUpload() {
+  document.getElementById('payment-modal').classList.add('hidden');
+  pmCurrentOrder = null;
+}
+
+function previewPaymentFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('pm-preview').src = e.target.result;
+    document.getElementById('pm-preview-wrap').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function hashFileSHA256(file) {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function submitPaymentProof() {
+  if (!currentUser || !pmCurrentOrder) return;
+  const fileInput = document.getElementById('pm-file');
+  const file = fileInput.files[0];
+  const method = document.querySelector('input[name="pm-method"]:checked')?.value;
+  const note = document.getElementById('pm-note').value.trim();
+  const errBox = document.getElementById('pm-error');
+  errBox.classList.add('hidden');
+
+  if (!file) { errBox.textContent = 'Vui lòng chọn ảnh thanh toán'; errBox.classList.remove('hidden'); return; }
+  if (!method) { errBox.textContent = 'Vui lòng chọn phương thức'; errBox.classList.remove('hidden'); return; }
+  if (file.size < 100000) { errBox.textContent = 'Ảnh quá nhỏ (< 100KB). Vui lòng upload ảnh chất lượng tốt hơn.'; errBox.classList.remove('hidden'); return; }
+  if (file.size > 10000000) { errBox.textContent = 'Ảnh quá lớn (> 10MB). Vui lòng nén ảnh xuống.'; errBox.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('pm-submit');
+  btn.disabled = true; btn.textContent = '⏳ Đang xử lý...';
+
+  try {
+    // 1. Compute SHA-256 hash
+    btn.textContent = '🔒 Đang kiểm tra ảnh...';
+    const hash = await hashFileSHA256(file);
+    console.log('[payment] hash:', hash);
+
+    // 2. Upload to Supabase Storage
+    btn.textContent = '☁️ Đang upload ảnh...';
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${currentUser.id}/${pmCurrentOrder}-${Date.now()}-${hash.substring(0, 8)}.${ext}`;
+    const { data: upData, error: upErr } = await sb.storage.from('payment-proofs').upload(path, file, {
+      contentType: file.type,
+      upsert: false
+    });
+    if (upErr) throw upErr;
+
+    // Get signed URL (1 year expiry for admin viewing)
+    const { data: urlData } = await sb.storage.from('payment-proofs').createSignedUrl(path, 365 * 86400);
+    const screenshotUrl = urlData?.signedUrl || path;
+
+    // 3. Call RPC to submit (with all validations)
+    btn.textContent = '💾 Đang lưu...';
+    const { data, error } = await sb.rpc('submit_payment_confirmation', {
+      p_order_no: String(pmCurrentOrder),
+      p_method: method,
+      p_claimed_amount: Number(pmCurrentAmount),
+      p_screenshot_url: screenshotUrl,
+      p_screenshot_hash: hash,
+      p_file_size: file.size,
+      p_note: note
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error(data?.error || 'Không thể xác nhận');
+
+    // Success
+    closePaymentUpload();
+    let msg = '✅ Đã gửi hóa đơn thành công!\n\nShop sẽ xác nhận trong vòng 24h.';
+    if (data.hash_reuse_warning) {
+      msg += '\n\n⚠️ Chú ý: Ảnh này đã được dùng trong đơn khác. Shop sẽ kiểm tra kỹ.';
+    }
+    alert(msg);
+    await loadDashboard();
+  } catch (e) {
+    console.error('[payment] error:', e);
+    errBox.textContent = '❌ ' + (e.message || 'Không thể gửi hóa đơn');
+    errBox.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Gửi';
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // CUSTOMER SELF-CANCEL ORDER

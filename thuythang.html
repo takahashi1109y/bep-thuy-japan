@@ -670,7 +670,7 @@ function renderOrdersTable(orders) {
 }
 
 // ============ ORDER MODAL ============
-function openOrderModal(orderNo) {
+async function openOrderModal(orderNo) {
   const o = allOrders.find(x => x.order_no === orderNo);
   if (!o) return;
   document.getElementById('modal-order-no').textContent = '#' + o.order_no;
@@ -679,7 +679,61 @@ function openOrderModal(orderNo) {
     ? items.map(i => `<div class="item-line"><span>${escapeHtml(i.name)}${i.size?' ('+escapeHtml(i.size)+')':''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`).join('')
     : '<p style="color: #9CA3AF; font-size: 13px;">Không có thông tin sản phẩm</p>';
   const date = new Date(o.created_at).toLocaleString('ja-JP');
-  document.getElementById('modal-content').innerHTML = `
+
+  // Fetch payment confirmations for this order
+  let paymentHtml = '';
+  try {
+    const { data: confs } = await sb.from('payment_confirmations')
+      .select('*').eq('order_no', orderNo).order('created_at', { ascending: false });
+    if (confs && confs.length > 0) {
+      // Check for hash reuse across orders
+      const hashes = confs.map(c => c.screenshot_hash);
+      const { data: reuse } = await sb.from('payment_confirmations')
+        .select('order_no, screenshot_hash').in('screenshot_hash', hashes).neq('order_no', orderNo);
+      const reuseMap = {};
+      (reuse || []).forEach(r => { reuseMap[r.screenshot_hash] = r.order_no; });
+
+      paymentHtml = '<div class="card" style="margin-bottom: 12px; border:2px solid #10B981;">' +
+        '<h4 style="margin: 0 0 8px; font-size: 14px;">💳 Hóa Đơn Thanh Toán Khách Gửi (' + confs.length + ')</h4>' +
+        confs.map(c => {
+          const cdate = new Date(c.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+          const methodTxt = c.method === 'paypay' ? '💳 PayPay' : '🏦 Chuyển khoản NH';
+          const amountMismatch = Math.abs(c.claimed_amount - o.total) > 1;
+          const STATUS_CONF = {
+            'submitted': { text:'⏳ Chờ xác nhận', cls:'badge-pending' },
+            'verified':  { text:'✅ Đã xác nhận', cls:'badge-shipped' },
+            'rejected':  { text:'❌ Đã từ chối', cls:'badge-cancelled' }
+          };
+          const sb_ = STATUS_CONF[c.status] || STATUS_CONF.submitted;
+          const hashReuse = reuseMap[c.screenshot_hash];
+          const warnings = [];
+          if (amountMismatch) warnings.push('⚠️ Số tiền khai báo không khớp đơn hàng');
+          if (hashReuse) warnings.push('🚨 Ảnh này cũng được dùng trong đơn #' + hashReuse + ' (NGHI NGỜ GIAN LẬN)');
+
+          const actions = c.status === 'submitted'
+            ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
+              '<button onclick="doVerifyPayment(' + c.id + ', \'verify\')" class="btn btn-success" style="padding:6px 12px;font-size:12px;">✅ Xác nhận TT</button>' +
+              '<button onclick="doVerifyPayment(' + c.id + ', \'reject\')" class="btn btn-danger" style="padding:6px 12px;font-size:12px;">❌ Từ chối</button>' +
+              '</div>'
+            : (c.rejected_reason ? '<p style="font-size:11px;color:#EF4444;margin-top:6px;"><strong>Lý do từ chối:</strong> ' + escapeHtml(c.rejected_reason) + '</p>' : '');
+
+          return '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:10px;margin-bottom:8px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+              '<div><span class="badge ' + sb_.cls + '">' + sb_.text + '</span> <span style="font-size:11px;color:#6B7280;margin-left:6px;">' + cdate + '</span></div>' +
+              '<span style="font-size:12px;font-weight:700;">' + methodTxt + '</span>' +
+            '</div>' +
+            '<div style="font-size:12px;margin-bottom:4px;">Khách khai: <strong style="color:' + (amountMismatch?'#EF4444':'#10B981') + ';">¥' + Number(c.claimed_amount).toLocaleString() + '</strong>' +
+              (amountMismatch ? ' (đơn ¥' + Number(o.total).toLocaleString() + ')' : '') + '</div>' +
+            (c.note ? '<div style="font-size:11px;color:#6B7280;margin-bottom:4px;">📝 ' + escapeHtml(c.note) + '</div>' : '') +
+            (warnings.length > 0 ? '<div style="background:#FEF3C7;border:1px solid #FBBF24;border-radius:6px;padding:6px;margin:6px 0;font-size:11px;color:#78350F;">' + warnings.join('<br>') + '</div>' : '') +
+            '<a href="' + c.screenshot_url + '" target="_blank"><img src="' + c.screenshot_url + '" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;margin-top:4px;"></a>' +
+            actions +
+          '</div>';
+        }).join('') + '</div>';
+    }
+  } catch(e) { console.warn('Load payment confs err:', e); }
+
+  document.getElementById('modal-content').innerHTML = paymentHtml + `
     <div style="margin-bottom: 12px;">${statusBadge(o.status)} <span style="margin-left: 8px; font-size: 12px; color: #6B7280;">${date}</span></div>
     <div class="card" style="margin-bottom: 12px;">
       <h4 style="margin: 0 0 8px; font-size: 14px;">👤 Khách hàng</h4>
@@ -721,6 +775,27 @@ function openOrderModal(orderNo) {
 }
 
 function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+
+// ============ PAYMENT PROOF VERIFY ============
+async function doVerifyPayment(confId, action) {
+  let reason = '';
+  if (action === 'reject') {
+    reason = prompt('Lý do từ chối hóa đơn:\n\n(Vd: Số tiền không khớp, ảnh không rõ...)', '');
+    if (reason === null) return;
+  } else {
+    if (!confirm('Xác nhận đã nhận được thanh toán từ hóa đơn này?')) return;
+  }
+  const { data, error } = await sb.rpc('verify_payment_confirmation', {
+    p_confirmation_id: confId,
+    p_action: action,
+    p_reason: reason
+  });
+  if (error || !data?.ok) { showToast('Lỗi: ' + (error?.message || data?.error), 'error'); return; }
+  showToast(action === 'verify' ? '✅ Đã xác nhận TT' : '❌ Đã từ chối', 'success');
+  closeOrderModal();
+  await loadDashboard();
+  if (!document.getElementById('tab-orders').classList.contains('hidden')) loadOrders();
+}
 
 // ============ ACTIONS ============
 async function doConfirmPayment(orderNo, closeModal = false) {
