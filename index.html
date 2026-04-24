@@ -109,23 +109,82 @@
 </head>
 <body class="min-h-screen">
 
-<!-- HERO -->
-<section class="hero-bg text-white py-16 px-4 text-center relative overflow-hidden">
-  <div class="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
-  <div class="absolute bottom-0 left-0 w-56 h-56 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(-30%,30%)"></div>
-  <div class="relative z-10 max-w-2xl mx-auto">
-    <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật ✦</p>
-    <h1 class="text-4xl md:text-6xl font-bold mb-3 leading-tight">Bếp Thuỷ Japan</h1>
-    <div class="gold-line"></div>
-    <p class="text-yellow-100 text-lg mt-4 font-light italic">"Hạnh phúc là được ăn ngon"</p>
-    <p class="text-gray-300 mt-3 text-sm">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Phố Cổ Hà Nội, làm tại Nhật</p>
-    <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-      <a href="#products" class="btn-cta-primary inline-block text-white font-semibold px-8 py-3 rounded-full shadow-lg text-sm transition-all" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">🛒 Xem Thực Đơn</a>
-      <a href="#huong-dan" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">📋 Hướng Dẫn Bảo Quản</a>
-      <a href="#shipping" class="inline-block border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🚚 Bảng Phí Ship</a>
-      <button onclick="openCart()" class="border border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-yellow-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">🛍️ Giỏ Hàng</button>
-      <a id="hero-member-btn" href="/thanh-vien" class="inline-block border border-green-400 text-green-300 hover:bg-green-400 hover:text-green-900 font-semibold px-8 py-3 rounded-full text-sm transition-all">⭐ Đăng Ký / Đăng Nhập</a>
-      <button onclick="openSiPopup()" class="border border-white text-white hover:bg-white hover:text-brand-dark font-semibold px-8 py-3 rounded-full text-sm transition-all">🤝 Liên Hệ Mua Sỉ</button>
+<!-- HERO — WHITE background, 3D raised buttons -->
+<section style="background:linear-gradient(180deg,#FFFFFF 0%,#FFF8F0 100%);padding:64px 16px;text-align:center;position:relative;overflow:hidden">
+  <div style="position:absolute;top:0;right:0;width:280px;height:280px;border-radius:50%;opacity:0.08;background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
+  <div style="position:absolute;bottom:0;left:0;width:220px;height:220px;border-radius:50%;opacity:0.08;background:radial-gradient(circle,#C8102E,transparent);transform:translate(-30%,30%)"></div>
+
+  <style>
+    /* 3D raised button effect */
+    .btn-3d {
+      display:inline-block;
+      padding:14px 28px;
+      border-radius:9999px;
+      font-weight:700;
+      font-size:17px;
+      line-height:1.2;
+      text-decoration:none;
+      transition:all 0.15s ease;
+      cursor:pointer;
+      border:none;
+      position:relative;
+      text-align:center;
+      font-family:inherit;
+    }
+    .btn-3d:active {
+      transform:translateY(2px);
+      box-shadow:0 2px 4px rgba(0,0,0,0.15) !important;
+    }
+    .btn-3d-primary {
+      background:linear-gradient(180deg,#D61530 0%,#C8102E 50%,#A80A24 100%);
+      color:white;
+      box-shadow:0 6px 0 #7A0618, 0 8px 14px rgba(200,16,46,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .btn-3d-primary:hover { filter:brightness(1.08); }
+    .btn-3d-green {
+      background:linear-gradient(180deg,#10B981 0%,#059669 50%,#047857 100%);
+      color:white;
+      box-shadow:0 6px 0 #065F46, 0 8px 14px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .btn-3d-green:hover { filter:brightness(1.08); }
+    .btn-3d-yellow {
+      background:linear-gradient(180deg,#FCD34D 0%,#F59E0B 50%,#D97706 100%);
+      color:#78350F;
+      box-shadow:0 6px 0 #92400E, 0 8px 14px rgba(245,158,11,0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .btn-3d-yellow:hover { filter:brightness(1.08); }
+    .btn-3d-gray {
+      background:linear-gradient(180deg,#F3F4F6 0%,#E5E7EB 50%,#D1D5DB 100%);
+      color:#374151;
+      box-shadow:0 6px 0 #9CA3AF, 0 8px 14px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    .btn-3d-gray:hover { filter:brightness(0.97); }
+    .btn-3d-blue {
+      background:linear-gradient(180deg,#3B82F6 0%,#2563EB 50%,#1D4ED8 100%);
+      color:white;
+      box-shadow:0 6px 0 #1E3A8A, 0 8px 14px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .btn-3d-blue:hover { filter:brightness(1.08); }
+    @media (max-width: 640px) {
+      .btn-3d { font-size:16px; padding:14px 24px; width:100%; }
+    }
+  </style>
+
+  <div style="position:relative;z-index:10;max-width:640px;margin:0 auto">
+    <p style="color:#C8102E;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:600">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật ✦</p>
+    <h1 style="font-size:42px;font-weight:700;margin:0 0 12px;line-height:1.1;color:#2C1A0E;font-family:'Playfair Display',serif">Bếp Thuỷ Japan</h1>
+    <div style="width:60px;height:3px;background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017);margin:12px auto;border-radius:2px"></div>
+    <p style="color:#78350F;font-size:19px;margin-top:16px;font-style:italic;font-weight:500">"Hạnh phúc là được ăn ngon"</p>
+    <p style="color:#6B7280;margin-top:12px;font-size:15px">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Phố Cổ Hà Nội, làm tại Nhật</p>
+
+    <!-- 3D Buttons: Member on TOP, then others -->
+    <div style="margin-top:40px;display:flex;flex-direction:column;gap:14px;align-items:center;max-width:360px;margin-left:auto;margin-right:auto">
+      <a id="hero-member-btn" href="/thanh-vien" class="btn-3d btn-3d-green" style="width:100%">⭐ Đăng Ký / Đăng Nhập</a>
+      <a href="#products" class="btn-3d btn-3d-primary" style="width:100%">🛒 Xem Thực Đơn</a>
+      <button onclick="openCart()" class="btn-3d btn-3d-yellow" style="width:100%">🛍️ Giỏ Hàng</button>
+      <a href="#huong-dan" class="btn-3d btn-3d-gray" style="width:100%">📋 Hướng Dẫn Bảo Quản</a>
+      <a href="#shipping" class="btn-3d btn-3d-gray" style="width:100%">🚚 Bảng Phí Ship</a>
+      <button onclick="openSiPopup()" class="btn-3d btn-3d-blue" style="width:100%">🤝 Liên Hệ Mua Sỉ</button>
     </div>
   </div>
 </section>
