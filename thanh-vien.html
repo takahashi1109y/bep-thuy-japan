@@ -1887,9 +1887,12 @@ function switchPmView(view) {
 
 function switchPmPayTab(tab) {
   var isPayPay = (tab === 'paypay');
-  document.getElementById('pm-section-paypay').classList.toggle('hidden', !isPayPay);
-  document.getElementById('pm-section-bank').classList.toggle('hidden', isPayPay);
-  // Tab buttons
+  // Use INLINE style display (not classList.hidden) — because bank section uses inline display:none
+  var paypay = document.getElementById('pm-section-paypay');
+  var bank = document.getElementById('pm-section-bank');
+  if (paypay) paypay.style.display = isPayPay ? 'block' : 'none';
+  if (bank) bank.style.display = isPayPay ? 'none' : 'block';
+  // Tab buttons — GREEN for bank (match bank section color)
   var pp = document.getElementById('pm-tab-paypay');
   var bk = document.getElementById('pm-tab-bank');
   if (isPayPay) {
@@ -1897,8 +1900,11 @@ function switchPmPayTab(tab) {
     bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
   } else {
     pp.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
-    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-blue-700 bg-blue-700 text-white';
+    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-emerald-600 text-white';
+    bk.style.background = 'linear-gradient(135deg,#047857,#10B981)';
   }
+  // Reset paypay tab background (in case it was set to green before)
+  if (isPayPay) bk.style.background = '';
 }
 
 function renderPmPayPayQR() {
