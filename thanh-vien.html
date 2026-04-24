@@ -308,7 +308,10 @@
 
     <!-- Tab: Orders (separate now) -->
     <div id="panel-orders" class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
-      <h4 class="font-bold text-gray-700 text-sm mb-3">📦 Lịch Sử Mua Hàng</h4>
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="font-bold text-gray-700 text-sm">📦 Lịch Sử Mua Hàng</h4>
+        <button onclick="loadDashboard()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg transition">🔄 Làm mới</button>
+      </div>
       <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
         <p class="text-xs text-yellow-800"><strong>📌 Quy định hủy đơn:</strong></p>
         <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
@@ -973,7 +976,10 @@ function switchDashTab(tab) {
     var el = document.getElementById('panel-' + t);
     if (el) el.classList.toggle('hidden', t !== tab);
   });
-  // Lazy load messages on tab open
+  // Auto-refresh data on tab switch
+  if (tab === 'orders') {
+    loadDashboard().catch(e => console.warn('Refresh orders err:', e));
+  }
   if (tab === 'messages') loadMessages();
 }
 
@@ -1351,6 +1357,7 @@ async function cancelMyOrder(orderNo) {
 // MESSAGING SYSTEM (Customer ↔ Shop)
 // ═══════════════════════════════════════════════════════════
 async function sendMessage() {
+  console.log('[sendMessage] start');
   if (!currentUser) { alert('Vui lòng đăng nhập lại'); return; }
   const subject = document.getElementById('msg-subject').value.trim();
   const body = document.getElementById('msg-body').value.trim();
@@ -1363,27 +1370,44 @@ async function sendMessage() {
   const btn = document.getElementById('msg-send-btn');
   btn.disabled = true; btn.textContent = '⏳ Đang gửi...';
 
+  // Always reset button state (even on unexpected errors) via finally-like pattern
+  var resetBtn = function() { btn.disabled = false; btn.textContent = '📤 Gửi Tin Nhắn'; };
+
+  // Safety timeout: force reset button + show error after 15s
+  var timeoutId = setTimeout(function() {
+    errBox.textContent = '❌ Gửi tin nhắn bị treo. Vui lòng thử lại hoặc check Console (F12).';
+    errBox.classList.remove('hidden');
+    resetBtn();
+  }, 15000);
+
   try {
-    // Create new thread
+    console.log('[sendMessage] inserting thread...');
     const { data: thread, error: tErr } = await sb.from('message_threads')
       .insert({ user_id: currentUser.id, subject: subject })
       .select().single();
+    console.log('[sendMessage] thread result:', { thread, tErr });
     if (tErr) throw tErr;
+    if (!thread || !thread.id) throw new Error('Thread insert returned no id');
 
-    // Insert first message
+    console.log('[sendMessage] inserting message...');
     const { error: mErr } = await sb.from('messages')
       .insert({ thread_id: thread.id, sender: 'customer', body: body });
+    console.log('[sendMessage] message result:', { mErr });
     if (mErr) throw mErr;
 
+    clearTimeout(timeoutId);
     document.getElementById('msg-subject').value = '';
     document.getElementById('msg-body').value = '';
-    btn.disabled = false; btn.textContent = '📤 Gửi Tin Nhắn';
+    resetBtn();
     alert('✅ Đã gửi tin nhắn! Thuỷ sẽ trả lời trong 24h.');
     await loadMessages();
   } catch(e) {
-    errBox.textContent = '❌ ' + (e.message || 'Không thể gửi tin nhắn');
+    clearTimeout(timeoutId);
+    console.error('[sendMessage] error:', e);
+    var msg = e?.message || e?.error_description || JSON.stringify(e);
+    errBox.textContent = '❌ ' + msg;
     errBox.classList.remove('hidden');
-    btn.disabled = false; btn.textContent = '📤 Gửi Tin Nhắn';
+    resetBtn();
   }
 }
 
