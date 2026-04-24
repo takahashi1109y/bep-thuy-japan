@@ -741,67 +741,67 @@ function renderOrdersToUI(orders) {
     const pointsUsedLine = o.points_used > 0
       ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm</p>` : '';
 
-    // BUILD ACTION BUTTONS (stacked vertically, Amazon-style)
+    // BUILD ACTION BUTTONS (Amazon mobile-style: pill buttons in flex-wrap grid)
     const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
     const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
     const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
     const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
 
-    const btnClass = 'w-full text-xs font-semibold px-3 py-2 rounded-full border transition text-center whitespace-nowrap';
-    let actionButtons = '';
+    // Primary button: yellow Amazon style (1 per order)
+    const primaryCls = 'inline-flex items-center justify-center text-sm font-semibold px-5 py-2.5 rounded-full transition whitespace-nowrap';
+    const primaryStyle = 'background:#FFD814;color:#0F1111;border:1px solid #FCD200;';
+    const primaryHover = 'onmouseover="this.style.background=\'#F7CA00\'" onmouseout="this.style.background=\'#FFD814\'"';
+    // Secondary buttons: white outline (Amazon pill)
+    const secondaryCls = 'inline-flex items-center justify-center text-sm font-medium px-5 py-2.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition whitespace-nowrap';
 
-    // Primary: Payment button
+    const actions = [];
+
+    // Primary action (yellow, Amazon-style)
     if (o.status === 'pending') {
-      actionButtons += `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${btnClass} bg-yellow-50 border-yellow-400 text-yellow-900 hover:bg-yellow-100">💳 Thanh toán</button>`;
+      actions.push(`<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>💳 Thanh toán</button>`);
     } else if (o.status === 'customer_paid') {
-      actionButtons += `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${btnClass} bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100">📸 Gửi biên lai khác</button>`;
+      actions.push(`<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>📸 Gửi biên lai khác</button>`);
+    } else if (o.status === 'shipped' || o.status === 'delivered') {
+      actions.push(`<a href="/" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>🔄 Đặt lại</a>`);
     }
 
-    // Cancel (within 30 min) or contact shop
-    if (canCancelStatus) {
-      if (minutesLeft > 0) {
-        actionButtons += `<button onclick="cancelMyOrder('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">🗑 Hủy đơn <span class="text-gray-400">(${minutesLeft}p)</span></button>`;
-      } else {
-        actionButtons += `<button onclick="contactShopForCancel('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">💬 Liên hệ shop</button>`;
-      }
+    // Secondary: cancel (if within 30 min) OR contact shop
+    if (canCancelStatus && minutesLeft > 0) {
+      actions.push(`<button onclick="cancelMyOrder('${o.order_no}')" class="${secondaryCls}">🗑 Hủy đơn <span class="text-gray-400 ml-1">(${minutesLeft}p)</span></button>`);
     }
 
-    // Contact shop (always available for non-cancelled orders)
-    if (!canCancelStatus && o.status !== 'cancelled') {
-      actionButtons += `<button onclick="contactShopForCancel('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">💬 Liên hệ shop</button>`;
-    }
-
-    // Reorder button (if delivered or shipped)
-    if (o.status === 'shipped' || o.status === 'delivered') {
-      actionButtons += `<a href="/" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50 block">🔄 Đặt lại</a>`;
+    // Always available: contact shop (for non-cancelled orders)
+    if (o.status !== 'cancelled') {
+      actions.push(`<button onclick="contactShopForCancel('${o.order_no}')" class="${secondaryCls}">💬 Liên hệ shop</button>`);
     }
 
     return `<div class="bg-white border border-gray-200 rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow">
-      <!-- Header: order number + date -->
+      <!-- Header: status + date + total -->
       <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3 gap-2 flex-wrap">
-        <div class="flex items-center gap-3 flex-wrap">
-          <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
-          <span class="text-xs text-gray-500">${date}</span>
+        <div class="flex items-center gap-2 flex-wrap">
           <span class="inline-block text-xs px-2.5 py-1 rounded-full border ${badge.cls} font-semibold">${badge.text}</span>
+          <span class="text-xs text-gray-500">${date}</span>
         </div>
         <p class="text-base font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
       </div>
 
-      <!-- Body: items LEFT | actions RIGHT (Amazon-style) -->
-      <div class="flex gap-4 items-start flex-col sm:flex-row">
-        <!-- LEFT: Items + shipping info -->
-        <div class="flex-1 min-w-0 w-full">
-          ${itemLines || '<p class="text-xs text-gray-400">Không có chi tiết sản phẩm</p>'}
-          <div class="mt-2 pt-2 border-t border-gray-100">
-            <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
-            ${pointsUsedLine}
-            ${pointsLine}
-          </div>
-        </div>
+      <!-- Order number -->
+      <p class="text-sm font-bold text-brand-dark mb-2">📦 Đơn #${o.order_no}</p>
 
-        <!-- RIGHT: Action buttons stacked (Amazon-style) -->
-        ${actionButtons ? `<div class="flex flex-col gap-2 w-full sm:w-40 flex-shrink-0">${actionButtons}</div>` : ''}
+      <!-- Items -->
+      <div class="mb-3">
+        ${itemLines || '<p class="text-xs text-gray-400">Không có chi tiết sản phẩm</p>'}
       </div>
+
+      <!-- Shipping + points info -->
+      <div class="pt-2 border-t border-gray-100 mb-3">
+        <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
+        ${pointsUsedLine}
+        ${pointsLine}
+      </div>
+
+      <!-- Action buttons: Amazon mobile style (pill grid) -->
+      ${actions.length > 0 ? `<div class="flex flex-wrap gap-2">${actions.join('')}</div>` : ''}
     </div>`;
   }).join('');
 }
