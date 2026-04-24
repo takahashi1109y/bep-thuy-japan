@@ -598,7 +598,23 @@ const SUPABASE_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  realtime: { params: { eventsPerSecond: 1 } },
+  global: {
+    // Add AbortSignal timeout to avoid hanging requests
+    fetch: (url, options) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timeoutId));
+    }
+  }
+});
 
 let currentUser = null;
 let hcaptchaWidgetId = null;
@@ -1112,23 +1128,43 @@ async function loadDashboard(retryAttempt = 0) {
     if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">⚠️ Tải dữ liệu bị treo. <button onclick="loadDashboard()" class="text-brand-red underline ml-1">Thử lại</button></p>';
   }, 12000);
 
-  // Run all 5 queries in PARALLEL — không await refreshSession (gây treo do hCaptcha)
+  // Helper: add timeout to any promise (default 7 seconds)
+  function withTimeout(promise, label, ms = 7000) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout: ' + label)), ms))
+    ]);
+  }
+
+  // Run all 5 queries in PARALLEL with per-query timeout
   const uid = currentUser.id;
   let profileRes, balRes, historyRes, couponsRes, ordersRes;
   try {
-    [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.allSettled([
-      sb.from('profiles').select('*').eq('id', uid).single(),
-      sb.from('points_balance').select('total_points').eq('user_id', uid).single(),
-      sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
-      sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-      sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30)
-    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason }));
+    const safeQuery = async (fn, label) => {
+      try {
+        const t0 = Date.now();
+        const result = await withTimeout(fn(), label);
+        console.log('[loadDashboard]', label, 'done in', Date.now() - t0, 'ms');
+        return result;
+      } catch (e) {
+        console.warn('[loadDashboard]', label, 'failed:', e.message);
+        return { data: null, error: e };
+      }
+    };
+
+    [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.all([
+      safeQuery(() => sb.from('profiles').select('*').eq('id', uid).single(), 'profiles'),
+      safeQuery(() => sb.from('points_balance').select('total_points').eq('user_id', uid).single(), 'points_balance'),
+      safeQuery(() => sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50), 'points_transactions'),
+      safeQuery(() => sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 'coupons'),
+      safeQuery(() => sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30), 'orders')
+    ]);
     clearTimeout(hangTimeout);
-    console.log('[loadDashboard] queries done. orders:', ordersRes.data?.length);
+    console.log('[loadDashboard] all queries done. orders count:', ordersRes.data?.length);
   } catch(e) {
     clearTimeout(hangTimeout);
-    console.error('[loadDashboard] queries error:', e);
-    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">❌ Lỗi tải dữ liệu: ' + (e.message || e) + '</p>';
+    console.error('[loadDashboard] unexpected error:', e);
+    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">❌ Lỗi: ' + (e.message || e) + '</p>';
     return;
   }
 
