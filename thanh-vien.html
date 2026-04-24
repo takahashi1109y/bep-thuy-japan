@@ -138,6 +138,24 @@
         <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
         <input id="reg-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
       </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="field-label">Giới Tính</label>
+          <select id="reg-gender" class="field-input bg-white">
+            <option value="">-- Chọn --</option>
+            <option value="female">👩 Nữ</option>
+            <option value="male">👨 Nam</option>
+            <option value="other">Khác</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Ngày Sinh 🎂</label>
+          <input id="reg-birthday" type="date" class="field-input bg-white" max="2026-12-31">
+        </div>
+      </div>
+      <div class="bg-pink-50 border border-pink-200 rounded-xl p-2">
+        <p class="text-xs text-pink-700">🎁 <strong>Quà sinh nhật:</strong> Giảm 10% tất cả đơn hàng trong ngày sinh nhật!</p>
+      </div>
       <div>
         <label class="field-label">Tỉnh / Thành Phố</label>
         <select id="reg-prefecture" class="field-input bg-white">
@@ -399,6 +417,24 @@
         <div>
           <label class="field-label">Số Điện Thoại</label>
           <input id="prof-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Giới Tính</label>
+            <select id="prof-gender" class="field-input bg-white">
+              <option value="">-- Chọn --</option>
+              <option value="female">👩 Nữ</option>
+              <option value="male">👨 Nam</option>
+              <option value="other">Khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Ngày Sinh 🎂</label>
+            <input id="prof-birthday" type="date" class="field-input bg-white">
+          </div>
+        </div>
+        <div class="bg-pink-50 border border-pink-200 rounded-xl p-2">
+          <p class="text-xs text-pink-700">🎁 <strong>Quà sinh nhật:</strong> Ngày sinh nhật → giảm 10% tất cả đơn hàng!</p>
         </div>
         <div id="prof-msg" class="hidden text-sm rounded-xl p-3"></div>
         <button onclick="saveProfile()" class="btn-primary w-full py-3 text-sm">Lưu Thay Đổi</button>
@@ -1040,6 +1076,8 @@ async function doRegister() {
   const prefecture = document.getElementById('reg-prefecture').value;
   const postal = document.getElementById('reg-postal').value.trim();
   const address = document.getElementById('reg-address').value.trim();
+  const gender = document.getElementById('reg-gender').value || null;
+  const birthday = document.getElementById('reg-birthday').value || null;
 
   if (!email) { showError('reg-error', 'Vui lòng nhập email.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('reg-error', 'Email không hợp lệ.'); return; }
@@ -1069,7 +1107,9 @@ async function doRegister() {
         phone: phone,
         prefecture: prefecture || null,
         postal: postal || null,
-        address: address || null
+        address: address || null,
+        gender: gender,
+        birthday: birthday
       },
       emailRedirectTo: window.location.origin + '/thanh-vien',
       captchaToken: captchaToken
@@ -1486,6 +1526,8 @@ async function _loadDashboardImpl(retryAttempt) {
   document.getElementById('prof-email').value = currentUser.email || '';
   document.getElementById('prof-name').value = profile?.display_name || '';
   document.getElementById('prof-phone').value = profile?.phone || '';
+  var profGender = document.getElementById('prof-gender'); if (profGender) profGender.value = profile?.gender || '';
+  var profBirth = document.getElementById('prof-birthday'); if (profBirth) profBirth.value = profile?.birthday || '';
 
   // Fill address form
   document.getElementById('addr-prefecture').value = profile?.prefecture || '';
@@ -1524,11 +1566,13 @@ async function saveProfile() {
 
   const name = document.getElementById('prof-name').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
+  const gender = document.getElementById('prof-gender')?.value || null;
+  const birthday = document.getElementById('prof-birthday')?.value || null;
   if (!name) { showMsg('prof-msg', 'Vui lòng nhập họ tên.', false); return; }
 
   try {
     const { error } = await sb.from('profiles').update({
-      display_name: name, phone: phone
+      display_name: name, phone: phone, gender: gender, birthday: birthday
     }).eq('id', currentUser.id);
     if (error) { showMsg('prof-msg', 'Lỗi: ' + error.message, false); return; }
   } catch (e) {

@@ -1387,8 +1387,9 @@ function switchTab(type) {
     const box=document.getElementById('total-summary-box');
     if(!shipFee){ box.classList.add('hidden'); return; }
     const sub = subtotal();
-    const gross = sub + shipFee;
-    // Clamp pointsUsed to current usable amount (e.g., if shipping changed)
+    const bdDisc = birthdayDiscount(sub); // 10% on subtotal (products only)
+    const gross = sub + shipFee - bdDisc;
+    // Clamp pointsUsed to current usable amount
     if (pointsUsed > gross) pointsUsed = gross;
     const net = Math.max(0, gross - pointsUsed);
     document.getElementById('final-subtotal').textContent=yen(sub);
@@ -1399,6 +1400,22 @@ function switchTab(type) {
       discRow.classList.remove('hidden');
     } else {
       discRow.classList.add('hidden');
+    }
+    // Birthday discount row
+    let bdRow = document.getElementById('final-birthday-row');
+    if (!bdRow && bdDisc > 0) {
+      // Inject birthday row before total
+      const container = discRow.parentNode;
+      bdRow = document.createElement('div');
+      bdRow.id = 'final-birthday-row';
+      bdRow.className = 'flex justify-between text-sm text-pink-600 font-semibold';
+      bdRow.innerHTML = '<span>🎂 Giảm sinh nhật (10%):</span><span id="final-birthday-amount">−¥0</span>';
+      container.insertBefore(bdRow, discRow);
+    }
+    if (bdRow) {
+      bdRow.style.display = bdDisc > 0 ? 'flex' : 'none';
+      const bdAmt = document.getElementById('final-birthday-amount');
+      if (bdAmt) bdAmt.textContent = '−' + yen(bdDisc);
     }
     document.getElementById('final-total').textContent=yen(net);
     box.classList.remove('hidden');
@@ -1556,7 +1573,9 @@ function switchTab(type) {
       }
     }
 
-    const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0, total=sub+ship;
+    const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0;
+    const bdDisc = birthdayDiscount(sub);
+    const total=sub+ship-bdDisc;
 
     const btn=document.getElementById('submit-btn');
     btn.disabled=true; btn.innerHTML='<span class="spin">⏳</span> Đang xử lý...';
@@ -1572,7 +1591,7 @@ function switchTab(type) {
           note,deliveryTime,
           items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
           cartItems:cart.map(i=>({name:i.name,size:i.size,price:i.price,qty:i.qty,wt:i.wt})),
-          subtotal:sub,shipping:ship,total})
+          subtotal:sub,shipping:ship,total,birthdayDiscount:bdDisc})
       });
       const d=await res.json();
       orderNo=d.success?d.orderNo:String(Date.now()).slice(-4).padStart(4,'0');
@@ -1793,9 +1812,40 @@ function switchTab(type) {
         const { data: bal } = await sbClient.from('points_balance')
           .select('total_points').eq('user_id', sbUser.id).single();
         sbPointsBalance = bal?.total_points || 0;
+        // Check birthday
+        checkBirthday();
         updateMemberUI();
       }
     } catch(e) { /* Supabase not configured yet */ }
+  }
+
+  // BIRTHDAY DISCOUNT: check if today (JST) is user's birthday -> 10% off
+  let isBirthdayToday = false;
+  function checkBirthday() {
+    if (!sbProfile?.birthday) { isBirthdayToday = false; return; }
+    try {
+      // Get today in JST
+      const nowJST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const bday = new Date(sbProfile.birthday);
+      isBirthdayToday = (nowJST.getMonth() === bday.getMonth() && nowJST.getDate() === bday.getDate());
+      console.log('[birthday] check:', { birthday: sbProfile.birthday, isBirthdayToday });
+      if (isBirthdayToday) showBirthdayBanner();
+    } catch(e) { console.warn('checkBirthday err:', e); }
+  }
+
+  function showBirthdayBanner() {
+    // Add floating banner at top of page
+    if (document.getElementById('birthday-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'birthday-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#EC4899,#F43F5E);color:white;padding:10px 16px;text-align:center;font-weight:600;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15)';
+    banner.innerHTML = '🎂 Chúc mừng sinh nhật! Bạn được <strong>giảm 10%</strong> cho tất cả đơn hôm nay! 🎉 <button onclick="this.parentNode.style.display=\'none\'" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:2px 10px;border-radius:999px;margin-left:8px;cursor:pointer">✕</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.style.paddingTop = '40px';
+  }
+
+  function birthdayDiscount(amount) {
+    return isBirthdayToday ? Math.floor(amount * 0.1) : 0;
   }
 
   // Max points redeemable for THIS order, FLOOR to multiple of 50
