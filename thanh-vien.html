@@ -1623,25 +1623,42 @@ let pmCustomerName = '';
 
 // Called when user clicks "💳 Thanh Toán" on an order card
 function openPaymentUpload(orderNo, amount, customerName) {
-  console.log('[payment] openPaymentUpload', orderNo, amount);
-  pmCurrentOrder = orderNo;
-  pmCurrentAmount = amount || 0;
-  pmCustomerName = (customerName || currentProfile?.display_name || '').toUpperCase().split(' ').slice(0,3).join(' ');
-  document.getElementById('pm-order-no').textContent = '#' + orderNo;
-  document.getElementById('pm-amount').textContent = '¥' + Number(pmCurrentAmount).toLocaleString();
-  document.getElementById('pm-paypay-amount').textContent = '¥' + Number(pmCurrentAmount).toLocaleString();
-  document.getElementById('pm-bank-nameformat').textContent = orderNo + ' ' + pmCustomerName;
-  // Reset upload form
-  var fileEl = document.getElementById('pm-file'); if (fileEl) fileEl.value = '';
-  var noteEl = document.getElementById('pm-note'); if (noteEl) noteEl.value = '';
-  var prevEl = document.getElementById('pm-preview-wrap'); if (prevEl) prevEl.classList.add('hidden');
-  var errEl = document.getElementById('pm-error'); if (errEl) errEl.classList.add('hidden');
-  // Default view: payment info
-  switchPmView('pay');
-  switchPmPayTab('paypay');
-  // Generate QR
-  setTimeout(renderPmPayPayQR, 100);
-  document.getElementById('payment-modal').classList.remove('hidden');
+  console.log('[payment] openPaymentUpload called:', orderNo, amount, customerName);
+  try {
+    var modal = document.getElementById('payment-modal');
+    if (!modal) {
+      alert('❌ Lỗi: Không tìm thấy modal payment-modal. Vui lòng hard reload trang (Cmd+Shift+R).');
+      return;
+    }
+
+    pmCurrentOrder = orderNo;
+    pmCurrentAmount = amount || 0;
+    pmCustomerName = (customerName || currentProfile?.display_name || '').toUpperCase().split(' ').slice(0,3).join(' ');
+
+    var setText = function(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = val;
+      else console.warn('[payment] element not found:', id);
+    };
+    setText('pm-order-no', '#' + orderNo);
+    setText('pm-amount', '¥' + Number(pmCurrentAmount).toLocaleString());
+    setText('pm-paypay-amount', '¥' + Number(pmCurrentAmount).toLocaleString());
+    setText('pm-bank-nameformat', orderNo + ' ' + pmCustomerName);
+
+    var fileEl = document.getElementById('pm-file'); if (fileEl) fileEl.value = '';
+    var noteEl = document.getElementById('pm-note'); if (noteEl) noteEl.value = '';
+    var prevEl = document.getElementById('pm-preview-wrap'); if (prevEl) prevEl.classList.add('hidden');
+    var errEl = document.getElementById('pm-error'); if (errEl) errEl.classList.add('hidden');
+
+    switchPmView('pay');
+    switchPmPayTab('paypay');
+    setTimeout(renderPmPayPayQR, 100);
+    modal.classList.remove('hidden');
+    console.log('[payment] modal opened');
+  } catch (e) {
+    console.error('[payment] openPaymentUpload error:', e);
+    alert('❌ Lỗi mở modal thanh toán: ' + (e.message || e) + '\n\nVui lòng chụp ảnh Console (F12) gửi shop để hỗ trợ.');
+  }
 }
 
 function closePaymentUpload() {
