@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- hCaptcha invisible (anti-bot) -->
+<script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F5F7; color: #1C1C1E; -webkit-font-smoothing: antialiased; }
@@ -107,8 +109,9 @@
       <input id="admin-email" type="email" placeholder="Email admin" class="input">
       <input id="admin-password" type="password" placeholder="Mật khẩu" class="input">
       <div id="login-error" class="hidden" style="color: #EF4444; font-size: 13px; padding: 10px; background: #FEF2F2; border-radius: 8px;"></div>
+      <div id="hcaptcha-container"></div>
       <button onclick="adminLogin()" class="btn btn-primary" style="padding: 12px; justify-content: center;">Đăng Nhập</button>
-      <p style="text-align: center; font-size: 12px; color: #9CA3AF; margin: 0;">Chỉ admin mới truy cập được trang này</p>
+      <p style="text-align: center; font-size: 12px; color: #9CA3AF; margin: 0;">Chỉ admin mới truy cập · Bảo vệ bởi hCaptcha</p>
     </div>
   </div>
 </div>
@@ -307,11 +310,43 @@
 // ============ CONFIG ============
 const SUPABASE_URL = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
+const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 let currentAdmin = null;
 let allOrders = [];
 let allCustomers = [];
+let hcaptchaWidgetId = null;
+let _captchaResolve = null;
+
+function initHCaptcha() {
+  if (typeof hcaptcha === 'undefined') return;
+  if (hcaptchaWidgetId !== null) return;
+  try {
+    hcaptchaWidgetId = hcaptcha.render('hcaptcha-container', {
+      sitekey: HCAPTCHA_SITEKEY,
+      size: 'invisible',
+      callback: 'onHCaptchaSuccess',
+      'error-callback': 'onHCaptchaError',
+      'expired-callback': 'onHCaptchaExpired'
+    });
+  } catch(e) { console.warn('hCaptcha render error:', e); }
+}
+function getCaptchaToken() {
+  return new Promise((resolve) => {
+    if (typeof hcaptcha === 'undefined' || hcaptchaWidgetId === null) { resolve(''); return; }
+    _captchaResolve = resolve;
+    try {
+      hcaptcha.reset(hcaptchaWidgetId);
+      hcaptcha.execute(hcaptchaWidgetId);
+      setTimeout(() => { if (_captchaResolve === resolve) { _captchaResolve = null; resolve(''); } }, 60000);
+    } catch(e) { resolve(''); }
+  });
+}
+window.onHCaptchaSuccess = function(t) { if (_captchaResolve) { _captchaResolve(t); _captchaResolve = null; } };
+window.onHCaptchaError = function() { if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; } };
+window.onHCaptchaExpired = function() { if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; } };
+setTimeout(initHCaptcha, 1000);
 
 // ============ AUTH FLOW ============
 async function init() {
@@ -349,7 +384,13 @@ async function adminLogin() {
   errBox.classList.add('hidden');
   if (!email || !password) { errBox.textContent = 'Vui lòng nhập email và mật khẩu'; errBox.classList.remove('hidden'); return; }
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const captchaToken = await getCaptchaToken();
+  if (!captchaToken) { errBox.textContent = 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.'; errBox.classList.remove('hidden'); return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email, password,
+    options: { captchaToken: captchaToken }
+  });
   if (error) { errBox.textContent = error.message === 'Invalid login credentials' ? 'Email hoặc mật khẩu không đúng' : error.message; errBox.classList.remove('hidden'); return; }
   await checkAdminAndLoad(data.user);
 }

@@ -162,8 +162,10 @@
         <p class="text-xs text-gray-400 mt-1">Địa chỉ này sẽ tự động điền vào form đặt hàng.</p>
       </div>
       <div id="reg-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
+      <!-- hCaptcha invisible widget container (rendered via JS) -->
+      <div id="hcaptcha-container"></div>
       <button id="reg-btn" onclick="doRegister()" class="btn-primary w-full py-4 text-base">Đăng Ký Thành Viên</button>
-      <p class="text-center text-xs text-gray-400">Miễn phí · Không ràng buộc</p>
+      <p class="text-center text-xs text-gray-400">Miễn phí · Không ràng buộc · Bảo vệ bởi hCaptcha</p>
      </div>
 
      <!-- Email confirmation screen (shown after successful signup) -->
@@ -438,6 +440,8 @@
 
 <!-- Supabase JS loaded at end of body to not block page render -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- hCaptcha invisible (anti-bot) -->
+<script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SUPABASE CONFIG
@@ -445,10 +449,65 @@
 // >>> THAY ĐỔI 2 DÒNG NÀY SAU KHI TẠO PROJECT SUPABASE <<<
 const SUPABASE_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
+const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 let currentUser = null;
+let hcaptchaWidgetId = null;
+
+// ═══════════════════════════════════════════════════════════
+// hCAPTCHA — invisible bot protection
+// ═══════════════════════════════════════════════════════════
+function initHCaptcha() {
+  if (typeof hcaptcha === 'undefined') return;
+  if (hcaptchaWidgetId !== null) return;
+  try {
+    hcaptchaWidgetId = hcaptcha.render('hcaptcha-container', {
+      sitekey: HCAPTCHA_SITEKEY,
+      size: 'invisible',
+      callback: 'onHCaptchaSuccess',
+      'error-callback': 'onHCaptchaError',
+      'expired-callback': 'onHCaptchaExpired'
+    });
+  } catch (e) { console.warn('hCaptcha render error:', e); }
+}
+
+let _captchaResolve = null;
+function getCaptchaToken() {
+  return new Promise((resolve, reject) => {
+    if (typeof hcaptcha === 'undefined' || hcaptchaWidgetId === null) {
+      // hCaptcha not loaded yet — fail open with empty token (Supabase will reject)
+      console.warn('hCaptcha not ready');
+      resolve('');
+      return;
+    }
+    _captchaResolve = resolve;
+    try {
+      hcaptcha.reset(hcaptchaWidgetId);
+      hcaptcha.execute(hcaptchaWidgetId);
+      // Safety timeout: if user closes challenge, resolve with empty after 60s
+      setTimeout(() => {
+        if (_captchaResolve === resolve) { _captchaResolve = null; resolve(''); }
+      }, 60000);
+    } catch (e) { console.warn('hCaptcha execute error:', e); resolve(''); }
+  });
+}
+
+window.onHCaptchaSuccess = function(token) {
+  if (_captchaResolve) { _captchaResolve(token); _captchaResolve = null; }
+};
+window.onHCaptchaError = function() {
+  if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; }
+};
+window.onHCaptchaExpired = function() {
+  if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; }
+};
+
+// Tu render khi script hcaptcha load xong
+window.hcaptchaOnLoad = initHCaptcha;
+// Hoac thu render sau 1s neu hcaptcha da load san
+setTimeout(initHCaptcha, 1000);
 let currentProfile = null;
 
 // ═══════════════════════════════════════════════════════════
@@ -637,9 +696,23 @@ async function doLogin() {
   if (!email || !password) { showError('login-error', 'Vui lòng nhập email và mật khẩu.'); return; }
 
   const btn = document.getElementById('login-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang đăng nhập...';
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang xác minh...';
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  // hCaptcha verification (anti-bot)
+  const captchaToken = await getCaptchaToken();
+  if (!captchaToken) {
+    showError('login-error', 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.');
+    btn.disabled = false; btn.textContent = 'Đăng Nhập';
+    return;
+  }
+
+  btn.innerHTML = '<span class="spin">⏳</span> Đang đăng nhập...';
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password,
+    options: { captchaToken: captchaToken }
+  });
 
   if (error) {
     showError('login-error', error.message === 'Invalid login credentials'
@@ -685,7 +758,17 @@ async function doRegister() {
   if (!phone) { showError('reg-error', 'Vui lòng nhập số điện thoại.'); return; }
 
   const btn = document.getElementById('reg-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang xác minh...';
+
+  // hCaptcha verification (anti-bot)
+  const captchaToken = await getCaptchaToken();
+  if (!captchaToken) {
+    showError('reg-error', 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.');
+    btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+    return;
+  }
+
+  btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
 
   const { data, error } = await sb.auth.signUp({
     email, password,
@@ -697,7 +780,8 @@ async function doRegister() {
         postal: postal || null,
         address: address || null
       },
-      emailRedirectTo: window.location.origin + '/thanh-vien'
+      emailRedirectTo: window.location.origin + '/thanh-vien',
+      captchaToken: captchaToken
     }
   });
 
