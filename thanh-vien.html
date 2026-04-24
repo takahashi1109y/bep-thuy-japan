@@ -298,14 +298,25 @@
 
     <!-- Dashboard Tabs -->
     <div class="flex flex-wrap gap-2 mb-6 justify-center">
-      <button onclick="switchDashTab('points')" class="dash-tab active" data-tab="points">📊 Điểm Thưởng</button>
+      <button onclick="switchDashTab('orders')" class="dash-tab active" data-tab="orders">📦 Đơn Hàng</button>
+      <button onclick="switchDashTab('points')" class="dash-tab" data-tab="points">📊 Điểm Thưởng</button>
+      <button onclick="switchDashTab('messages')" class="dash-tab" data-tab="messages">💬 Tin Nhắn</button>
       <button onclick="switchDashTab('profile')" class="dash-tab" data-tab="profile">👤 Thông Tin</button>
       <button onclick="switchDashTab('address')" class="dash-tab" data-tab="address">📍 Địa Chỉ</button>
       <button onclick="switchDashTab('password')" class="dash-tab" data-tab="password">🔐 Mật Khẩu</button>
     </div>
 
+    <!-- Tab: Orders (separate now) -->
+    <div id="panel-orders" class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <h4 class="font-bold text-gray-700 text-sm mb-3">📦 Lịch Sử Mua Hàng</h4>
+      <p class="text-xs text-gray-500 mb-3">💡 Đơn ở trạng thái <strong class="text-yellow-700">"Chờ thanh toán"</strong> hoặc <strong class="text-blue-700">"Khách báo TT"</strong> — bạn có thể tự hủy đơn nếu cần.</p>
+      <div id="order-history" class="space-y-2 mb-6">
+        <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
+      </div>
+    </div>
+
     <!-- Tab: Points -->
-    <div id="panel-points" class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+    <div id="panel-points" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
       <!-- Redeem section -->
       <div id="redeem-box" class="hidden mb-6 bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4">
         <p class="font-bold text-yellow-800 mb-2">🎉 Bạn có thể đổi điểm!</p>
@@ -330,16 +341,30 @@
         <div id="my-coupons-list" class="space-y-2"></div>
       </div>
 
-      <!-- Order History -->
-      <h4 class="font-bold text-gray-700 text-sm mb-3">📦 Lịch Sử Mua Hàng</h4>
-      <div id="order-history" class="space-y-2 mb-6">
-        <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
-      </div>
-
       <!-- Points History -->
       <h4 class="font-bold text-gray-700 text-sm mb-3">📋 Lịch Sử Điểm</h4>
       <div id="points-history" class="space-y-2">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào</p>
+      </div>
+    </div>
+
+    <!-- Tab: Messages (Customer ↔ Shop) -->
+    <div id="panel-messages" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <h4 class="font-bold text-gray-700 text-sm mb-3">💬 Liên Hệ Bếp Thuỷ</h4>
+      <p class="text-xs text-gray-500 mb-4">Gửi tin nhắn cho cửa hàng. Thuỷ sẽ trả lời trong vòng 24h.</p>
+
+      <!-- Compose form -->
+      <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5">
+        <input id="msg-subject" type="text" placeholder="Chủ đề (vd: Thắc mắc đơn #0042)" class="field-input mb-3" maxlength="200">
+        <textarea id="msg-body" rows="4" placeholder="Nội dung tin nhắn..." class="field-input mb-3" maxlength="2000"></textarea>
+        <div id="msg-error" class="hidden text-red-600 text-xs bg-red-50 rounded-xl p-2 mb-3"></div>
+        <button id="msg-send-btn" onclick="sendMessage()" class="btn-primary w-full py-3 text-sm">📤 Gửi Tin Nhắn</button>
+      </div>
+
+      <!-- Message threads -->
+      <h5 class="font-bold text-gray-700 text-sm mb-3">📥 Tin Nhắn Của Bạn</h5>
+      <div id="messages-list" class="space-y-3">
+        <p class="text-gray-400 text-sm text-center py-4">Chưa có tin nhắn nào</p>
       </div>
     </div>
 
@@ -576,6 +601,14 @@ async function init() {
 
     // Refresh data tu Supabase (background, khong block UI)
     loadDashboard().catch(e => console.warn('Dashboard refresh err:', e));
+
+    // Honor ?tab= URL param
+    try {
+      var tabParam = new URLSearchParams(window.location.search).get('tab');
+      if (tabParam && ['orders','points','messages','profile','address','password'].indexOf(tabParam) >= 0) {
+        switchDashTab(tabParam);
+      }
+    } catch(e) {}
   } else {
     // Session khong hop le -> clear cache + show auth
     localStorage.removeItem('bepthuy_member');
@@ -737,6 +770,14 @@ async function doLogin() {
 
   // Load data in background — errors won't block the UI
   loadDashboard().catch(e => console.error('loadDashboard err:', e));
+
+  // Honor ?tab= URL param (vd: /thanh-vien?tab=orders)
+  try {
+    var tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam && ['orders','points','messages','profile','address','password'].indexOf(tabParam) >= 0) {
+      switchDashTab(tabParam);
+    }
+  } catch(e) {}
 }
 
 async function doRegister() {
@@ -921,9 +962,12 @@ function switchDashTab(tab) {
   document.querySelectorAll('.dash-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  ['points','profile','address','password'].forEach(t => {
-    document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+  ['orders','points','messages','profile','address','password'].forEach(t => {
+    var el = document.getElementById('panel-' + t);
+    if (el) el.classList.toggle('hidden', t !== tab);
   });
+  // Lazy load messages on tab open
+  if (tab === 'messages') loadMessages();
 }
 
 async function loadDashboard() {
@@ -985,12 +1029,17 @@ async function loadDashboard() {
               : '');
         const pointsUsedLine = o.points_used > 0
           ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
+        // Cancel button only for pending/customer_paid status
+        const canCancel = (o.status === 'pending' || o.status === 'customer_paid');
+        const cancelBtn = canCancel
+          ? `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn</button>`
+          : '';
         return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
           <div class="flex items-center justify-between mb-2">
             <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
             <span class="text-xs text-gray-500">${date}</span>
           </div>
-          <div class="mb-2"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span></div>
+          <div class="mb-2 flex items-center gap-2"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${cancelBtn}</div>
           ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
           <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
             <div>
@@ -1244,6 +1293,124 @@ sb.auth.onAuthStateChange(async (event, session) => {
     showSection('dashboard');
   }
 });
+
+// ═══════════════════════════════════════════════════════════
+// CUSTOMER SELF-CANCEL ORDER
+// ═══════════════════════════════════════════════════════════
+async function cancelMyOrder(orderNo) {
+  const reason = prompt('Lý do hủy đơn #' + orderNo + ':\n\n(Vd: Đặt nhầm, đổi ý, không cần nữa...)', '');
+  if (reason === null) return; // user clicked Cancel
+
+  try {
+    const { data, error } = await sb.rpc('cancel_order', {
+      p_order_no: String(orderNo),
+      p_reason: reason || ''
+    });
+    if (error) { alert('❌ Lỗi: ' + error.message); return; }
+    if (!data || !data.ok) { alert('❌ ' + (data?.error || 'Không thể hủy đơn này')); return; }
+
+    var msg = '✅ Đã hủy đơn #' + orderNo;
+    if (data.points_refunded > 0) msg += '\n💰 Đã hoàn ' + data.points_refunded + ' điểm vào tài khoản';
+    alert(msg);
+    await loadDashboard();
+  } catch(e) {
+    alert('❌ Lỗi: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MESSAGING SYSTEM (Customer ↔ Shop)
+// ═══════════════════════════════════════════════════════════
+async function sendMessage() {
+  if (!currentUser) { alert('Vui lòng đăng nhập lại'); return; }
+  const subject = document.getElementById('msg-subject').value.trim();
+  const body = document.getElementById('msg-body').value.trim();
+  const errBox = document.getElementById('msg-error');
+  errBox.classList.add('hidden');
+
+  if (!subject) { errBox.textContent = 'Vui lòng nhập chủ đề'; errBox.classList.remove('hidden'); return; }
+  if (!body || body.length < 5) { errBox.textContent = 'Nội dung tin nhắn quá ngắn (tối thiểu 5 ký tự)'; errBox.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('msg-send-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang gửi...';
+
+  try {
+    // Create new thread
+    const { data: thread, error: tErr } = await sb.from('message_threads')
+      .insert({ user_id: currentUser.id, subject: subject })
+      .select().single();
+    if (tErr) throw tErr;
+
+    // Insert first message
+    const { error: mErr } = await sb.from('messages')
+      .insert({ thread_id: thread.id, sender: 'customer', body: body });
+    if (mErr) throw mErr;
+
+    document.getElementById('msg-subject').value = '';
+    document.getElementById('msg-body').value = '';
+    btn.disabled = false; btn.textContent = '📤 Gửi Tin Nhắn';
+    alert('✅ Đã gửi tin nhắn! Thuỷ sẽ trả lời trong 24h.');
+    await loadMessages();
+  } catch(e) {
+    errBox.textContent = '❌ ' + (e.message || 'Không thể gửi tin nhắn');
+    errBox.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = '📤 Gửi Tin Nhắn';
+  }
+}
+
+async function loadMessages() {
+  if (!currentUser) return;
+  const box = document.getElementById('messages-list');
+  if (!box) return;
+
+  try {
+    const { data: threads, error } = await sb.from('message_threads')
+      .select('*').eq('user_id', currentUser.id)
+      .order('last_message_at', { ascending: false });
+    if (error) throw error;
+
+    if (!threads || threads.length === 0) {
+      box.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có tin nhắn nào</p>';
+      return;
+    }
+
+    // For each thread, load all messages
+    const threadHtml = await Promise.all(threads.map(async (t) => {
+      const { data: msgs } = await sb.from('messages').select('*').eq('thread_id', t.id).order('created_at', { ascending: true });
+      const items = (msgs || []).map(m => {
+        const isShop = m.sender === 'shop';
+        const date = new Date(m.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        return `<div class="${isShop ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} border rounded-xl p-3 mb-2">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-bold ${isShop ? 'text-blue-700' : 'text-gray-700'}">${isShop ? '🏪 Bếp Thuỷ' : '👤 Bạn'}</span>
+            <span class="text-xs text-gray-500">${date}</span>
+          </div>
+          <p class="text-sm text-gray-800 whitespace-pre-wrap">${escapeHtmlMsg(m.body)}</p>
+        </div>`;
+      }).join('');
+      const unread = t.unread_by_user
+        ? '<span class="ml-2 inline-block bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">Mới</span>' : '';
+      return `<div class="border border-orange-200 rounded-2xl p-4 bg-white">
+        <h6 class="font-bold text-brand-dark text-sm mb-3">📩 ${escapeHtmlMsg(t.subject)}${unread}</h6>
+        ${items}
+      </div>`;
+    }));
+    box.innerHTML = threadHtml.join('');
+
+    // Mark as read
+    const unreadIds = threads.filter(t => t.unread_by_user).map(t => t.id);
+    if (unreadIds.length > 0) {
+      await sb.from('message_threads').update({ unread_by_user: false }).in('id', unreadIds);
+    }
+  } catch(e) {
+    console.warn('loadMessages err:', e);
+    box.innerHTML = '<p class="text-red-500 text-sm text-center py-4">Lỗi tải tin nhắn: ' + (e.message || e) + '</p>';
+  }
+}
+
+function escapeHtmlMsg(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 // Start — wait for Supabase JS (deferred) to finish loading first
 if (document.readyState === 'complete') {

@@ -1106,6 +1106,9 @@ function switchTab(type) {
       <p class="text-green-500 text-xs mt-2 text-center">Bấm Copy → Mở nhóm → Dán vào comment → Gửi</p>
     </div>
 
+    <!-- Member-only: Link to order history -->
+    <a id="goto-history-btn" href="/thanh-vien?tab=orders" class="hidden block w-full text-center py-3 rounded-2xl text-white font-bold text-sm mb-3" style="background:linear-gradient(135deg,#10B981,#059669)">📋 Xem Lịch Sử Đơn Hàng (Hủy đơn nếu cần)</a>
+
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
     <a href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger</a>
     <button onclick="resetAndClose()" class="w-full text-gray-500 text-sm hover:text-gray-700 underline py-2">Đặt thêm hàng</button>
@@ -1723,6 +1726,12 @@ function switchTab(type) {
   const originalGoToCheckout = goToCheckout;
   goToCheckout = function() {
     originalGoToCheckout();
+    // Show "Xem lịch sử đơn hàng" button if logged in
+    if (sbUser) {
+      const histBtn = document.getElementById('goto-history-btn');
+      if (histBtn) histBtn.classList.remove('hidden');
+    }
+
     if (sbUser && sbProfile) {
       // Auto-fill form fields immediately (no need to click banner)
       fillMemberInfo();

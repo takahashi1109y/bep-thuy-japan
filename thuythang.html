@@ -152,6 +152,7 @@
       <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tổng Quan</button>
       <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng</button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
+      <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">📈 Thống Kê</button>
     </div>
   </div>
@@ -271,6 +272,17 @@
       </div>
     </div>
 
+    <!-- MESSAGES TAB -->
+    <div id="tab-messages" class="hidden">
+      <div class="card" style="margin-bottom: 16px;">
+        <h3 style="margin:0 0 8px;font-size:16px;font-weight:800;">💬 Tin Nhắn Khách Hàng</h3>
+        <p style="font-size:12px;color:#6B7280;margin:0;">Trả lời tin nhắn của khách trực tiếp tại đây.</p>
+      </div>
+      <div id="msg-threads-list" class="card">
+        <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
+      </div>
+    </div>
+
     <!-- ANALYTICS TAB (placeholder Đợt 3) -->
     <div id="tab-analytics" class="hidden">
       <div class="card" style="text-align: center; padding: 40px;">
@@ -367,6 +379,9 @@ async function checkAdminAndLoad(user) {
   document.getElementById('admin-email-display').textContent = adminRow.display_name || user.email;
   showSection('admin-ui');
   await loadDashboard();
+  checkUnreadMessages();
+  // Poll for new messages every 60s
+  setInterval(checkUnreadMessages, 60000);
 }
 
 function showLogin() { showSection('login-section'); }
@@ -404,12 +419,107 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','analytics'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+  ['dashboard','orders','customers','messages','analytics'].forEach(t => {
+    var el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('hidden', t !== name);
   });
   if (name === 'orders' && allOrders.length === 0) loadOrders();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
+  if (name === 'messages') loadAdminMessages();
   if (name === 'analytics') loadAnalytics();
+}
+
+// ═══════════════════ MESSAGES (Admin side) ═══════════════════
+async function loadAdminMessages() {
+  const box = document.getElementById('msg-threads-list');
+  box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:20px;">Đang tải...</p>';
+  try {
+    const { data: threads, error } = await sb.from('message_threads').select('*').order('last_message_at', { ascending: false });
+    if (error) throw error;
+    if (!threads || threads.length === 0) {
+      box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:40px;">Chưa có tin nhắn nào</p>';
+      updateMsgBadge(0);
+      return;
+    }
+
+    // Get user emails for display
+    const userIds = [...new Set(threads.map(t => t.user_id))];
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, phone').in('id', userIds);
+    const profMap = {}; (profiles||[]).forEach(p => profMap[p.id] = p);
+
+    const html = await Promise.all(threads.map(async t => {
+      const { data: msgs } = await sb.from('messages').select('*').eq('thread_id', t.id).order('created_at', { ascending: true });
+      const items = (msgs || []).map(m => {
+        const isShop = m.sender === 'shop';
+        const date = new Date(m.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        return `<div style="background:${isShop?'#EFF6FF':'#F9FAFB'};border:1px solid ${isShop?'#BFDBFE':'#E5E7EB'};border-radius:10px;padding:10px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:700;color:${isShop?'#1E40AF':'#374151'};">${isShop ? '🏪 Bếp Thuỷ' : '👤 Khách'}</span>
+            <span style="font-size:11px;color:#9CA3AF;">${date}</span>
+          </div>
+          <p style="font-size:13px;color:#1C1C1E;white-space:pre-wrap;margin:0;">${escapeHtml(m.body)}</p>
+        </div>`;
+      }).join('');
+      const profile = profMap[t.user_id] || {};
+      const unreadBadge = t.unread_by_shop
+        ? '<span style="background:#EF4444;color:white;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;">MỚI</span>' : '';
+      return `<div style="border-bottom:1px solid #E5E7EB;padding:14px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:800;font-size:14px;color:#1C1C1E;">📩 ${escapeHtml(t.subject)} ${unreadBadge}</div>
+            <div style="font-size:11px;color:#6B7280;margin-top:2px;">${escapeHtml(profile.display_name || 'Khách')} · ${escapeHtml(profile.phone || '-')}</div>
+          </div>
+        </div>
+        <div style="margin:10px 0;">${items}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input id="reply-${t.id}" type="text" placeholder="Trả lời khách..." class="input" style="flex:1;font-size:13px;padding:8px 10px;" onkeydown="if(event.key==='Enter')replyToThread(${t.id})">
+          <button onclick="replyToThread(${t.id})" class="btn btn-primary" style="padding:8px 14px;font-size:12px;">📤 Gửi</button>
+        </div>
+      </div>`;
+    }));
+
+    box.innerHTML = html.join('');
+
+    // Auto mark as read by shop
+    const unreadIds = threads.filter(t => t.unread_by_shop).map(t => t.id);
+    if (unreadIds.length > 0) {
+      await sb.from('message_threads').update({ unread_by_shop: false }).in('id', unreadIds);
+    }
+    updateMsgBadge(0);
+  } catch(e) {
+    console.warn('loadAdminMessages err:', e);
+    box.innerHTML = '<p style="color:#EF4444;padding:20px;">Lỗi: ' + (e.message||e) + '</p>';
+  }
+}
+
+async function replyToThread(threadId) {
+  const inp = document.getElementById('reply-' + threadId);
+  const body = inp.value.trim();
+  if (!body) return;
+  try {
+    const { error } = await sb.from('messages').insert({ thread_id: threadId, sender: 'shop', body: body });
+    if (error) throw error;
+    inp.value = '';
+    showToast('✅ Đã gửi trả lời', 'success');
+    await loadAdminMessages();
+  } catch(e) {
+    showToast('❌ Lỗi: ' + (e.message||e), 'error');
+  }
+}
+
+function updateMsgBadge(unreadCount) {
+  const badge = document.getElementById('msg-unread-badge');
+  if (!badge) return;
+  if (unreadCount > 0) { badge.textContent = unreadCount; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+}
+
+// Check unread message count on load
+async function checkUnreadMessages() {
+  try {
+    const { count } = await sb.from('message_threads').select('id', { count:'exact', head:true }).eq('unread_by_shop', true);
+    updateMsgBadge(count || 0);
+  } catch(e) {}
 }
 
 // ============ DASHBOARD ============
