@@ -309,7 +309,14 @@
     <!-- Tab: Orders (separate now) -->
     <div id="panel-orders" class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
       <h4 class="font-bold text-gray-700 text-sm mb-3">📦 Lịch Sử Mua Hàng</h4>
-      <p class="text-xs text-gray-500 mb-3">💡 Đơn ở trạng thái <strong class="text-yellow-700">"Chờ thanh toán"</strong> hoặc <strong class="text-blue-700">"Khách báo TT"</strong> — bạn có thể tự hủy đơn nếu cần.</p>
+      <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
+        <p class="text-xs text-yellow-800"><strong>📌 Quy định hủy đơn:</strong></p>
+        <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
+          <li>Trong vòng <strong>30 phút</strong> sau khi đặt: anh/chị có thể tự hủy đơn</li>
+          <li>Sau 30 phút: cần liên hệ shop trực tiếp</li>
+          <li>Không thể hủy đơn đã được xác nhận thanh toán hoặc đã gửi hàng</li>
+        </ul>
+      </div>
       <div id="order-history" class="space-y-2 mb-6">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
       </div>
@@ -1029,11 +1036,18 @@ async function loadDashboard() {
               : '');
         const pointsUsedLine = o.points_used > 0
           ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
-        // Cancel button only for pending/customer_paid status
-        const canCancel = (o.status === 'pending' || o.status === 'customer_paid');
-        const cancelBtn = canCancel
-          ? `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn</button>`
-          : '';
+        // Cancel button: only for pending/customer_paid AND within 30 minutes
+        const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
+        const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
+        const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
+        let cancelBtn = '';
+        if (canCancelStatus) {
+          if (minutesLeft > 0) {
+            cancelBtn = `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn (còn ${minutesLeft} phút)</button>`;
+          } else {
+            cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
+          }
+        }
         return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
           <div class="flex items-center justify-between mb-2">
             <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
@@ -1297,6 +1311,21 @@ sb.auth.onAuthStateChange(async (event, session) => {
 // ═══════════════════════════════════════════════════════════
 // CUSTOMER SELF-CANCEL ORDER
 // ═══════════════════════════════════════════════════════════
+// Mo tab Tin Nhan voi subject + body pre-fill de khach lien he shop huy don
+function contactShopForCancel(orderNo) {
+  switchDashTab('messages');
+  setTimeout(function() {
+    var sub = document.getElementById('msg-subject');
+    var body = document.getElementById('msg-body');
+    if (sub) sub.value = 'Yêu cầu hủy đơn #' + orderNo;
+    if (body) {
+      body.value = 'Xin chào Thuỷ,\n\nMình muốn hủy đơn #' + orderNo + ' vì:\n\n(Vui lòng ghi lý do)\n\nMong shop hỗ trợ giúp. Cảm ơn!';
+      body.focus();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 100);
+}
+
 async function cancelMyOrder(orderNo) {
   const reason = prompt('Lý do hủy đơn #' + orderNo + ':\n\n(Vd: Đặt nhầm, đổi ý, không cần nữa...)', '');
   if (reason === null) return; // user clicked Cancel

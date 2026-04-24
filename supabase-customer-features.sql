@@ -34,12 +34,16 @@ begin
   end if;
 
   -- Customer can only cancel their OWN order, AND only if pending/customer_paid
+  -- AND within 30 minutes from order creation
   if not v_is_admin then
     if v_uid is null or v_order.user_id is null or v_order.user_id <> v_uid then
       return jsonb_build_object('ok', false, 'error', 'not authorized');
     end if;
     if v_order.status not in ('pending', 'customer_paid') then
       return jsonb_build_object('ok', false, 'error', 'Chỉ có thể hủy đơn chưa được xác nhận');
+    end if;
+    if v_order.created_at + interval '30 minutes' < now() then
+      return jsonb_build_object('ok', false, 'error', 'Đã quá 30 phút từ lúc đặt hàng. Vui lòng liên hệ shop để hủy đơn.');
     end if;
   end if;
 
