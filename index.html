@@ -1933,8 +1933,19 @@ function switchTab(type) {
   function updateMemberUI() {
     const btn = document.getElementById('hero-member-btn');
     if (sbUser && sbProfile) {
-      const name = sbProfile.display_name || sbUser.email;
-      btn.textContent = '👤 ' + name;
+      const name = sbProfile.display_name || sbUser.email.split('@')[0];
+      // Chao theo gioi tinh — phong cach VN
+      let greeting;
+      if (sbProfile.gender === 'male') {
+        greeting = '👋 Chào anh ' + name;
+      } else if (sbProfile.gender === 'female') {
+        greeting = '👋 Chào chị ' + name;
+      } else {
+        greeting = '👋 Xin chào ' + name;
+      }
+      // Neu sinh nhat hom nay -> them icon banh
+      if (isBirthdayToday) greeting = '🎂 ' + greeting;
+      btn.textContent = greeting;
       btn.href = '/thanh-vien';
     }
   }
