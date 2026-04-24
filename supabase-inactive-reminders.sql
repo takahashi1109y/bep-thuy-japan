@@ -101,10 +101,10 @@ BEGIN
     last_order_at = EXCLUDED.last_order_at,
     sent_at = now();
 
-  -- For inactive_60: kich hoat 5% discount trong 14 ngay
+  -- For inactive_60: kich hoat 10% discount trong 14 ngay
   IF p_email_type = 'inactive_60' THEN
     UPDATE public.profiles
-    SET inactive_discount_percent = 5,
+    SET inactive_discount_percent = 10,
         inactive_discount_expires_at = now() + INTERVAL '14 days'
     WHERE id = p_user_id;
   END IF;

@@ -460,21 +460,21 @@ function buildInactiveEmail_(u) {
       cta_url: url + '#products'
     });
   } else if (u.email_type === 'inactive_60') {
-    result.subject = '🎁 Tặng ' + title + ' ' + name + ' ưu đãi 5% — đơn tiếp theo';
+    result.subject = '🎁 Tặng ' + title + ' ' + name + ' ưu đãi 10% — đơn tiếp theo';
     result.html = emailTemplate_({
-      title: '🎁 Ưu Đãi 5% Đặc Biệt',
+      title: '🎁 Ưu Đãi 10% Đặc Biệt',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
         '<p>Đã gần 2 tháng không gặp ' + title + ', Bếp Thuỷ thực sự nhớ ' + title + '! 💝</p>' +
         '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
           '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
-          '<strong style="color:#C8102E;font-size:20px">GIẢM 5%</strong><br>' +
-          '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo · <em>Chỉ áp dụng giá hàng, không áp dụng phí ship</em></span>' +
+          '<strong style="color:#C8102E;font-size:22px">GIẢM 10%</strong><br>' +
+          '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo</span>' +
         '</p>' +
         '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
         '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>' +
         '<p>Bếp Thuỷ cam kết hàng tươi mới mỗi ngày, giao đúng hẹn. Hãy để ' + title + ' cảm nhận lại hương vị quê hương. 🇻🇳</p>',
-      cta: '🛒 Đặt Hàng Ngay — Giảm 5%',
+      cta: '🛒 Đặt Hàng Ngay — Giảm 10%',
       cta_url: url + '#products'
     });
   }
