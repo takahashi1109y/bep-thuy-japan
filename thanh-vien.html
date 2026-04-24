@@ -43,18 +43,20 @@
 </head>
 <body class="min-h-screen">
 
-<!-- HERO -->
-<section class="hero-bg text-white py-14 px-4 text-center relative overflow-hidden">
+<!-- HERO (clickable to go home) -->
+<a href="/" class="block no-underline hover:opacity-95 transition-opacity" style="text-decoration:none">
+<section class="hero-bg text-white py-14 px-4 text-center relative overflow-hidden cursor-pointer">
   <div class="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(30%,-30%)"></div>
   <div class="absolute bottom-0 left-0 w-56 h-56 rounded-full opacity-10" style="background:radial-gradient(circle,#D4A017,transparent);transform:translate(-30%,30%)"></div>
   <div class="relative z-10 max-w-2xl mx-auto">
-    <a href="/" class="inline-block text-yellow-300 text-sm mb-4 hover:text-white transition-colors">← Quay về Trang Chủ</a>
+    <span class="inline-block text-yellow-300 text-sm mb-4 hover:text-white transition-colors">← Quay về Trang Chủ</span>
     <p class="text-yellow-300 text-sm tracking-widest uppercase mb-2 font-light">✦ Bếp Thuỷ Japan ✦</p>
     <h1 id="hero-title" class="text-3xl md:text-5xl font-bold mb-3 leading-tight">Thành Viên</h1>
     <div class="gold-line"></div>
     <p id="hero-subtitle" class="text-yellow-100 text-base mt-4 font-light">Đăng nhập hoặc đăng ký để tích điểm thưởng</p>
   </div>
 </section>
+</a>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- AUTH SECTION (not logged in) -->
