@@ -465,8 +465,8 @@
 </section>
 
 <!-- PAYMENT MODAL — 2 views: payment info OR upload receipt -->
-<div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);" onclick="if(event.target===this)closePaymentUpload()">
-  <div class="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+<div id="payment-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closePaymentUpload()">
+  <div style="background:white;border-radius:16px;max-width:440px;width:100%;padding:24px;max-height:90vh;overflow-y:auto;margin:auto">
     <div class="flex justify-between items-start mb-4">
       <div>
         <h3 class="font-bold text-lg text-brand-dark" id="pm-title">💳 Thanh Toán</h3>
@@ -1653,7 +1653,7 @@ function openPaymentUpload(orderNo, amount, customerName) {
     switchPmView('pay');
     switchPmPayTab('paypay');
     setTimeout(renderPmPayPayQR, 100);
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     console.log('[payment] modal opened');
   } catch (e) {
     console.error('[payment] openPaymentUpload error:', e);
@@ -1662,7 +1662,7 @@ function openPaymentUpload(orderNo, amount, customerName) {
 }
 
 function closePaymentUpload() {
-  document.getElementById('payment-modal').classList.add('hidden');
+  document.getElementById('payment-modal').style.display = 'none';
   pmCurrentOrder = null;
 }
 
