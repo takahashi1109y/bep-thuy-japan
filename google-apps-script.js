@@ -313,8 +313,11 @@ function backfillOrdersToSupabase() {
 
   for (var i = 0; i < data.length; i++) {
     var row = data[i];
-    var orderNo = String(row[COL['Ma Don']] || '').trim();
-    if (!orderNo) continue;
+    var orderNoRaw = String(row[COL['Ma Don']] || '').trim();
+    if (!orderNoRaw) continue;
+    // Pad order_no to 4 digits to match format used by current saveOrder()
+    // (Sheet stores as number 42, DB stores as string "0042")
+    var orderNo = /^\d+$/.test(orderNoRaw) ? orderNoRaw.padStart(4, '0') : orderNoRaw;
     stats.total++;
 
     // Skip neu da co
