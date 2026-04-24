@@ -1886,25 +1886,38 @@ function switchPmView(view) {
 }
 
 function switchPmPayTab(tab) {
+  console.log('[switchPmPayTab]', tab);
   var isPayPay = (tab === 'paypay');
-  // Use INLINE style display (not classList.hidden) — because bank section uses inline display:none
   var paypay = document.getElementById('pm-section-paypay');
   var bank = document.getElementById('pm-section-bank');
-  if (paypay) paypay.style.display = isPayPay ? 'block' : 'none';
-  if (bank) bank.style.display = isPayPay ? 'none' : 'block';
-  // Tab buttons — GREEN for bank (match bank section color)
+
+  // AGGRESSIVE show/hide: remove hidden class + force inline display
+  if (paypay) {
+    paypay.classList.remove('hidden');
+    paypay.style.setProperty('display', isPayPay ? 'block' : 'none', 'important');
+  }
+  if (bank) {
+    bank.classList.remove('hidden');
+    bank.style.setProperty('display', isPayPay ? 'none' : 'block', 'important');
+    console.log('[switchPmPayTab] bank display=' + bank.style.display, 'bank element=', bank);
+  }
+
+  // Tab buttons — set via inline style to override any class issues
   var pp = document.getElementById('pm-tab-paypay');
   var bk = document.getElementById('pm-tab-bank');
-  if (isPayPay) {
-    pp.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-red-500 bg-red-500 text-white';
-    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
-  } else {
-    pp.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
-    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-emerald-600 text-white';
-    bk.style.background = 'linear-gradient(135deg,#047857,#10B981)';
+  var baseCls = 'flex-1 py-2 rounded-xl font-bold text-sm border-2';
+  if (pp) {
+    pp.className = baseCls;
+    pp.style.cssText = isPayPay
+      ? 'border-color:#EF4444;background:#EF4444;color:white'
+      : 'border-color:#E5E7EB;background:white;color:#6B7280';
   }
-  // Reset paypay tab background (in case it was set to green before)
-  if (isPayPay) bk.style.background = '';
+  if (bk) {
+    bk.className = baseCls;
+    bk.style.cssText = isPayPay
+      ? 'border-color:#E5E7EB;background:white;color:#6B7280'
+      : 'border-color:#047857;background:linear-gradient(135deg,#047857,#10B981);color:white';
+  }
 }
 
 function renderPmPayPayQR() {
