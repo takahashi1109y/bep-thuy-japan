@@ -464,64 +464,117 @@
   <p class="text-gray-400 mt-4">Đang tải...</p>
 </section>
 
-<!-- PAYMENT UPLOAD MODAL -->
+<!-- PAYMENT MODAL — 2 views: payment info OR upload receipt -->
 <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);" onclick="if(event.target===this)closePaymentUpload()">
   <div class="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-start mb-4">
       <div>
-        <h3 class="font-bold text-lg text-brand-dark">💳 Gửi Hóa Đơn Thanh Toán</h3>
+        <h3 class="font-bold text-lg text-brand-dark" id="pm-title">💳 Thanh Toán</h3>
         <p class="text-xs text-gray-500 mt-1">Đơn: <span id="pm-order-no" class="font-bold text-brand-red">#0000</span> · Số tiền: <span id="pm-amount" class="font-bold text-brand-red">¥0</span></p>
       </div>
       <button onclick="closePaymentUpload()" class="text-gray-400 hover:text-gray-700 text-xl">✕</button>
     </div>
 
-    <!-- Method selector -->
-    <label class="field-label text-xs">Phương Thức Thanh Toán</label>
-    <div class="grid grid-cols-2 gap-2 mb-4">
-      <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
-        <input type="radio" name="pm-method" value="bank_transfer" checked>
-        <span class="text-sm font-semibold">🏦 Chuyển khoản NH</span>
-      </label>
-      <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
-        <input type="radio" name="pm-method" value="paypay">
-        <span class="text-sm font-semibold">💳 PayPay</span>
-      </label>
+    <!-- ─── VIEW 1: PAYMENT INFO (default) ─── -->
+    <div id="pm-view-pay">
+      <!-- Tab switcher -->
+      <div class="flex gap-2 mb-4">
+        <button id="pm-tab-paypay" onclick="switchPmPayTab('paypay')" class="flex-1 py-2 rounded-xl font-bold text-sm border-2 border-red-500 bg-red-500 text-white">💳 PayPay</button>
+        <button id="pm-tab-bank" onclick="switchPmPayTab('bank')" class="flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600">🏦 Chuyển khoản</button>
+      </div>
+
+      <!-- PayPay section -->
+      <div id="pm-section-paypay" class="rounded-2xl p-4 mb-3" style="background:linear-gradient(135deg,#d70000,#ff0033);color:white">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xl">💳</span>
+          <div><p class="font-bold">PayPay</p><p class="text-red-200 text-xs">Thanghoang · Bếp Thuỷ Japan</p></div>
+        </div>
+        <div class="bg-white rounded-xl p-3 text-center mb-3">
+          <div id="pm-paypay-qr" class="flex justify-center mb-2"></div>
+          <p class="text-gray-500 text-xs">Mở app PayPay → Quét QR</p>
+        </div>
+        <a href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank" class="block w-full text-center py-2.5 rounded-xl font-bold text-sm bg-white text-red-600 mb-2">📱 Mở PayPay App</a>
+        <p class="text-white text-xs opacity-90 text-center">Nhập số tiền: <strong id="pm-paypay-amount"></strong></p>
+      </div>
+
+      <!-- Bank section -->
+      <div id="pm-section-bank" class="hidden rounded-2xl p-4 mb-3" style="background:linear-gradient(135deg,#1a237e,#283593);color:white">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xl">🏦</span>
+          <div><p class="font-bold">ゆうちょ銀行</p><p class="text-blue-200 text-xs">Japan Post Bank</p></div>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between items-center"><span class="text-blue-200">支店名:</span><span class="font-semibold">二〇八店 (208)</span></div>
+          <div class="flex justify-between items-center"><span class="text-blue-200">口座種別:</span><span class="font-semibold">普通</span></div>
+          <div class="flex justify-between items-center"><span class="text-blue-200">口座番号:</span><div class="flex items-center gap-2"><span class="font-bold tracking-widest">2168488</span><button onclick="pmCopyText('2168488')" class="bg-white/20 border border-white/40 text-white text-xs px-2 py-0.5 rounded-md">コピー</button></div></div>
+          <div class="flex justify-between items-center"><span class="text-blue-200">口座名義:</span><span class="font-semibold text-xs">タカハラ ケイイチロウ</span></div>
+          <hr class="border-blue-700">
+          <div class="flex justify-between items-center"><span class="text-blue-200 text-xs">記号番号:</span><div class="flex items-center gap-2"><span class="font-bold text-sm">12030-21684881</span><button onclick="pmCopyText('1203021684881')" class="bg-white/20 border border-white/40 text-white text-xs px-2 py-0.5 rounded-md">コピー</button></div></div>
+        </div>
+        <div class="bg-yellow-50 rounded-xl p-2 mt-3">
+          <p class="text-yellow-800 text-xs font-bold mb-1">⚠️ Ghi tên khi chuyển:</p>
+          <p class="text-yellow-900 text-xs">Ô <strong>振込人名義</strong> → gõ: <strong id="pm-bank-nameformat" class="text-red-600"></strong></p>
+        </div>
+      </div>
+
+      <!-- Gửi biên lai section -->
+      <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mt-4">
+        <p class="text-sm font-bold text-green-800 mb-2">✅ Đã chuyển tiền xong?</p>
+        <p class="text-xs text-green-700 mb-3">Bấm nút dưới để gửi biên lai (ảnh chụp màn hình) cho shop xác nhận:</p>
+        <button onclick="switchPmView('upload')" class="w-full py-3 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-700">📸 Gửi Biên Lai Chuyển Tiền</button>
+      </div>
+
+      <button onclick="closePaymentUpload()" class="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm mt-3">Đóng</button>
     </div>
 
-    <!-- File input -->
-    <label class="field-label text-xs">Ảnh Chụp Màn Hình Thanh Toán <span class="text-red-600">*</span></label>
-    <input id="pm-file" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="field-input mb-2" onchange="previewPaymentFile(this)">
-    <p class="text-xs text-gray-500 mb-3">📸 Chụp màn hình rõ: số tiền · tên người nhận · thời gian giao dịch</p>
+    <!-- ─── VIEW 2: UPLOAD RECEIPT ─── -->
+    <div id="pm-view-upload" class="hidden">
+      <button onclick="switchPmView('pay')" class="text-sm text-gray-600 hover:text-brand-red mb-3">← Quay lại thanh toán</button>
 
-    <!-- Preview -->
-    <div id="pm-preview-wrap" class="hidden mb-3">
-      <img id="pm-preview" class="w-full rounded-xl border border-gray-200 max-h-64 object-contain bg-gray-50">
-    </div>
+      <label class="field-label text-xs">Phương Thức Đã Dùng</label>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
+          <input type="radio" name="pm-method" value="paypay" checked>
+          <span class="text-sm font-semibold">💳 PayPay</span>
+        </label>
+        <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
+          <input type="radio" name="pm-method" value="bank_transfer">
+          <span class="text-sm font-semibold">🏦 Chuyển khoản NH</span>
+        </label>
+      </div>
 
-    <!-- Note -->
-    <label class="field-label text-xs">Ghi Chú <span class="text-gray-400">(tùy chọn)</span></label>
-    <textarea id="pm-note" rows="2" placeholder="Vd: Chuyển từ Rakuten Bank lúc 14:30" class="field-input mb-3" maxlength="500"></textarea>
+      <label class="field-label text-xs">Ảnh Chụp Màn Hình Thanh Toán <span class="text-red-600">*</span></label>
+      <input id="pm-file" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="field-input mb-2" onchange="previewPaymentFile(this)">
+      <p class="text-xs text-gray-500 mb-3">📸 Chụp rõ: số tiền · tên người nhận · thời gian giao dịch</p>
 
-    <!-- Error -->
-    <div id="pm-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3 mb-3"></div>
+      <div id="pm-preview-wrap" class="hidden mb-3">
+        <img id="pm-preview" class="w-full rounded-xl border border-gray-200 max-h-64 object-contain bg-gray-50">
+      </div>
 
-    <!-- Warning -->
-    <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
-      <p class="text-xs text-yellow-800"><strong>⚠️ Lưu ý quan trọng:</strong></p>
-      <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
-        <li>Chỉ gửi hóa đơn <strong>sau khi đã chuyển tiền</strong> thành công</li>
-        <li>Số tiền phải khớp với đơn hàng</li>
-        <li>Tối đa 3 lần gửi/đơn (nếu shop từ chối, có thể gửi lại)</li>
-        <li>Gian lận sẽ bị khóa tài khoản vĩnh viễn</li>
-      </ul>
-    </div>
+      <label class="field-label text-xs">Ghi Chú <span class="text-gray-400">(tùy chọn)</span></label>
+      <textarea id="pm-note" rows="2" placeholder="Vd: Chuyển lúc 14:30" class="field-input mb-3" maxlength="500"></textarea>
 
-    <div class="flex gap-2">
-      <button onclick="closePaymentUpload()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm">Hủy</button>
-      <button id="pm-submit" onclick="submitPaymentProof()" class="flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm">📤 Gửi</button>
+      <div id="pm-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3 mb-3"></div>
+
+      <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
+        <p class="text-xs text-yellow-800"><strong>⚠️ Lưu ý:</strong></p>
+        <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
+          <li>Số tiền phải khớp với đơn hàng</li>
+          <li>Tối đa 3 lần gửi/đơn</li>
+          <li>Gian lận sẽ bị khóa tài khoản</li>
+        </ul>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="switchPmView('pay')" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm">← Quay lại</button>
+        <button id="pm-submit" onclick="submitPaymentProof()" class="flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm">📤 Gửi Biên Lai</button>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- QRCode library for PayPay QR generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <!-- FOOTER -->
 <footer class="bg-brand-dark text-gray-400 py-8 px-4 text-center">
@@ -1113,12 +1166,13 @@ async function loadDashboard() {
             cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
           }
         }
-        // Payment proof button: for pending (not submitted yet) and customer_paid (can re-submit if rejected)
+        // Payment button: opens modal with PayPay QR / Bank info + upload receipt option
         let paymentBtn = '';
+        const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
         if (o.status === 'pending') {
-          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total})" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Gửi hóa đơn TT</button>`;
+          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Thanh toán</button>`;
         } else if (o.status === 'customer_paid') {
-          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total})" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💳 Gửi thêm hóa đơn</button>`;
+          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">📸 Gửi biên lai khác</button>`;
         }
         return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
           <div class="flex items-center justify-between mb-2">
@@ -1381,26 +1435,76 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// PAYMENT PROOF UPLOAD
+// PAYMENT MODAL — 2 views: payment info + upload receipt
 // ═══════════════════════════════════════════════════════════
 let pmCurrentOrder = null;
 let pmCurrentAmount = 0;
+let pmCustomerName = '';
 
-function openPaymentUpload(orderNo, amount) {
+// Called when user clicks "💳 Thanh Toán" on an order card
+function openPaymentUpload(orderNo, amount, customerName) {
+  console.log('[payment] openPaymentUpload', orderNo, amount);
   pmCurrentOrder = orderNo;
-  pmCurrentAmount = amount;
+  pmCurrentAmount = amount || 0;
+  pmCustomerName = (customerName || currentProfile?.display_name || '').toUpperCase().split(' ').slice(0,3).join(' ');
   document.getElementById('pm-order-no').textContent = '#' + orderNo;
-  document.getElementById('pm-amount').textContent = '¥' + Number(amount).toLocaleString();
-  document.getElementById('pm-file').value = '';
-  document.getElementById('pm-note').value = '';
-  document.getElementById('pm-preview-wrap').classList.add('hidden');
-  document.getElementById('pm-error').classList.add('hidden');
+  document.getElementById('pm-amount').textContent = '¥' + Number(pmCurrentAmount).toLocaleString();
+  document.getElementById('pm-paypay-amount').textContent = '¥' + Number(pmCurrentAmount).toLocaleString();
+  document.getElementById('pm-bank-nameformat').textContent = orderNo + ' ' + pmCustomerName;
+  // Reset upload form
+  var fileEl = document.getElementById('pm-file'); if (fileEl) fileEl.value = '';
+  var noteEl = document.getElementById('pm-note'); if (noteEl) noteEl.value = '';
+  var prevEl = document.getElementById('pm-preview-wrap'); if (prevEl) prevEl.classList.add('hidden');
+  var errEl = document.getElementById('pm-error'); if (errEl) errEl.classList.add('hidden');
+  // Default view: payment info
+  switchPmView('pay');
+  switchPmPayTab('paypay');
+  // Generate QR
+  setTimeout(renderPmPayPayQR, 100);
   document.getElementById('payment-modal').classList.remove('hidden');
 }
 
 function closePaymentUpload() {
   document.getElementById('payment-modal').classList.add('hidden');
   pmCurrentOrder = null;
+}
+
+function switchPmView(view) {
+  document.getElementById('pm-view-pay').classList.toggle('hidden', view !== 'pay');
+  document.getElementById('pm-view-upload').classList.toggle('hidden', view !== 'upload');
+  document.getElementById('pm-title').textContent = view === 'pay' ? '💳 Thanh Toán' : '📸 Gửi Biên Lai Chuyển Tiền';
+}
+
+function switchPmPayTab(tab) {
+  var isPayPay = (tab === 'paypay');
+  document.getElementById('pm-section-paypay').classList.toggle('hidden', !isPayPay);
+  document.getElementById('pm-section-bank').classList.toggle('hidden', isPayPay);
+  // Tab buttons
+  var pp = document.getElementById('pm-tab-paypay');
+  var bk = document.getElementById('pm-tab-bank');
+  if (isPayPay) {
+    pp.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-red-500 bg-red-500 text-white';
+    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
+  } else {
+    pp.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-gray-200 bg-white text-gray-600';
+    bk.className = 'flex-1 py-2 rounded-xl font-bold text-sm border-2 border-blue-700 bg-blue-700 text-white';
+  }
+}
+
+function renderPmPayPayQR() {
+  var box = document.getElementById('pm-paypay-qr');
+  if (!box || typeof QRCode === 'undefined') return;
+  box.innerHTML = '';
+  new QRCode(box, {
+    text: 'https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW',
+    width: 180, height: 180,
+    colorDark: '#d70000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+function pmCopyText(text) {
+  navigator.clipboard.writeText(text).then(() => alert('✅ Đã copy: ' + text));
 }
 
 function previewPaymentFile(input) {
