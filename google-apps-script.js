@@ -1279,6 +1279,58 @@ function sendCustomerConfirmation(orderNo, data) {
 
 // ============================================================
 // BANG THONG KE SAN XUAT - tu dong cap nhat sau moi don hang
+// ============================================================
+// XOA DON TEST TU SHEET + UPDATE LAI THONG KE SAN XUAT
+// Chay 1 lan: chon ham "deleteTestOrdersFromSheet" -> Run
+// ============================================================
+function deleteTestOrdersFromSheet() {
+  // Danh sach order_no test can xoa
+  var testOrderNos = ['0025', '0045', '0054', '0057', '0059', '0060', '0064', '0065', '0074'];
+  // Them cac order_no khac vao day neu can xoa them
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME_ORDERS);
+  if (!sheet) { Logger.log('Khong tim thay sheet ' + SHEET_NAME_ORDERS); return; }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) { Logger.log('Sheet trong'); return; }
+
+  // Doc tat ca Ma Don (cot A)
+  var orderNos = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  var rowsToDelete = [];
+
+  for (var i = 0; i < orderNos.length; i++) {
+    var no = String(orderNos[i][0]).trim();
+    // Check both padded (0025) and unpadded (25) format
+    var noPadded = /^\d+$/.test(no) ? no.padStart(4, '0') : no;
+    if (testOrderNos.indexOf(no) >= 0 || testOrderNos.indexOf(noPadded) >= 0) {
+      rowsToDelete.push(i + 2); // +2 because row 1 is header, arr starts at 0
+    }
+  }
+
+  Logger.log('Tim thay ' + rowsToDelete.length + ' dong can xoa: ' + JSON.stringify(rowsToDelete));
+
+  // Xoa tu DUOI LEN (de khong lech index)
+  rowsToDelete.sort(function(a, b) { return b - a; });
+  for (var j = 0; j < rowsToDelete.length; j++) {
+    sheet.deleteRow(rowsToDelete[j]);
+    Logger.log('Da xoa row ' + rowsToDelete[j]);
+  }
+
+  // Update lai thong ke san xuat
+  try {
+    updateProductStats(ss);
+    Logger.log('Da update lai "Thong Ke San Xuat"');
+  } catch (e) {
+    Logger.log('Loi update stats: ' + e);
+  }
+
+  Logger.log('=== HOAN TAT ===');
+  Logger.log('Da xoa: ' + rowsToDelete.length + ' don test');
+  Logger.log('Stats san xuat: da tinh lai');
+}
+
+// ============================================================
 // Chay thu cong: chon ham "updateProductStats" -> Run
 // ============================================================
 function updateProductStats(ss) {
