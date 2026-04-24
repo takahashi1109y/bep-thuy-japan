@@ -1285,13 +1285,15 @@ function switchTab(type) {
   }
 
   function removeFromCart(key) {
-    cart = cart.filter(i => i.key !== key);
+    // Loose match: onclick passes string but stored key is number
+    cart = cart.filter(i => String(i.key) !== String(key));
     updateCartUI();
   }
 
   // +/- buttons: moi click thay doi 0.5kg (hoac 1 hop = 0.5kg unit)
   function changeQty(key, delta) {
-    const i = cart.find(x => x.key === key);
+    // Loose match: onclick passes string but stored key is number
+    const i = cart.find(x => String(x.key) === String(key));
     if (!i) return;
     const step = 0.5; // 0.5kg or 1 box per click
     const newWt = Math.round((i.wt + step * delta) * 10) / 10;
