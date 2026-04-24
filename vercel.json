@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/thanh-vien", "destination": "/thanh-vien.html" }
+    { "source": "/thanh-vien", "destination": "/thanh-vien.html" },
+    { "source": "/thuythang", "destination": "/thuythang.html" }
   ],
   "headers": [
     {
