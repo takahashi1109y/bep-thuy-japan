@@ -374,9 +374,20 @@ function sendInactiveReminders() {
     Logger.log('Missing Supabase config'); return;
   }
 
-  var inactives = [];
+  var totalSent = 0, totalFailed = 0;
+
+  // Phase 1: Tier discount emails (45/60/90)
+  totalSent += processList_('/rest/v1/rpc/get_inactive_customers', buildInactiveEmail_, true);
+  // Phase 2: Discount reminder emails (7-day, last-day)
+  totalSent += processList_('/rest/v1/rpc/get_discount_reminders', buildReminderEmail_, false);
+
+  Logger.log('=== TOTAL ===  Sent: ' + totalSent);
+}
+
+function processList_(endpoint, emailBuilder, isDiscountTrigger) {
+  var list = [];
   try {
-    var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/get_inactive_customers', {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + endpoint, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -386,28 +397,27 @@ function sendInactiveReminders() {
       payload: '{}',
       muteHttpExceptions: true
     });
-    var body = res.getContentText();
-    Logger.log('Inactive RPC: ' + body.substring(0, 500));
-    if (res.getResponseCode() >= 300) return;
-    inactives = JSON.parse(body) || [];
-  } catch (e) { Logger.log('Fetch err: ' + e); return; }
+    Logger.log(endpoint + ' -> ' + res.getResponseCode() + ' (' + res.getContentText().substring(0, 200) + ')');
+    if (res.getResponseCode() >= 300) return 0;
+    list = JSON.parse(res.getContentText()) || [];
+  } catch (e) { Logger.log('Fetch err: ' + e); return 0; }
 
-  Logger.log('Found ' + inactives.length + ' inactive customer(s)');
-  if (inactives.length === 0) return;
-
-  var sent = 0, failed = 0;
-  for (var i = 0; i < inactives.length; i++) {
-    var u = inactives[i];
-    if (!u.email_type) continue;
+  Logger.log(endpoint + ' -> ' + list.length + ' recipient(s)');
+  var sent = 0;
+  for (var i = 0; i < list.length; i++) {
+    var u = list[i];
+    var etype = u.email_type || u.reminder_type;
+    if (!etype) continue;
     try {
-      var template = buildInactiveEmail_(u);
+      var template = emailBuilder(u);
+      if (!template || !template.subject) continue;
       MailApp.sendEmail({
         to: u.email,
         subject: template.subject,
         htmlBody: template.html,
         name: 'Bếp Thuỷ Japan'
       });
-      // Mark as sent (also activates 5% discount if email_type = inactive_60)
+      // Mark sent
       UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_inactive_email_sent', {
         method: 'POST',
         headers: {
@@ -417,20 +427,18 @@ function sendInactiveReminders() {
         },
         payload: JSON.stringify({
           p_user_id: u.user_id,
-          p_email_type: u.email_type,
-          p_last_order_at: u.last_order_at
+          p_email_type: etype,
+          p_last_order_at: u.last_order_at || u.expires_at || new Date().toISOString()
         }),
         muteHttpExceptions: true
       });
       sent++;
-      Logger.log('✓ Sent ' + u.email_type + ' to ' + u.email + ' (inactive ' + u.days_inactive + ' days)');
+      Logger.log('✓ Sent ' + etype + ' to ' + u.email);
     } catch (e) {
-      failed++;
       Logger.log('✗ Fail ' + u.email + ': ' + e);
     }
   }
-  Logger.log('=== INACTIVE REMINDERS ===');
-  Logger.log('Sent: ' + sent + ', Failed: ' + failed);
+  return sent;
 }
 
 function buildInactiveEmail_(u) {
@@ -438,43 +446,107 @@ function buildInactiveEmail_(u) {
   var title = u.gender === 'male' ? 'anh' : (u.gender === 'female' ? 'chị' : 'anh/chị');
   var titleCap = title.charAt(0).toUpperCase() + title.slice(1);
   var url = 'https://www.thuyjapan.com/';
+  var pct = u.discount_percent || 0;
   var result = { subject: '', html: '' };
 
+  var discountBox = '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
+    '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
+    '<strong style="color:#C8102E;font-size:24px">GIẢM ' + pct + '%</strong><br>' +
+    '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo</span>' +
+  '</p>';
+
+  var autoApplyNote = '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
+    '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>';
+
   if (u.email_type === 'inactive_45') {
-    result.subject = '💔 Bếp Thuỷ nhớ ' + title + ' ' + name + '!';
+    result.subject = '💔 Bếp Thuỷ nhớ ' + title + ' ' + name + '! Tặng ưu đãi 5%';
     result.html = emailTemplate_({
       title: '💔 Bếp Thuỷ Nhớ ' + titleCap + '!',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
-        '<p>Đã <strong>' + u.days_inactive + ' ngày</strong> không thấy ' + title + ' ghé Bếp Thuỷ rồi. Bếp nhớ ' + title + ' lắm! 🥺</p>' +
-        '<p><strong>Tin vui:</strong> Bếp Thuỷ vẫn hàng ngày chế biến tươi mới:</p>' +
+        '<p>Đã <strong>' + u.days_inactive + ' ngày</strong> không thấy ' + title + ' ghé Bếp Thuỷ. Bếp nhớ ' + title + ' lắm! 🥺</p>' +
+        '<p>Để chào mừng ' + title + ' quay lại, Bếp Thuỷ xin tặng:</p>' +
+        discountBox +
+        autoApplyNote +
+        '<p><strong>Bếp vẫn hàng ngày chế biến tươi mới:</strong></p>' +
         '<ul style="margin:8px 0 12px 20px;color:#78350F">' +
           '<li>🥩 Giò lụa, chả quế — chuẩn vị Hà Nội</li>' +
-          '<li>🍡 Nem lụi Huế tẩm gia vị truyền thống</li>' +
+          '<li>🍡 Nem lụi Huế gia vị truyền thống</li>' +
           '<li>🧈 Pate phố cổ béo ngậy</li>' +
           '<li>🍳 Mọc sống, mọc chín đủ loại</li>' +
-        '</ul>' +
-        '<p>Hãy thưởng thức lại hương vị quê hương nhé! Giao hàng toàn Nhật, tươi ngon đảm bảo.</p>' +
-        '<p style="color:#6B7280;font-size:13px">💡 <em>Tip: ' + titleCap + ' có ' + (u.days_inactive >= 60 ? '' : 'sẽ có') + ' ưu đãi đặc biệt nếu quay lại trong tuần này!</em></p>',
-      cta: '🛒 Xem Thực Đơn',
+        '</ul>',
+      cta: '🛒 Đặt Hàng — Giảm 5%',
       cta_url: url + '#products'
     });
   } else if (u.email_type === 'inactive_60') {
-    result.subject = '🎁 Tặng ' + title + ' ' + name + ' ưu đãi 10% — đơn tiếp theo';
+    result.subject = '🎁 Nâng ưu đãi lên 8% — ' + titleCap + ' ' + name;
     result.html = emailTemplate_({
-      title: '🎁 Ưu Đãi 10% Đặc Biệt',
+      title: '🎁 Ưu Đãi Nâng Cấp: 8%',
       greeting: 'Chào ' + title + ' ' + name + ',',
       body:
-        '<p>Đã gần 2 tháng không gặp ' + title + ', Bếp Thuỷ thực sự nhớ ' + title + '! 💝</p>' +
-        '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
-          '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
-          '<strong style="color:#C8102E;font-size:22px">GIẢM 10%</strong><br>' +
-          '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo</span>' +
-        '</p>' +
-        '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
-        '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>' +
-        '<p>Bếp Thuỷ cam kết hàng tươi mới mỗi ngày, giao đúng hẹn. Hãy để ' + title + ' cảm nhận lại hương vị quê hương. 🇻🇳</p>',
-      cta: '🛒 Đặt Hàng Ngay — Giảm 10%',
+        '<p>Đã <strong>2 tháng</strong> không gặp ' + title + '. Bếp Thuỷ muốn ưu đãi hơn nữa để ' + title + ' quay lại:</p>' +
+        discountBox +
+        autoApplyNote +
+        '<p>Hàng tươi mới mỗi ngày, giao đúng hẹn toàn Nhật. Đừng bỏ lỡ! 💝</p>',
+      cta: '🛒 Đặt Hàng — Giảm 8%',
+      cta_url: url + '#products'
+    });
+  } else if (u.email_type === 'inactive_90') {
+    result.subject = '🎁 Ưu đãi MAX 10% — Bếp Thuỷ chờ ' + title + ' ' + name;
+    result.html = emailTemplate_({
+      title: '🎁 Ưu Đãi Cao Nhất: 10%',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Đã <strong>3 tháng</strong> rồi ' + title + ' ơi... Bếp Thuỷ thực sự nhớ ' + title + '. 💔</p>' +
+        '<p>Xin tặng ưu đãi <strong>cao nhất</strong> để chào mừng ' + title + ' trở lại:</p>' +
+        discountBox +
+        autoApplyNote +
+        '<p>Đây là mức ưu đãi đặc biệt nhất của Bếp Thuỷ. Hãy cho Bếp cơ hội phục vụ ' + title + ' nhé! 🙏</p>',
+      cta: '🛒 Đặt Hàng — Giảm 10%',
+      cta_url: url + '#products'
+    });
+  }
+  return result;
+}
+
+// Reminder emails (7-day + last-day)
+function buildReminderEmail_(u) {
+  var name = u.display_name || u.email.split('@')[0];
+  var title = u.gender === 'male' ? 'anh' : (u.gender === 'female' ? 'chị' : 'anh/chị');
+  var titleCap = title.charAt(0).toUpperCase() + title.slice(1);
+  var url = 'https://www.thuyjapan.com/';
+  var pct = u.discount_percent || 0;
+  var result = { subject: '', html: '' };
+
+  var discountBox = '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
+    '<strong style="color:#C8102E;font-size:24px">GIẢM ' + pct + '%</strong><br>' +
+    '<span style="color:#78350F;font-size:13px">Tự động áp dụng khi đặt hàng</span>' +
+  '</p>';
+
+  if (u.reminder_type === 'reminder_7') {
+    result.subject = '⏰ ' + titleCap + ' ' + name + ' ơi, còn 1 tuần dùng ưu đãi ' + pct + '%!';
+    result.html = emailTemplate_({
+      title: '⏰ Chỉ Còn 1 Tuần!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Bếp Thuỷ xin nhắc ' + title + ': ưu đãi <strong>giảm ' + pct + '%</strong> Bếp tặng ' + title + ' <strong>chỉ còn 1 tuần</strong> nữa là hết hạn!</p>' +
+        discountBox +
+        '<p>Đừng bỏ lỡ cơ hội thưởng thức lại đặc sản Phố Cổ Hà Nội với giá ưu đãi. 🍜</p>' +
+        '<p style="color:#6B7280;font-size:13px">💡 Hàng tươi mới mỗi ngày, giao nhanh toàn Nhật.</p>',
+      cta: '🛒 Đặt Ngay — Giảm ' + pct + '%',
+      cta_url: url + '#products'
+    });
+  } else if (u.reminder_type === 'reminder_last') {
+    result.subject = '🚨 HÔM NAY là ngày cuối dùng ưu đãi ' + pct + '% - ' + titleCap + ' ' + name;
+    result.html = emailTemplate_({
+      title: '🚨 Ngày Cuối Cùng!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p style="color:#C8102E;font-size:16px"><strong>⚠️ ' + titleCap + ' ơi, HÔM NAY là ngày CUỐI CÙNG sử dụng ưu đãi!</strong></p>' +
+        discountBox +
+        '<p>Hết hôm nay là ưu đãi biến mất đó! Hãy đặt hàng ngay để không tiếc nuối. ⏰</p>' +
+        '<p style="color:#6B7280;font-size:13px">Chỉ cần đăng nhập → chọn hàng → đặt. Hệ thống tự trừ ' + pct + '%.</p>',
+      cta: '🛒 ĐẶT HÀNG NGAY - Giảm ' + pct + '%',
       cta_url: url + '#products'
     });
   }
