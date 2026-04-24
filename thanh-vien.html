@@ -844,13 +844,14 @@ function switchDashTab(tab) {
 async function loadDashboard() {
   if (!currentUser) return;
 
-  // Run all 4 queries in PARALLEL with allSettled (1 fail won't break others)
+  // Run all 5 queries in PARALLEL with allSettled (1 fail won't break others)
   const uid = currentUser.id;
-  const [profileRes, balRes, historyRes, couponsRes] = await Promise.allSettled([
+  const [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.allSettled([
     sb.from('profiles').select('*').eq('id', uid).single(),
     sb.from('points_balance').select('total_points').eq('user_id', uid).single(),
     sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
-    sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+    sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+    sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30)
   ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason }));
 
   const profile = profileRes.data;
@@ -873,21 +874,46 @@ async function loadDashboard() {
 
   const history = historyRes.data;
 
-  // Render ORDER HISTORY (filter earn-type with order_no — these are real purchase orders)
+  // Render FULL ORDER HISTORY from orders table
   const orderBox = document.getElementById('order-history');
   if (orderBox) {
-    const orders = (history || []).filter(h => h.type === 'earn' && h.order_no && h.order_total);
+    const orders = ordersRes.data || [];
     if (orders.length > 0) {
+      const STATUS_BADGE = {
+        'pending':   { text: '⏳ Chờ gửi hàng', cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+        'confirmed': { text: '📋 Đã xác nhận',  cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+        'shipped':   { text: '🚚 Đã gửi hàng',  cls: 'bg-green-100 text-green-800 border-green-300' },
+        'delivered': { text: '✅ Đã nhận',      cls: 'bg-green-100 text-green-800 border-green-300' },
+        'cancelled': { text: '❌ Đã hủy',       cls: 'bg-gray-100 text-gray-600 border-gray-300' }
+      };
       orderBox.innerHTML = orders.map(o => {
         const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
-        return `<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-3">
-          <div class="flex items-center justify-between mb-1">
+        const badge = STATUS_BADGE[o.status] || STATUS_BADGE.pending;
+        const items = Array.isArray(o.items) ? o.items : [];
+        const itemLines = items.map(i =>
+          `<div class="flex justify-between text-xs text-gray-600"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
+        ).join('');
+        const pointsLine = o.points_awarded
+          ? `<p class="text-xs text-green-700 font-semibold">+${o.points_earned} điểm đã cộng</p>`
+          : (o.status === 'pending'
+              ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi hàng</p>`
+              : '');
+        const pointsUsedLine = o.points_used > 0
+          ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
+        return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
+          <div class="flex items-center justify-between mb-2">
             <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
             <span class="text-xs text-gray-500">${date}</span>
           </div>
-          <div class="flex items-center justify-between">
-            <p class="text-xs text-gray-600">Tổng: <span class="font-bold text-brand-red">¥${Number(o.order_total).toLocaleString()}</span></p>
-            <p class="text-xs text-green-700 font-semibold">+${o.points} điểm</p>
+          <div class="mb-2"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span></div>
+          ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
+          <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
+            <div>
+              <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
+              ${pointsUsedLine}
+              ${pointsLine}
+            </div>
+            <p class="text-sm font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
           </div>
         </div>`;
       }).join('');
