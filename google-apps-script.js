@@ -241,6 +241,173 @@ function saveOrderToSupabase(orderNo, data) {
 }
 
 // ============================================================
+// BACKFILL - Migrate don cu tu Sheet "Don Hang" sang Supabase
+// Chay 1 lan tu Apps Script Editor: chon function nay -> Run
+// An toan: skip don da co trong Supabase (idempotent)
+// ============================================================
+function backfillOrdersToSupabase() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME_ORDERS);
+  if (!sheet) { Logger.log('Khong tim thay sheet ' + SHEET_NAME_ORDERS); return; }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) { Logger.log('Sheet rong'); return; }
+
+  // Lay tat ca order_no da co trong Supabase de skip
+  Logger.log('Dang fetch danh sach order_no da co trong Supabase...');
+  var existing = {};
+  try {
+    var resExist = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders?select=order_no', {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    });
+    var existArr = JSON.parse(resExist.getContentText() || '[]');
+    existArr.forEach(function(o) { existing[String(o.order_no)] = true; });
+    Logger.log('Co ' + Object.keys(existing).length + ' don da ton tai trong Supabase');
+  } catch (e) { Logger.log('Loi fetch existing: ' + e); return; }
+
+  // Lay tat ca user (id, email) tu auth.users de match
+  Logger.log('Dang fetch danh sach user de match email...');
+  var emailToUserId = {};
+  try {
+    var resUsers = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/admin/users?per_page=1000', {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    });
+    var usersData = JSON.parse(resUsers.getContentText() || '{}');
+    var users = usersData.users || [];
+    users.forEach(function(u) { if (u.email) emailToUserId[u.email.toLowerCase()] = u.id; });
+    Logger.log('Co ' + Object.keys(emailToUserId).length + ' user co email');
+  } catch (e) { Logger.log('Loi fetch users: ' + e); }
+
+  // Doc tat ca rows tu sheet
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  // Map column index
+  var COL = {};
+  headers.forEach(function(h, i) { COL[String(h).trim()] = i; });
+
+  var stats = { total: 0, skipped: 0, inserted: 0, errors: 0, matched: 0 };
+  var batchSize = 50;
+  var batch = [];
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var orderNo = String(row[COL['Ma Don']] || '').trim();
+    if (!orderNo) continue;
+    stats.total++;
+
+    // Skip neu da co
+    if (existing[orderNo]) { stats.skipped++; continue; }
+
+    var email = String(row[COL['Email']] || '').trim().toLowerCase();
+    var userId = email ? (emailToUserId[email] || null) : null;
+    if (userId) stats.matched++;
+
+    var dateStr = row[COL['Ngay Dat']];
+    var createdAt = null;
+    try {
+      // Format Sheets: "2026/04/24 11:34" -> ISO
+      if (dateStr instanceof Date) {
+        createdAt = dateStr.toISOString();
+      } else if (dateStr) {
+        var d = new Date(String(dateStr).replace(/\//g, '-'));
+        if (!isNaN(d.getTime())) createdAt = d.toISOString();
+      }
+    } catch (e) {}
+
+    var fullAddress = String(row[COL['Dia Chi']] || '').trim();
+    // Tach prefecture neu co the (vi du: "東京都Shibuya..." -> prefecture="東京都")
+    var prefecture = '';
+    var address = fullAddress;
+    var prefMatch = fullAddress.match(/^([^県都府道]+[県都府道])(.*)$/);
+    if (prefMatch) {
+      prefecture = prefMatch[1];
+      address = prefMatch[2].trim();
+    }
+
+    var sanPham = String(row[COL['San Pham']] || '').trim();
+    var items = sanPham ? [{ name: sanPham, size: '', qty: 1, price: 0, wt: 0, _legacy: true }] : [];
+
+    var payload = {
+      order_no: orderNo,
+      user_id: userId,
+      customer_name:  String(row[COL['Ho Ten']] || '').trim(),
+      customer_email: email,
+      customer_phone: String(row[COL['SDT']] || '').trim(),
+      ship_prefecture: prefecture,
+      ship_postal: String(row[COL['Ma Buu Dien']] || '').trim(),
+      ship_address: address,
+      items: items,
+      subtotal: parseInt(row[COL['Tong Hang (JPY)']] || 0) || 0,
+      shipping_fee: parseInt(row[COL['Phi Ship (JPY)']] || 0) || 0,
+      total: parseInt(row[COL['TONG TT (JPY)']] || 0) || 0,
+      points_used: 0,
+      points_earned: Math.floor((parseInt(row[COL['TONG TT (JPY)']] || 0) || 0) / 100),
+      points_awarded: false,
+      status: 'pending',
+      note: String(row[COL['Ghi Chu']] || '').trim(),
+      delivery_time: ''
+    };
+    if (createdAt) payload.created_at = createdAt;
+
+    batch.push(payload);
+
+    // Insert mỗi batchSize don
+    if (batch.length >= batchSize) {
+      var ok = _insertBatch_(batch);
+      if (ok) stats.inserted += batch.length;
+      else stats.errors += batch.length;
+      batch = [];
+      Utilities.sleep(200);
+    }
+  }
+  // Insert phan con lai
+  if (batch.length > 0) {
+    var ok2 = _insertBatch_(batch);
+    if (ok2) stats.inserted += batch.length;
+    else stats.errors += batch.length;
+  }
+
+  Logger.log('=== KET QUA BACKFILL ===');
+  Logger.log('Tong row trong Sheet: ' + stats.total);
+  Logger.log('Da skip (da co trong Supabase): ' + stats.skipped);
+  Logger.log('Da match user_id (theo email): ' + stats.matched);
+  Logger.log('Da insert moi: ' + stats.inserted);
+  Logger.log('Loi: ' + stats.errors);
+}
+
+function _insertBatch_(batch) {
+  try {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify(batch),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code >= 200 && code < 300) return true;
+    Logger.log('Batch insert fail (' + code + '): ' + res.getContentText().substring(0, 500));
+    return false;
+  } catch (e) {
+    Logger.log('Batch insert error: ' + e);
+    return false;
+  }
+}
+
+// ============================================================
 // SUPABASE - Danh dau don da gui + cong diem (goi tu onEdit)
 // ============================================================
 function markOrderShippedInSupabase(orderNo) {
