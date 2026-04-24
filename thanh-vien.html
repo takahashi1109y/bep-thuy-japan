@@ -1090,13 +1090,36 @@ function switchDashTab(tab) {
   });
   // Auto-refresh data on tab switch
   if (tab === 'orders') {
+    // Show loading immediately
+    var orderBoxEl = document.getElementById('order-history');
+    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
     loadDashboard().catch(e => console.warn('Refresh orders err:', e));
   }
   if (tab === 'messages') loadMessages();
 }
 
-async function loadDashboard() {
+async function loadDashboard(retryAttempt = 0) {
   if (!currentUser) return;
+
+  // Show loading indicator on order box (only on first attempt)
+  if (retryAttempt === 0) {
+    var orderBoxEl = document.getElementById('order-history');
+    if (orderBoxEl && orderBoxEl.children.length <= 1) {
+      orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
+    }
+  }
+
+  // Auto-refresh JWT token if close to expiry (avoids RLS rejecting queries)
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session && session.expires_at) {
+      const expiresIn = session.expires_at - Math.floor(Date.now() / 1000);
+      if (expiresIn < 300) { // < 5 min left
+        console.log('[loadDashboard] refreshing JWT, expires in', expiresIn, 's');
+        await sb.auth.refreshSession();
+      }
+    }
+  } catch (e) { console.warn('Token refresh check err:', e); }
 
   // Run all 5 queries in PARALLEL with allSettled (1 fail won't break others)
   const uid = currentUser.id;
@@ -1107,6 +1130,14 @@ async function loadDashboard() {
     sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
     sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30)
   ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason }));
+
+  // Detect JWT/auth errors and refresh + retry once
+  const ordersErr = ordersRes.error;
+  if (ordersErr && (ordersErr.message?.includes('JWT') || ordersErr.code === 'PGRST301' || ordersErr.code === '42501') && retryAttempt < 1) {
+    console.log('[loadDashboard] auth error detected, refreshing session and retrying...', ordersErr);
+    try { await sb.auth.refreshSession(); } catch (e) {}
+    return loadDashboard(retryAttempt + 1);
+  }
 
   const profile = profileRes.data;
   currentProfile = profile;
@@ -1192,7 +1223,16 @@ async function loadDashboard() {
         </div>`;
       }).join('');
     } else {
-      orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+      // Auto-retry up to 3 times if no orders found (handle Apps Script latency)
+      // Only retry if user came from order placement (?tab=orders) AND it's their first visit
+      var fromOrder = new URLSearchParams(window.location.search).get('tab') === 'orders';
+      if (retryAttempt < 3 && fromOrder) {
+        var nextRetry = retryAttempt + 1;
+        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tìm đơn hàng (lần ' + nextRetry + '/3)...</p>';
+        setTimeout(() => loadDashboard(nextRetry), 3000);
+      } else {
+        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+      }
     }
   }
 
