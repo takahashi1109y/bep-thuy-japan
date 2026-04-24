@@ -328,7 +328,13 @@
         <div id="my-coupons-list" class="space-y-2"></div>
       </div>
 
-      <!-- History -->
+      <!-- Order History -->
+      <h4 class="font-bold text-gray-700 text-sm mb-3">📦 Lịch Sử Mua Hàng</h4>
+      <div id="order-history" class="space-y-2 mb-6">
+        <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
+      </div>
+
+      <!-- Points History -->
       <h4 class="font-bold text-gray-700 text-sm mb-3">📋 Lịch Sử Điểm</h4>
       <div id="points-history" class="space-y-2">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào</p>
@@ -866,6 +872,29 @@ async function loadDashboard() {
   }
 
   const history = historyRes.data;
+
+  // Render ORDER HISTORY (filter earn-type with order_no — these are real purchase orders)
+  const orderBox = document.getElementById('order-history');
+  if (orderBox) {
+    const orders = (history || []).filter(h => h.type === 'earn' && h.order_no && h.order_total);
+    if (orders.length > 0) {
+      orderBox.innerHTML = orders.map(o => {
+        const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
+        return `<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-3">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
+            <span class="text-xs text-gray-500">${date}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gray-600">Tổng: <span class="font-bold text-brand-red">¥${Number(o.order_total).toLocaleString()}</span></p>
+            <p class="text-xs text-green-700 font-semibold">+${o.points} điểm</p>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+    }
+  }
 
   const historyBox = document.getElementById('points-history');
   if (history && history.length > 0) {
