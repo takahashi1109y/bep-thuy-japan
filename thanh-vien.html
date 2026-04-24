@@ -2067,25 +2067,120 @@ function contactShopForCancel(orderNo) {
   }, 100);
 }
 
-async function cancelMyOrder(orderNo) {
-  const reason = prompt('Lý do hủy đơn #' + orderNo + ':\n\n(Vd: Đặt nhầm, đổi ý, không cần nữa...)', '');
-  if (reason === null) return; // user clicked Cancel
+// Custom modal dialog for cancel order (reliable on iOS Safari)
+function cancelMyOrder(orderNo) {
+  console.log('[cancelMyOrder] clicked', orderNo);
 
-  try {
-    const { data, error } = await sb.rpc('cancel_order', {
-      p_order_no: String(orderNo),
-      p_reason: reason || ''
-    });
-    if (error) { alert('❌ Lỗi: ' + error.message); return; }
-    if (!data || !data.ok) { alert('❌ ' + (data?.error || 'Không thể hủy đơn này')); return; }
+  // Remove existing dialog if any
+  var existing = document.getElementById('cancel-dialog');
+  if (existing) existing.remove();
 
-    var msg = '✅ Đã hủy đơn #' + orderNo;
-    if (data.points_refunded > 0) msg += '\n💰 Đã hoàn ' + data.points_refunded + ' điểm vào tài khoản';
-    alert(msg);
-    await loadDashboard();
-  } catch(e) {
-    alert('❌ Lỗi: ' + e.message);
-  }
+  // Create dialog
+  var dialog = document.createElement('div');
+  dialog.id = 'cancel-dialog';
+  dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  dialog.innerHTML = '<div style="background:white;border-radius:16px;max-width:400px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">' +
+    '<h3 style="font-size:18px;font-weight:bold;color:#1F2937;margin:0 0 8px 0">🗑 Hủy Đơn #' + orderNo + '</h3>' +
+    '<p style="font-size:13px;color:#6B7280;margin:0 0 12px 0">Vui lòng nhập lý do hủy:</p>' +
+    '<textarea id="cancel-reason" rows="3" placeholder="Vd: Đặt nhầm, đổi ý..." style="width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box" maxlength="500"></textarea>' +
+    '<div id="cancel-dialog-msg" style="display:none;font-size:13px;padding:8px;border-radius:8px;margin-top:8px"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px">' +
+      '<button id="cancel-dialog-close" style="flex:1;padding:12px;border-radius:10px;background:#F3F4F6;color:#374151;font-weight:600;font-size:14px;border:none;cursor:pointer">Không hủy</button>' +
+      '<button id="cancel-dialog-confirm" style="flex:1;padding:12px;border-radius:10px;background:#EF4444;color:white;font-weight:600;font-size:14px;border:none;cursor:pointer">🗑 Xác nhận hủy</button>' +
+    '</div></div>';
+  document.body.appendChild(dialog);
+
+  // Focus textarea
+  setTimeout(function() {
+    var ta = document.getElementById('cancel-reason');
+    if (ta) ta.focus();
+  }, 100);
+
+  // Close button
+  document.getElementById('cancel-dialog-close').onclick = function() {
+    dialog.remove();
+  };
+
+  // Background click = close
+  dialog.onclick = function(e) {
+    if (e.target === dialog) dialog.remove();
+  };
+
+  // Confirm button
+  document.getElementById('cancel-dialog-confirm').onclick = async function() {
+    var reason = document.getElementById('cancel-reason').value.trim();
+    var confirmBtn = this;
+    var msgBox = document.getElementById('cancel-dialog-msg');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '⏳ Đang hủy...';
+
+    // Timeout safety (10s)
+    var timeoutId = setTimeout(function() {
+      if (msgBox) {
+        msgBox.textContent = '⚠️ Server chậm. Vui lòng đóng và thử lại.';
+        msgBox.style.background = '#FEF3C7';
+        msgBox.style.color = '#92400E';
+        msgBox.style.display = 'block';
+      }
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '🗑 Xác nhận hủy';
+    }, 10000);
+
+    try {
+      console.log('[cancelMyOrder] calling RPC...');
+      var result = await sb.rpc('cancel_order', {
+        p_order_no: String(orderNo),
+        p_reason: reason || 'Không có lý do'
+      });
+      clearTimeout(timeoutId);
+      console.log('[cancelMyOrder] RPC result:', result);
+
+      var data = result.data;
+      var error = result.error;
+
+      if (error) {
+        msgBox.textContent = '❌ Lỗi: ' + error.message;
+        msgBox.style.background = '#FEE2E2';
+        msgBox.style.color = '#991B1B';
+        msgBox.style.display = 'block';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '🗑 Xác nhận hủy';
+        return;
+      }
+      if (!data || !data.ok) {
+        msgBox.textContent = '❌ ' + (data && data.error ? data.error : 'Không thể hủy đơn này');
+        msgBox.style.background = '#FEE2E2';
+        msgBox.style.color = '#991B1B';
+        msgBox.style.display = 'block';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '🗑 Xác nhận hủy';
+        return;
+      }
+
+      // Success
+      var msg = '✅ Đã hủy đơn #' + orderNo;
+      if (data.points_refunded > 0) msg += ' · Hoàn ' + data.points_refunded + ' điểm';
+      msgBox.textContent = msg;
+      msgBox.style.background = '#D1FAE5';
+      msgBox.style.color = '#065F46';
+      msgBox.style.display = 'block';
+      confirmBtn.style.display = 'none';
+      document.getElementById('cancel-dialog-close').textContent = 'Đóng';
+
+      // Reload dashboard in background, close dialog after 1.5s
+      loadDashboard().catch(e => console.warn('reload err:', e));
+      setTimeout(function() { dialog.remove(); }, 1500);
+    } catch(e) {
+      clearTimeout(timeoutId);
+      console.error('[cancelMyOrder] err:', e);
+      msgBox.textContent = '❌ Lỗi kết nối: ' + (e.message || e);
+      msgBox.style.background = '#FEE2E2';
+      msgBox.style.color = '#991B1B';
+      msgBox.style.display = 'block';
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '🗑 Xác nhận hủy';
+    }
+  };
 }
 
 // ═══════════════════════════════════════════════════════════
