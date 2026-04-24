@@ -889,7 +889,8 @@ async function submitForgotPassword() {
   btn.disabled = false; btn.textContent = 'Gửi Link Đặt Lại Mật Khẩu';
 }
 
-async function doLogout() {
+function doLogout() {
+  console.log('[logout] clicked');
   currentUser = null;
   currentProfile = null;
 
@@ -900,17 +901,17 @@ async function doLogout() {
         localStorage.removeItem(k);
       }
     });
-    // Same for sessionStorage
     Object.keys(sessionStorage).forEach(k => {
       if (k.startsWith('sb-')) sessionStorage.removeItem(k);
     });
-  } catch(e) {}
+  } catch(e) { console.warn('[logout] storage clear err:', e); }
 
-  // Then call signOut (server-side invalidate)
-  try { await sb.auth.signOut(); } catch(e) { console.warn('signOut err:', e); }
+  // Fire signOut in BACKGROUND (don't block navigation)
+  try { sb.auth.signOut().catch(e => console.warn('[logout] signOut err:', e)); } catch(e) {}
 
-  // Navigate to HOMEPAGE (not /thanh-vien) — user expects to go "out"
-  window.location.href = '/';
+  // Navigate IMMEDIATELY to homepage — don't wait for server
+  console.log('[logout] navigating to /');
+  window.location.replace('/');
 }
 
 // ═══════════════════════════════════════════════════════════
