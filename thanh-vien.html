@@ -608,6 +608,14 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   realtime: { params: { eventsPerSecond: 1 } }
 });
 
+// PRE-INIT AUTH EARLY: kich hoat Supabase JS init ngay khi trang load
+// Khong await — chi can kich hoat de khi loadDashboard chay, auth da san sang
+(function warmupAuth() {
+  try {
+    sb.auth.getSession().catch(() => {});
+  } catch (e) {}
+})();
+
 let currentUser = null;
 let hcaptchaWidgetId = null;
 
@@ -1183,7 +1191,22 @@ function switchDashTab(tab) {
   if (tab === 'messages') loadMessages();
 }
 
+// Mutex: prevent concurrent loadDashboard calls (causes auth init races)
+let _loadDashboardInFlight = null;
 async function loadDashboard(retryAttempt = 0) {
+  // Use mutex for first attempt (retries bypass)
+  if (retryAttempt === 0) {
+    if (_loadDashboardInFlight) {
+      console.log('[loadDashboard] already in flight, reusing promise');
+      return _loadDashboardInFlight;
+    }
+    _loadDashboardInFlight = _loadDashboardImpl(0).finally(() => { _loadDashboardInFlight = null; });
+    return _loadDashboardInFlight;
+  }
+  return _loadDashboardImpl(retryAttempt);
+}
+
+async function _loadDashboardImpl(retryAttempt) {
   if (!currentUser) { console.warn('[loadDashboard] no currentUser'); return; }
   console.log('[loadDashboard] start, attempt:', retryAttempt);
 
@@ -1231,13 +1254,41 @@ async function loadDashboard(retryAttempt = 0) {
     clearTimeout(hangTimeout);
     console.log('[loadDashboard] all queries done. orders count:', ordersRes.data?.length);
 
-    // Auto-retry 1 time if ALL queries failed (likely Supabase auth chua san sang)
+    // Auto-retry with DIRECT FETCH (bypass Supabase JS client) if all queries failed
     const allFailed = !profileRes.data && !balRes.data && !historyRes.data && !couponsRes.data && !ordersRes.data;
     if (allFailed && retryAttempt === 0) {
-      console.log('[loadDashboard] all queries failed on attempt 0, retrying in 1.5s...');
-      if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang kết nối Supabase...</p>';
-      await new Promise(r => setTimeout(r, 1500));
-      return loadDashboard(1);
+      console.log('[loadDashboard] all queries failed - falling back to direct fetch');
+      if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải (fallback)...</p>';
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.access_token) {
+          const headers = {
+            'apikey': SUPABASE_ANON,
+            'Authorization': 'Bearer ' + session.access_token,
+            'Accept': 'application/json'
+          };
+          const fetchOptions = { headers, signal: AbortSignal.timeout(10000) };
+
+          // Direct fetch for orders (most important)
+          const ordersResp = await fetch(`${SUPABASE_URL}/rest/v1/orders?user_id=eq.${uid}&order=created_at.desc&limit=30`, fetchOptions);
+          if (ordersResp.ok) {
+            const ordersData = await ordersResp.json();
+            console.log('[loadDashboard] direct fetch got', ordersData.length, 'orders');
+            ordersRes = { data: ordersData, error: null };
+          }
+
+          // Also fetch profile + balance in parallel (best effort)
+          const [pResp, bResp] = await Promise.allSettled([
+            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, fetchOptions).then(r => r.ok ? r.json() : null),
+            fetch(`${SUPABASE_URL}/rest/v1/points_balance?user_id=eq.${uid}`, fetchOptions).then(r => r.ok ? r.json() : null)
+          ]);
+          if (pResp.status === 'fulfilled' && pResp.value?.[0]) profileRes = { data: pResp.value[0], error: null };
+          if (bResp.status === 'fulfilled' && bResp.value?.[0]) balRes = { data: bResp.value[0], error: null };
+        }
+      } catch (e) {
+        console.warn('[loadDashboard] direct fetch fallback failed:', e);
+      }
     }
   } catch(e) {
     clearTimeout(hangTimeout);
