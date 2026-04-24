@@ -366,6 +366,122 @@ function emailTemplate_(opts) {
 }
 
 // ============================================================
+// INACTIVE CUSTOMER REMINDERS — 45 ngay + 60 ngay
+// Setup: Triggers -> Add -> sendInactiveReminders -> Daily 10am-11am JST
+// ============================================================
+function sendInactiveReminders() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('Missing Supabase config'); return;
+  }
+
+  var inactives = [];
+  try {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/get_inactive_customers', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: '{}',
+      muteHttpExceptions: true
+    });
+    var body = res.getContentText();
+    Logger.log('Inactive RPC: ' + body.substring(0, 500));
+    if (res.getResponseCode() >= 300) return;
+    inactives = JSON.parse(body) || [];
+  } catch (e) { Logger.log('Fetch err: ' + e); return; }
+
+  Logger.log('Found ' + inactives.length + ' inactive customer(s)');
+  if (inactives.length === 0) return;
+
+  var sent = 0, failed = 0;
+  for (var i = 0; i < inactives.length; i++) {
+    var u = inactives[i];
+    if (!u.email_type) continue;
+    try {
+      var template = buildInactiveEmail_(u);
+      MailApp.sendEmail({
+        to: u.email,
+        subject: template.subject,
+        htmlBody: template.html,
+        name: 'Bếp Thuỷ Japan'
+      });
+      // Mark as sent (also activates 5% discount if email_type = inactive_60)
+      UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_inactive_email_sent', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify({
+          p_user_id: u.user_id,
+          p_email_type: u.email_type,
+          p_last_order_at: u.last_order_at
+        }),
+        muteHttpExceptions: true
+      });
+      sent++;
+      Logger.log('✓ Sent ' + u.email_type + ' to ' + u.email + ' (inactive ' + u.days_inactive + ' days)');
+    } catch (e) {
+      failed++;
+      Logger.log('✗ Fail ' + u.email + ': ' + e);
+    }
+  }
+  Logger.log('=== INACTIVE REMINDERS ===');
+  Logger.log('Sent: ' + sent + ', Failed: ' + failed);
+}
+
+function buildInactiveEmail_(u) {
+  var name = u.display_name || u.email.split('@')[0];
+  var title = u.gender === 'male' ? 'anh' : (u.gender === 'female' ? 'chị' : 'anh/chị');
+  var titleCap = title.charAt(0).toUpperCase() + title.slice(1);
+  var url = 'https://www.thuyjapan.com/';
+  var result = { subject: '', html: '' };
+
+  if (u.email_type === 'inactive_45') {
+    result.subject = '💔 Bếp Thuỷ nhớ ' + title + ' ' + name + '!';
+    result.html = emailTemplate_({
+      title: '💔 Bếp Thuỷ Nhớ ' + titleCap + '!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Đã <strong>' + u.days_inactive + ' ngày</strong> không thấy ' + title + ' ghé Bếp Thuỷ rồi. Bếp nhớ ' + title + ' lắm! 🥺</p>' +
+        '<p><strong>Tin vui:</strong> Bếp Thuỷ vẫn hàng ngày chế biến tươi mới:</p>' +
+        '<ul style="margin:8px 0 12px 20px;color:#78350F">' +
+          '<li>🥩 Giò lụa, chả quế — chuẩn vị Hà Nội</li>' +
+          '<li>🍡 Nem lụi Huế tẩm gia vị truyền thống</li>' +
+          '<li>🧈 Pate phố cổ béo ngậy</li>' +
+          '<li>🍳 Mọc sống, mọc chín đủ loại</li>' +
+        '</ul>' +
+        '<p>Hãy thưởng thức lại hương vị quê hương nhé! Giao hàng toàn Nhật, tươi ngon đảm bảo.</p>' +
+        '<p style="color:#6B7280;font-size:13px">💡 <em>Tip: ' + titleCap + ' có ' + (u.days_inactive >= 60 ? '' : 'sẽ có') + ' ưu đãi đặc biệt nếu quay lại trong tuần này!</em></p>',
+      cta: '🛒 Xem Thực Đơn',
+      cta_url: url + '#products'
+    });
+  } else if (u.email_type === 'inactive_60') {
+    result.subject = '🎁 Tặng ' + title + ' ' + name + ' ưu đãi 5% — đơn tiếp theo';
+    result.html = emailTemplate_({
+      title: '🎁 Ưu Đãi 5% Đặc Biệt',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Đã gần 2 tháng không gặp ' + title + ', Bếp Thuỷ thực sự nhớ ' + title + '! 💝</p>' +
+        '<p style="padding:14px;background:#FEF3C7;border-radius:10px;border:2px dashed #F59E0B;text-align:center;font-size:16px">' +
+          '<strong style="color:#78350F">🎉 TẶNG ' + titleCap + ':</strong><br>' +
+          '<strong style="color:#C8102E;font-size:20px">GIẢM 5%</strong><br>' +
+          '<span style="color:#78350F;font-size:13px">Cho đơn hàng tiếp theo · <em>Chỉ áp dụng giá hàng, không áp dụng phí ship</em></span>' +
+        '</p>' +
+        '<p>✅ <strong>Tự động áp dụng</strong> khi ' + title + ' đăng nhập và đặt hàng (không cần nhập mã).</p>' +
+        '<p>⏰ <strong>Hạn sử dụng:</strong> 14 ngày kể từ email này.</p>' +
+        '<p>Bếp Thuỷ cam kết hàng tươi mới mỗi ngày, giao đúng hẹn. Hãy để ' + title + ' cảm nhận lại hương vị quê hương. 🇻🇳</p>',
+      cta: '🛒 Đặt Hàng Ngay — Giảm 5%',
+      cta_url: url + '#products'
+    });
+  }
+  return result;
+}
+
+// ============================================================
 // PAYMENT PROOF NOTIFICATION — Gui email cho shop khi khach upload bien lai
 // ============================================================
 function sendPaymentReceivedNotification_(data) {

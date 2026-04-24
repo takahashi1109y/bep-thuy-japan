@@ -1387,8 +1387,10 @@ function switchTab(type) {
     const box=document.getElementById('total-summary-box');
     if(!shipFee){ box.classList.add('hidden'); return; }
     const sub = subtotal();
-    const bdDisc = birthdayDiscount(sub); // 10% on subtotal (products only)
-    const gross = sub + shipFee - bdDisc;
+    const bdDisc = birthdayDiscount(sub); // 10% on subtotal (products only, NOT shipping)
+    const inaDisc = inactiveDiscount(sub); // 5% on subtotal (products only, NOT shipping)
+    const totalDisc = bdDisc + inaDisc;
+    const gross = sub + shipFee - totalDisc;
     // Clamp pointsUsed to current usable amount
     if (pointsUsed > gross) pointsUsed = gross;
     const net = Math.max(0, gross - pointsUsed);
@@ -1404,7 +1406,6 @@ function switchTab(type) {
     // Birthday discount row
     let bdRow = document.getElementById('final-birthday-row');
     if (!bdRow && bdDisc > 0) {
-      // Inject birthday row before total
       const container = discRow.parentNode;
       bdRow = document.createElement('div');
       bdRow.id = 'final-birthday-row';
@@ -1416,6 +1417,21 @@ function switchTab(type) {
       bdRow.style.display = bdDisc > 0 ? 'flex' : 'none';
       const bdAmt = document.getElementById('final-birthday-amount');
       if (bdAmt) bdAmt.textContent = '−' + yen(bdDisc);
+    }
+    // Inactive customer discount row
+    let inaRow = document.getElementById('final-inactive-row');
+    if (!inaRow && inaDisc > 0) {
+      const container = discRow.parentNode;
+      inaRow = document.createElement('div');
+      inaRow.id = 'final-inactive-row';
+      inaRow.className = 'flex justify-between text-sm text-orange-600 font-semibold';
+      inaRow.innerHTML = '<span>🎁 Ưu đãi quay lại (' + inactiveDiscountPercent + '%):</span><span id="final-inactive-amount">−¥0</span>';
+      container.insertBefore(inaRow, discRow);
+    }
+    if (inaRow) {
+      inaRow.style.display = inaDisc > 0 ? 'flex' : 'none';
+      const inaAmt = document.getElementById('final-inactive-amount');
+      if (inaAmt) inaAmt.textContent = '−' + yen(inaDisc);
     }
     document.getElementById('final-total').textContent=yen(net);
     box.classList.remove('hidden');
@@ -1575,7 +1591,8 @@ function switchTab(type) {
 
     const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0;
     const bdDisc = birthdayDiscount(sub);
-    const total=sub+ship-bdDisc;
+    const inaDisc = inactiveDiscount(sub);
+    const total=sub+ship-bdDisc-inaDisc;
 
     const btn=document.getElementById('submit-btn');
     btn.disabled=true; btn.innerHTML='<span class="spin">⏳</span> Đang xử lý...';
@@ -1591,7 +1608,7 @@ function switchTab(type) {
           note,deliveryTime,
           items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
           cartItems:cart.map(i=>({name:i.name,size:i.size,price:i.price,qty:i.qty,wt:i.wt})),
-          subtotal:sub,shipping:ship,total,birthdayDiscount:bdDisc})
+          subtotal:sub,shipping:ship,total,birthdayDiscount:bdDisc,inactiveDiscount:inaDisc,inactivePercent:inactiveDiscountPercent})
       });
       const d=await res.json();
       orderNo=d.success?d.orderNo:String(Date.now()).slice(-4).padStart(4,'0');
@@ -1849,9 +1866,38 @@ function switchTab(type) {
         sbPointsBalance = bal?.total_points || 0;
         // Check birthday
         checkBirthday();
+        checkInactiveDiscount();
         updateMemberUI();
       }
     } catch(e) { /* Supabase not configured yet */ }
+  }
+
+  // INACTIVE DISCOUNT (5% for customers inactive 60+ days)
+  let inactiveDiscountPercent = 0;
+  let inactiveDiscountExpiresAt = null;
+  function checkInactiveDiscount() {
+    if (!sbProfile) { inactiveDiscountPercent = 0; return; }
+    var expires = sbProfile.inactive_discount_expires_at;
+    var pct = sbProfile.inactive_discount_percent || 0;
+    if (!expires || pct <= 0) { inactiveDiscountPercent = 0; return; }
+    var expiresDate = new Date(expires);
+    if (expiresDate < new Date()) { inactiveDiscountPercent = 0; return; }
+    inactiveDiscountPercent = pct;
+    inactiveDiscountExpiresAt = expiresDate;
+    showInactiveDiscountBanner();
+  }
+  function showInactiveDiscountBanner() {
+    if (document.getElementById('inactive-discount-banner')) return;
+    var daysLeft = Math.ceil((inactiveDiscountExpiresAt - new Date()) / 86400000);
+    var banner = document.createElement('div');
+    banner.id = 'inactive-discount-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(135deg,#F59E0B,#D97706);color:white;padding:10px 16px;text-align:center;font-weight:600;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15)';
+    banner.innerHTML = '🎁 Ưu đãi riêng cho bạn: <strong>-' + inactiveDiscountPercent + '%</strong> đơn tiếp theo (còn ' + daysLeft + ' ngày) 🎉 <button onclick="this.parentNode.style.display=\'none\'" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:2px 10px;border-radius:999px;margin-left:8px;cursor:pointer">✕</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.style.paddingTop = (parseInt(document.body.style.paddingTop) || 0) + 40 + 'px';
+  }
+  function inactiveDiscount(amount) {
+    return inactiveDiscountPercent > 0 ? Math.floor(amount * inactiveDiscountPercent / 100) : 0;
   }
 
   // BIRTHDAY DISCOUNT: check if today (JST) is user's birthday -> 10% off
