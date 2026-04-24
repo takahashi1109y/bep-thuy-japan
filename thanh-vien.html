@@ -602,18 +602,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined
   },
-  realtime: { params: { eventsPerSecond: 1 } },
-  global: {
-    // Add AbortSignal timeout to avoid hanging requests
-    fetch: (url, options) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(timeoutId));
-    }
-  }
+  realtime: { params: { eventsPerSecond: 1 } }
 });
 
 let currentUser = null;
@@ -1123,13 +1115,13 @@ async function loadDashboard(retryAttempt = 0) {
     orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
   }
 
-  // Safety timeout: nếu queries bị treo > 12 giây, show error
+  // Safety timeout: nếu queries bị treo > 25 giây, show error với nút thử lại
   var hangTimeout = setTimeout(function() {
     if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">⚠️ Tải dữ liệu bị treo. <button onclick="loadDashboard()" class="text-brand-red underline ml-1">Thử lại</button></p>';
-  }, 12000);
+  }, 25000);
 
-  // Helper: add timeout to any promise (default 7 seconds)
-  function withTimeout(promise, label, ms = 7000) {
+  // Helper: timeout 20s (du thoi gian cho Supabase auth/session init lan dau)
+  function withTimeout(promise, label, ms = 20000) {
     return Promise.race([
       promise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout: ' + label)), ms))
@@ -1161,6 +1153,15 @@ async function loadDashboard(retryAttempt = 0) {
     ]);
     clearTimeout(hangTimeout);
     console.log('[loadDashboard] all queries done. orders count:', ordersRes.data?.length);
+
+    // Auto-retry 1 time if ALL queries failed (likely Supabase auth chua san sang)
+    const allFailed = !profileRes.data && !balRes.data && !historyRes.data && !couponsRes.data && !ordersRes.data;
+    if (allFailed && retryAttempt === 0) {
+      console.log('[loadDashboard] all queries failed on attempt 0, retrying in 1.5s...');
+      if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang kết nối Supabase...</p>';
+      await new Promise(r => setTimeout(r, 1500));
+      return loadDashboard(1);
+    }
   } catch(e) {
     clearTimeout(hangTimeout);
     console.error('[loadDashboard] unexpected error:', e);
