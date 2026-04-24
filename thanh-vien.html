@@ -644,12 +644,35 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   realtime: { params: { eventsPerSecond: 1 } }
 });
 
-// PRE-INIT AUTH EARLY: kich hoat Supabase JS init ngay khi trang load
-// Khong await — chi can kich hoat de khi loadDashboard chay, auth da san sang
-(function warmupAuth() {
+// PRE-INIT AUTH + WARMUP SUPABASE DB (parallel, non-blocking)
+// Muc dich: khi user click login, Supabase da "thuc day" san -> RPC chay nhanh
+(function warmupAll() {
   try {
+    // 1. Warmup auth state
     sb.auth.getSession().catch(() => {});
+    // 2. Ping Supabase REST endpoint to wake up cold-started database
+    fetch(SUPABASE_URL + '/rest/v1/', {
+      method: 'HEAD',
+      headers: { 'apikey': SUPABASE_ANON },
+      keepalive: true
+    }).catch(() => {});
   } catch (e) {}
+})();
+
+// PREFETCH DASHBOARD RPC nếu đã có session sẵn (token cached)
+// Cache in-memory, loadDashboard se dung thang
+window._dashboardPrefetch = null;
+(function prefetchDashboard() {
+  try {
+    setTimeout(async function() {
+      const { data: { session } } = await sb.auth.getSession().catch(() => ({ data: { session: null } }));
+      if (session?.access_token) {
+        // User co session -> prefetch dashboard data song song voi init
+        console.log('[prefetch] dashboard starting...');
+        window._dashboardPrefetch = sb.rpc('get_member_dashboard').catch(e => { console.warn('prefetch err:', e); return null; });
+      }
+    }, 50);
+  } catch(e) {}
 })();
 
 let currentUser = null;
@@ -1036,6 +1059,13 @@ async function doLogin() {
 
   currentUser = data.user;
 
+  // IMMEDIATE PREFETCH: Fire RPC ngay khi co token, parallel voi showSection
+  // By the time loadDashboard runs, data is already coming back
+  try {
+    window._dashboardPrefetch = sb.rpc('get_member_dashboard').catch(() => null);
+    console.log('[login] dashboard prefetch started');
+  } catch(e) {}
+
   // Neu truoc do co ?claim=welcome ma chua dang nhap -> claim ngay sau login
   try {
     if (sessionStorage.getItem('pending_welcome_claim') === '1') {
@@ -1312,6 +1342,18 @@ function dbgLog(msg) {
 async function _loadDashboardImpl(retryAttempt) {
   if (!currentUser) { dbgLog('❌ no currentUser'); return; }
   dbgLog('🚀 loadDashboard start attempt=' + retryAttempt + ' uid=' + currentUser.id.substring(0,8));
+  var t_start = Date.now();
+
+  // INSTANT RENDER: Render cached orders NGAY neu co, truoc khi fetch fresh
+  if (retryAttempt === 0) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+      if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders) && cached.orders.length > 0) {
+        renderOrdersToUI(cached.orders);
+        dbgLog('⚡ instant-render from cache (' + cached.orders.length + ' orders)');
+      }
+    } catch(e) {}
+  }
 
   var orderBoxEl = document.getElementById('order-history');
   if (orderBoxEl && retryAttempt === 0) {
@@ -1348,7 +1390,15 @@ async function _loadDashboardImpl(retryAttempt) {
     };
 
     // FAST PATH: 1 RPC call returns ALL data (saves 4 HTTP roundtrips)
-    var fastRes = await safeQuery(() => sb.rpc('get_member_dashboard'), 'dashboard_rpc');
+    // Su dung prefetch neu co (da bat dau khi page load) -> instant
+    var fastRes;
+    if (window._dashboardPrefetch) {
+      dbgLog('⚡⚡ using prefetched dashboard!');
+      fastRes = await safeQuery(() => window._dashboardPrefetch, 'dashboard_prefetch');
+      window._dashboardPrefetch = null; // Chi dung 1 lan
+    } else {
+      fastRes = await safeQuery(() => sb.rpc('get_member_dashboard'), 'dashboard_rpc');
+    }
     if (fastRes.data && !fastRes.error && !fastRes.data.error) {
       dbgLog('⚡ fast-path OK (1 roundtrip)');
       var d = fastRes.data;
