@@ -1297,27 +1297,49 @@ async function _loadDashboardImpl(retryAttempt) {
             'Authorization': 'Bearer ' + session.access_token,
             'Accept': 'application/json'
           };
-          const fetchOptions = { headers, signal: AbortSignal.timeout(10000) };
-
-          // Direct fetch for orders (most important)
-          const ordersResp = await fetch(`${SUPABASE_URL}/rest/v1/orders?user_id=eq.${uid}&order=created_at.desc&limit=30`, fetchOptions);
-          if (ordersResp.ok) {
-            const ordersData = await ordersResp.json();
-            console.log('[loadDashboard] direct fetch got', ordersData.length, 'orders');
-            ordersRes = { data: ordersData, error: null };
+          // iOS Safari < 15 khong ho tro AbortSignal.timeout -> dung pattern cu compat rong rai hon
+          function fetchWithTimeout(url, ms) {
+            var ctrl = new AbortController();
+            var timeoutId = setTimeout(function() { ctrl.abort(); }, ms);
+            return fetch(url, { headers: headers, signal: ctrl.signal })
+              .finally(function() { clearTimeout(timeoutId); });
           }
 
-          // Also fetch profile + balance in parallel (best effort)
-          const [pResp, bResp] = await Promise.allSettled([
-            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, fetchOptions).then(r => r.ok ? r.json() : null),
-            fetch(`${SUPABASE_URL}/rest/v1/points_balance?user_id=eq.${uid}`, fetchOptions).then(r => r.ok ? r.json() : null)
+          // Direct fetch for orders (most important) — parallel with profile + balance
+          const [oResp, pResp, bResp] = await Promise.allSettled([
+            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/orders?user_id=eq.${uid}&order=created_at.desc&limit=30`, 10000).then(r => r.ok ? r.json() : []),
+            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, 10000).then(r => r.ok ? r.json() : []),
+            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/points_balance?user_id=eq.${uid}`, 10000).then(r => r.ok ? r.json() : [])
           ]);
+          if (oResp.status === 'fulfilled') {
+            const ordersData = oResp.value || [];
+            console.log('[loadDashboard] direct fetch got', ordersData.length, 'orders');
+            ordersRes = { data: ordersData, error: null };
+          } else {
+            console.warn('[loadDashboard] direct fetch orders failed:', oResp.reason);
+          }
           if (pResp.status === 'fulfilled' && pResp.value?.[0]) profileRes = { data: pResp.value[0], error: null };
           if (bResp.status === 'fulfilled' && bResp.value?.[0]) balRes = { data: bResp.value[0], error: null };
+        } else {
+          console.warn('[loadDashboard] no session for direct fetch');
         }
       } catch (e) {
         console.warn('[loadDashboard] direct fetch fallback failed:', e);
       }
+    }
+
+    // SAFETY: Neu van khong co orders data sau tat ca -> render cache neu co
+    if (!ordersRes.data) {
+      console.warn('[loadDashboard] no orders data after all attempts, trying cache');
+      try {
+        const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+        if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders)) {
+          ordersRes = { data: cached.orders, error: null };
+          console.log('[loadDashboard] using cached orders:', cached.orders.length);
+        } else {
+          ordersRes = { data: [], error: null }; // empty but not null
+        }
+      } catch(e) { ordersRes = { data: [], error: null }; }
     }
   } catch(e) {
     clearTimeout(hangTimeout);
