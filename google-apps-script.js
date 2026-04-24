@@ -199,6 +199,173 @@ function saveMember(ss, data) {
 }
 
 // ============================================================
+// BIRTHDAY EMAILS — Tu dong gui email nhac sinh nhat 14/7/3/0 ngay
+// Setup: Extensions -> Apps Script -> Triggers -> Add Trigger
+//   Function: sendBirthdayEmails | Time-driven | Day timer | 9am-10am JST
+// ============================================================
+function sendBirthdayEmails() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('Missing Supabase config'); return;
+  }
+
+  // 1. Fetch upcoming birthdays tu Supabase RPC
+  var upcoming = [];
+  try {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/get_upcoming_birthdays', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: '{}',
+      muteHttpExceptions: true
+    });
+    var body = res.getContentText();
+    Logger.log('RPC response: ' + body.substring(0, 500));
+    if (res.getResponseCode() >= 300) { Logger.log('RPC fail: ' + body); return; }
+    upcoming = JSON.parse(body) || [];
+  } catch (e) { Logger.log('Fetch upcoming err: ' + e); return; }
+
+  Logger.log('Found ' + upcoming.length + ' upcoming birthday(s) to notify');
+  if (upcoming.length === 0) return;
+
+  var sent = 0, failed = 0;
+  for (var i = 0; i < upcoming.length; i++) {
+    var u = upcoming[i];
+    try {
+      var template = buildBirthdayEmail_(u);
+      MailApp.sendEmail({
+        to: u.email,
+        subject: template.subject,
+        htmlBody: template.html,
+        name: 'Bếp Thuỷ Japan'
+      });
+      // Log to prevent duplicate send
+      UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_birthday_email_sent', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify({ p_user_id: u.user_id, p_email_type: u.email_type }),
+        muteHttpExceptions: true
+      });
+      sent++;
+      Logger.log('✓ Sent ' + u.email_type + ' to ' + u.email);
+    } catch (e) {
+      failed++;
+      Logger.log('✗ Fail ' + u.email + ': ' + e);
+    }
+  }
+  Logger.log('=== BIRTHDAY EMAILS ===');
+  Logger.log('Sent: ' + sent + ', Failed: ' + failed);
+}
+
+// Build email content based on type + user info
+function buildBirthdayEmail_(u) {
+  var name = u.display_name || u.email.split('@')[0];
+  var title = u.gender === 'male' ? 'anh' : (u.gender === 'female' ? 'chị' : 'anh/chị');
+  var bdayDate = new Date(u.birthday);
+  var bdayStr = (bdayDate.getMonth() + 1) + '/' + bdayDate.getDate();
+  var url = 'https://www.thuyjapan.com/';
+  var result = { subject: '', html: '' };
+
+  if (u.email_type === 'advance_14') {
+    result.subject = '🎁 ' + title.charAt(0).toUpperCase() + title.slice(1) + ' ' + name + ' ơi, 2 tuần nữa là sinh nhật!';
+    result.html = emailTemplate_({
+      title: '🎁 2 Tuần Nữa Là Sinh Nhật!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Bếp Thuỷ Japan xin nhắc ' + title + ' biết: <strong>chỉ còn 2 tuần nữa</strong> là đến sinh nhật ' + title + ' (' + bdayStr + ')! 🎉</p>' +
+        '<p>Để chúc mừng ngày đặc biệt của ' + title + ', Bếp Thuỷ tặng <strong>giảm giá 10%</strong> cho toàn bộ đơn hàng trong ngày sinh nhật!</p>' +
+        '<p>Hãy lên lịch trước để không quên đặt hàng thưởng thức đặc sản Phố Cổ Hà Nội nhé.</p>',
+      cta: 'Xem Thực Đơn',
+      cta_url: url + '#products'
+    });
+  } else if (u.email_type === 'advance_7') {
+    result.subject = '🗓 Còn 1 tuần nữa là sinh nhật ' + title + ' ' + name + '!';
+    result.html = emailTemplate_({
+      title: '🗓 Còn 1 Tuần Nữa!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p>Chỉ còn <strong>7 ngày</strong> là đến sinh nhật ' + title + ' (' + bdayStr + ')! ⏳</p>' +
+        '<p>Đừng quên ưu đãi <strong>giảm 10% đơn hàng</strong> khi đặt trong ngày sinh nhật. Bếp Thuỷ đã chuẩn bị giò lụa, chả quế, mọc, nem, pate... sẵn sàng phục vụ.</p>' +
+        '<p>Hẹn gặp lại ' + title + ' trong ngày đặc biệt! 💝</p>',
+      cta: 'Xem Thực Đơn',
+      cta_url: url + '#products'
+    });
+  } else if (u.email_type === 'advance_3') {
+    result.subject = '🎉 Chỉ còn 3 ngày là sinh nhật ' + title + ' ' + name + '!';
+    result.html = emailTemplate_({
+      title: '🎉 Chỉ Còn 3 Ngày!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p><strong>3 ngày nữa</strong> là sinh nhật ' + title + ' rồi! 🥳</p>' +
+        '<p>Bếp Thuỷ xin nhắc ' + title + ' đặt hàng sớm để nhận <strong>ưu đãi 10%</strong> vào đúng ngày đặc biệt.</p>' +
+        '<p>Hãy đặt đơn hôm nay, hàng giao kịp dùng trong ngày sinh nhật nhé! 🎂</p>',
+      cta: 'Đặt Hàng Ngay',
+      cta_url: url + '#products'
+    });
+  } else if (u.email_type === 'birthday') {
+    result.subject = '🎂 Chúc mừng sinh nhật ' + title + ' ' + name + '!';
+    result.html = emailTemplate_({
+      title: '🎂 Chúc Mừng Sinh Nhật!',
+      greeting: 'Chào ' + title + ' ' + name + ',',
+      body:
+        '<p style="font-size:18px;color:#C8102E"><strong>🎉 Chúc mừng sinh nhật ' + title + ' ' + name + '! 🎉</strong></p>' +
+        '<p>Bếp Thuỷ Japan xin gửi lời chúc mừng chân thành nhất đến ' + title + ' nhân ngày đặc biệt này!</p>' +
+        '<p>🎁 <strong>Ưu đãi đặc biệt HÔM NAY</strong>: Giảm 10% tự động khi đặt bất kỳ đơn hàng nào. Không cần mã code — hệ thống tự động áp dụng khi ' + title + ' đăng nhập và đặt hàng.</p>' +
+        '<p>Chúc ' + title + ' một ngày sinh nhật thật ấm áp và hạnh phúc bên người thân! 🌹</p>' +
+        '<p style="color:#6B7280;font-size:13px">Chúc ' + title + ' thêm một tuổi mới nhiều niềm vui và sức khoẻ!</p>',
+      cta: '🛒 Đặt Hàng Ngay — Nhận Giảm 10%',
+      cta_url: url + '#products'
+    });
+  }
+
+  return result;
+}
+
+// Shared email template (HTML with styling)
+function emailTemplate_(opts) {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head>' +
+    '<body style="margin:0;padding:0;background:#FFF8F0;font-family:Arial,sans-serif">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="background:#FFF8F0;padding:20px">' +
+    '<tr><td align="center">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08)">' +
+      // Header
+      '<tr><td style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F,#C8102E);padding:30px 24px;text-align:center">' +
+        '<h1 style="color:white;margin:0;font-family:Georgia,serif;font-size:28px">Bếp Thuỷ Japan</h1>' +
+        '<p style="color:#FEF3C7;margin:6px 0 0;font-size:13px">"Hạnh phúc là được ăn ngon"</p>' +
+      '</td></tr>' +
+      // Title
+      '<tr><td style="padding:28px 24px 12px;text-align:center">' +
+        '<h2 style="color:#C8102E;margin:0;font-size:24px">' + opts.title + '</h2>' +
+      '</td></tr>' +
+      // Body
+      '<tr><td style="padding:0 24px 20px;color:#1F2937;font-size:15px;line-height:1.6">' +
+        '<p style="margin:0 0 12px;font-weight:600">' + opts.greeting + '</p>' +
+        opts.body +
+      '</td></tr>' +
+      // CTA
+      '<tr><td style="padding:12px 24px 28px;text-align:center">' +
+        '<a href="' + opts.cta_url + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#C8102E,#8B3A0F);color:white;text-decoration:none;border-radius:9999px;font-weight:bold;font-size:15px">' + opts.cta + '</a>' +
+      '</td></tr>' +
+      // Footer
+      '<tr><td style="background:#2C1A0E;padding:20px 24px;text-align:center">' +
+        '<p style="color:#D4A017;margin:0 0 4px;font-weight:bold">Bếp Thuỷ Japan</p>' +
+        '<p style="color:#9CA3AF;margin:0;font-size:12px">Đặc sản Phố Cổ Hà Nội tại Nhật Bản</p>' +
+        '<p style="color:#9CA3AF;margin:8px 0 0;font-size:11px">' +
+          '<a href="https://www.thuyjapan.com" style="color:#D4A017;text-decoration:none">thuyjapan.com</a> · ' +
+          '📞 080-5115-6688' +
+        '</p>' +
+      '</td></tr>' +
+      '</table>' +
+    '</td></tr></table></body></html>';
+}
+
+// ============================================================
 // PAYMENT PROOF NOTIFICATION — Gui email cho shop khi khach upload bien lai
 // ============================================================
 function sendPaymentReceivedNotification_(data) {
