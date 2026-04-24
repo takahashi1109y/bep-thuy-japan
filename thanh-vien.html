@@ -685,11 +685,88 @@ function renderDashboardFromCache() {
       setIfExists('addr-prefecture', m.prefecture);
       setIfExists('addr-postal', m.postal);
       setIfExists('addr-address', m.address);
+
+      // Render orders from cache (if any) — show INSTANTLY
+      try {
+        const cachedOrders = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+        if (cachedOrders && Array.isArray(cachedOrders.orders) && cachedOrders.userId === m.userId) {
+          renderOrdersToUI(cachedOrders.orders);
+          console.log('[cache] rendered', cachedOrders.orders.length, 'orders from cache');
+        }
+      } catch(e) {}
+
       showSection('dashboard');
       return true;
     }
   } catch(e) {}
   return false;
+}
+
+// Extract order rendering to reusable function (used by cache + loadDashboard)
+function renderOrdersToUI(orders) {
+  const orderBox = document.getElementById('order-history');
+  if (!orderBox) return;
+  if (!orders || orders.length === 0) {
+    orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+    return;
+  }
+  const STATUS_BADGE = {
+    'pending':   { text: '⏳ Chờ TT',       cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    'customer_paid':{text:'💰 Khách báo TT',cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    'confirmed': { text: '✅ Đã XN',        cls: 'bg-green-100 text-green-800 border-green-300' },
+    'shipped':   { text: '🚚 Đã gửi',       cls: 'bg-green-100 text-green-800 border-green-300' },
+    'delivered': { text: '✅ Đã nhận',      cls: 'bg-green-100 text-green-800 border-green-300' },
+    'cancelled': { text: '❌ Đã hủy',       cls: 'bg-gray-100 text-gray-600 border-gray-300' }
+  };
+  orderBox.innerHTML = orders.map(o => {
+    const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
+    const badge = STATUS_BADGE[o.status] || STATUS_BADGE.pending;
+    const items = Array.isArray(o.items) ? o.items : [];
+    const itemLines = items.map(i =>
+      `<div class="flex justify-between text-xs text-gray-600"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
+    ).join('');
+    const pointsLine = o.points_awarded
+      ? `<p class="text-xs text-green-700 font-semibold">+${o.points_earned} điểm đã cộng</p>`
+      : (o.status === 'pending'
+          ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi hàng</p>`
+          : '');
+    const pointsUsedLine = o.points_used > 0
+      ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
+    const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
+    const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
+    const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
+    let cancelBtn = '';
+    if (canCancelStatus) {
+      if (minutesLeft > 0) {
+        cancelBtn = `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn (còn ${minutesLeft} phút)</button>`;
+      } else {
+        cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
+      }
+    }
+    let paymentBtn = '';
+    const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
+    if (o.status === 'pending') {
+      paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Thanh toán</button>`;
+    } else if (o.status === 'customer_paid') {
+      paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">📸 Gửi biên lai khác</button>`;
+    }
+    return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
+        <span class="text-xs text-gray-500">${date}</span>
+      </div>
+      <div class="mb-2 flex items-center gap-2 flex-wrap"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${paymentBtn}${cancelBtn}</div>
+      ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
+      <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
+        <div>
+          <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
+          ${pointsUsedLine}
+          ${pointsLine}
+        </div>
+        <p class="text-sm font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // Detect if URL contains password recovery token (Supabase puts it in #hash)
@@ -1193,65 +1270,18 @@ async function loadDashboard(retryAttempt = 0) {
   const orderBox = document.getElementById('order-history');
   if (orderBox) {
     const orders = ordersRes.data || [];
+    // CACHE orders to localStorage for instant next-load render
+    if (ordersRes.data && !ordersRes.error) {
+      try {
+        localStorage.setItem('bepthuy_orders_cache', JSON.stringify({
+          userId: currentUser.id,
+          orders: orders,
+          ts: Date.now()
+        }));
+      } catch(e) {}
+    }
     if (orders.length > 0) {
-      const STATUS_BADGE = {
-        'pending':   { text: '⏳ Chờ gửi hàng', cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-        'confirmed': { text: '📋 Đã xác nhận',  cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-        'shipped':   { text: '🚚 Đã gửi hàng',  cls: 'bg-green-100 text-green-800 border-green-300' },
-        'delivered': { text: '✅ Đã nhận',      cls: 'bg-green-100 text-green-800 border-green-300' },
-        'cancelled': { text: '❌ Đã hủy',       cls: 'bg-gray-100 text-gray-600 border-gray-300' }
-      };
-      orderBox.innerHTML = orders.map(o => {
-        const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
-        const badge = STATUS_BADGE[o.status] || STATUS_BADGE.pending;
-        const items = Array.isArray(o.items) ? o.items : [];
-        const itemLines = items.map(i =>
-          `<div class="flex justify-between text-xs text-gray-600"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
-        ).join('');
-        const pointsLine = o.points_awarded
-          ? `<p class="text-xs text-green-700 font-semibold">+${o.points_earned} điểm đã cộng</p>`
-          : (o.status === 'pending'
-              ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi hàng</p>`
-              : '');
-        const pointsUsedLine = o.points_used > 0
-          ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
-        // Cancel button: only for pending/customer_paid AND within 30 minutes
-        const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
-        const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
-        const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
-        let cancelBtn = '';
-        if (canCancelStatus) {
-          if (minutesLeft > 0) {
-            cancelBtn = `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn (còn ${minutesLeft} phút)</button>`;
-          } else {
-            cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
-          }
-        }
-        // Payment button: opens modal with PayPay QR / Bank info + upload receipt option
-        let paymentBtn = '';
-        const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
-        if (o.status === 'pending') {
-          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Thanh toán</button>`;
-        } else if (o.status === 'customer_paid') {
-          paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">📸 Gửi biên lai khác</button>`;
-        }
-        return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
-            <span class="text-xs text-gray-500">${date}</span>
-          </div>
-          <div class="mb-2 flex items-center gap-2 flex-wrap"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${paymentBtn}${cancelBtn}</div>
-          ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
-          <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
-            <div>
-              <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
-              ${pointsUsedLine}
-              ${pointsLine}
-            </div>
-            <p class="text-sm font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
-          </div>
-        </div>`;
-      }).join('');
+      renderOrdersToUI(orders);
     } else {
       // Auto-retry up to 3 times if no orders found (handle Apps Script latency)
       // Only retry if user came from order placement (?tab=orders) AND it's their first visit
