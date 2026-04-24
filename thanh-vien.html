@@ -710,7 +710,7 @@ function renderDashboardFromCache() {
   return false;
 }
 
-// Extract order rendering to reusable function (used by cache + loadDashboard)
+// Extract order rendering to reusable function (Amazon-style layout: info left, actions right)
 function renderOrdersToUI(orders) {
   const orderBox = document.getElementById('order-history');
   if (!orderBox) return;
@@ -719,59 +719,88 @@ function renderOrdersToUI(orders) {
     return;
   }
   const STATUS_BADGE = {
-    'pending':   { text: '⏳ Chờ TT',       cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-    'customer_paid':{text:'💰 Khách báo TT',cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    'confirmed': { text: '✅ Đã XN',        cls: 'bg-green-100 text-green-800 border-green-300' },
-    'shipped':   { text: '🚚 Đã gửi',       cls: 'bg-green-100 text-green-800 border-green-300' },
-    'delivered': { text: '✅ Đã nhận',      cls: 'bg-green-100 text-green-800 border-green-300' },
-    'cancelled': { text: '❌ Đã hủy',       cls: 'bg-gray-100 text-gray-600 border-gray-300' }
+    'pending':   { text: '⏳ Chờ thanh toán',    cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    'customer_paid':{text:'💰 Khách báo TT',     cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    'confirmed': { text: '✅ Đã xác nhận',        cls: 'bg-green-100 text-green-800 border-green-300' },
+    'shipped':   { text: '🚚 Đã gửi hàng',        cls: 'bg-green-100 text-green-800 border-green-300' },
+    'delivered': { text: '✅ Đã nhận',            cls: 'bg-green-100 text-green-800 border-green-300' },
+    'cancelled': { text: '❌ Đã hủy',             cls: 'bg-gray-100 text-gray-600 border-gray-300' }
   };
   orderBox.innerHTML = orders.map(o => {
     const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
     const badge = STATUS_BADGE[o.status] || STATUS_BADGE.pending;
     const items = Array.isArray(o.items) ? o.items : [];
     const itemLines = items.map(i =>
-      `<div class="flex justify-between text-xs text-gray-600"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
+      `<div class="flex justify-between text-xs text-gray-600 py-0.5"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
     ).join('');
     const pointsLine = o.points_awarded
       ? `<p class="text-xs text-green-700 font-semibold">+${o.points_earned} điểm đã cộng</p>`
       : (o.status === 'pending'
-          ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi hàng</p>`
+          ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi</p>`
           : '');
     const pointsUsedLine = o.points_used > 0
-      ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm giảm giá</p>` : '';
+      ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm</p>` : '';
+
+    // BUILD ACTION BUTTONS (stacked vertically, Amazon-style)
     const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
     const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
     const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
-    let cancelBtn = '';
+    const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
+
+    const btnClass = 'w-full text-xs font-semibold px-3 py-2 rounded-full border transition text-center whitespace-nowrap';
+    let actionButtons = '';
+
+    // Primary: Payment button
+    if (o.status === 'pending') {
+      actionButtons += `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${btnClass} bg-yellow-50 border-yellow-400 text-yellow-900 hover:bg-yellow-100">💳 Thanh toán</button>`;
+    } else if (o.status === 'customer_paid') {
+      actionButtons += `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${btnClass} bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100">📸 Gửi biên lai khác</button>`;
+    }
+
+    // Cancel (within 30 min) or contact shop
     if (canCancelStatus) {
       if (minutesLeft > 0) {
-        cancelBtn = `<button onclick="cancelMyOrder('${o.order_no}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold px-3 py-1.5 rounded-lg transition">🗑 Hủy đơn (còn ${minutesLeft} phút)</button>`;
+        actionButtons += `<button onclick="cancelMyOrder('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">🗑 Hủy đơn <span class="text-gray-400">(${minutesLeft}p)</span></button>`;
       } else {
-        cancelBtn = `<button onclick="contactShopForCancel('${o.order_no}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">💬 Liên hệ shop để hủy</button>`;
+        actionButtons += `<button onclick="contactShopForCancel('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">💬 Liên hệ shop</button>`;
       }
     }
-    let paymentBtn = '';
-    const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
-    if (o.status === 'pending') {
-      paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-green-600 text-white hover:bg-green-700 font-semibold px-3 py-1.5 rounded-lg transition">💳 Thanh toán</button>`;
-    } else if (o.status === 'customer_paid') {
-      paymentBtn = `<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold px-3 py-1.5 rounded-lg transition">📸 Gửi biên lai khác</button>`;
+
+    // Contact shop (always available for non-cancelled orders)
+    if (!canCancelStatus && o.status !== 'cancelled') {
+      actionButtons += `<button onclick="contactShopForCancel('${o.order_no}')" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50">💬 Liên hệ shop</button>`;
     }
-    return `<div class="bg-white border border-orange-200 rounded-xl p-3 mb-2">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
-        <span class="text-xs text-gray-500">${date}</span>
-      </div>
-      <div class="mb-2 flex items-center gap-2 flex-wrap"><span class="inline-block text-xs px-2 py-1 rounded-full border ${badge.cls}">${badge.text}</span>${paymentBtn}${cancelBtn}</div>
-      ${itemLines ? `<div class="border-t border-gray-100 pt-2 mb-2">${itemLines}</div>` : ''}
-      <div class="border-t border-gray-100 pt-2 flex justify-between items-center">
-        <div>
-          <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
-          ${pointsUsedLine}
-          ${pointsLine}
+
+    // Reorder button (if delivered or shipped)
+    if (o.status === 'shipped' || o.status === 'delivered') {
+      actionButtons += `<a href="/" class="${btnClass} bg-white border-gray-300 text-gray-700 hover:bg-gray-50 block">🔄 Đặt lại</a>`;
+    }
+
+    return `<div class="bg-white border border-gray-200 rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow">
+      <!-- Header: order number + date -->
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3 gap-2 flex-wrap">
+        <div class="flex items-center gap-3 flex-wrap">
+          <p class="text-sm font-bold text-brand-dark">📦 Đơn #${o.order_no}</p>
+          <span class="text-xs text-gray-500">${date}</span>
+          <span class="inline-block text-xs px-2.5 py-1 rounded-full border ${badge.cls} font-semibold">${badge.text}</span>
         </div>
-        <p class="text-sm font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
+        <p class="text-base font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
+      </div>
+
+      <!-- Body: items LEFT | actions RIGHT (Amazon-style) -->
+      <div class="flex gap-4 items-start flex-col sm:flex-row">
+        <!-- LEFT: Items + shipping info -->
+        <div class="flex-1 min-w-0 w-full">
+          ${itemLines || '<p class="text-xs text-gray-400">Không có chi tiết sản phẩm</p>'}
+          <div class="mt-2 pt-2 border-t border-gray-100">
+            <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
+            ${pointsUsedLine}
+            ${pointsLine}
+          </div>
+        </div>
+
+        <!-- RIGHT: Action buttons stacked (Amazon-style) -->
+        ${actionButtons ? `<div class="flex flex-col gap-2 w-full sm:w-40 flex-shrink-0">${actionButtons}</div>` : ''}
       </div>
     </div>`;
   }).join('');
