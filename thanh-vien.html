@@ -484,44 +484,44 @@
       </div>
 
       <!-- PayPay section -->
-      <div id="pm-section-paypay" class="rounded-2xl p-4 mb-3" style="background:linear-gradient(135deg,#d70000,#ff0033);color:white">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="text-xl">💳</span>
-          <div><p class="font-bold">PayPay</p><p class="text-red-200 text-xs">Thanghoang · Bếp Thuỷ Japan</p></div>
+      <div id="pm-section-paypay" style="border-radius:16px;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#d70000,#ff0033);color:white">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:22px;">💳</span>
+          <div><p style="font-weight:bold;margin:0">PayPay</p><p style="color:#FECACA;font-size:11px;margin:0">Thanghoang · Bếp Thuỷ Japan</p></div>
         </div>
-        <div class="bg-white rounded-xl p-3 text-center mb-3">
-          <div id="pm-paypay-qr" class="flex justify-center mb-2"></div>
-          <p class="text-gray-500 text-xs">Mở app PayPay → Quét QR</p>
+        <div style="background:white;border-radius:12px;padding:12px;text-align:center;margin-bottom:12px;">
+          <div id="pm-paypay-qr" style="display:flex;justify-content:center;margin-bottom:8px;"></div>
+          <p style="color:#6B7280;font-size:11px;margin:0">Mở app PayPay → Quét QR</p>
         </div>
-        <a href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank" class="block w-full text-center py-2.5 rounded-xl font-bold text-sm bg-white text-red-600 mb-2">📱 Mở PayPay App</a>
-        <p class="text-white text-xs opacity-90 text-center">Nhập số tiền: <strong id="pm-paypay-amount"></strong></p>
+        <a href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank" style="display:block;width:100%;text-align:center;padding:10px;border-radius:10px;font-weight:bold;font-size:14px;background:white;color:#d70000;margin-bottom:8px;text-decoration:none">📱 Mở PayPay App</a>
+        <p style="color:white;font-size:11px;opacity:0.9;text-align:center;margin:0">Nhập số tiền: <strong id="pm-paypay-amount"></strong></p>
       </div>
 
-      <!-- Bank section -->
-      <div id="pm-section-bank" class="hidden rounded-2xl p-4 mb-3" style="background:linear-gradient(135deg,#1a237e,#283593);color:white">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="text-xl">🏦</span>
-          <div><p class="font-bold">ゆうちょ銀行</p><p class="text-blue-200 text-xs">Japan Post Bank</p></div>
+      <!-- Bank section — green theme (swap from blue) -->
+      <div id="pm-section-bank" style="display:none;border-radius:16px;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#047857,#10B981);color:white">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:22px;">🏦</span>
+          <div><p style="font-weight:bold;margin:0">ゆうちょ銀行</p><p style="color:#D1FAE5;font-size:11px;margin:0">Japan Post Bank</p></div>
         </div>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between items-center"><span class="text-blue-200">支店名:</span><span class="font-semibold">二〇八店 (208)</span></div>
-          <div class="flex justify-between items-center"><span class="text-blue-200">口座種別:</span><span class="font-semibold">普通</span></div>
-          <div class="flex justify-between items-center"><span class="text-blue-200">口座番号:</span><div class="flex items-center gap-2"><span class="font-bold tracking-widest">2168488</span><button onclick="pmCopyText('2168488')" class="bg-white/20 border border-white/40 text-white text-xs px-2 py-0.5 rounded-md">コピー</button></div></div>
-          <div class="flex justify-between items-center"><span class="text-blue-200">口座名義:</span><span class="font-semibold text-xs">タカハラ ケイイチロウ</span></div>
-          <hr class="border-blue-700">
-          <div class="flex justify-between items-center"><span class="text-blue-200 text-xs">記号番号:</span><div class="flex items-center gap-2"><span class="font-bold text-sm">12030-21684881</span><button onclick="pmCopyText('1203021684881')" class="bg-white/20 border border-white/40 text-white text-xs px-2 py-0.5 rounded-md">コピー</button></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#D1FAE5;">支店名:</span><span style="font-weight:600;">二〇八店 (208)</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#D1FAE5;">口座種別:</span><span style="font-weight:600;">普通</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#D1FAE5;">口座番号:</span><div style="display:flex;align-items:center;gap:8px"><span style="font-weight:bold;letter-spacing:2px">2168488</span><button onclick="pmCopyText('2168488')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;font-size:11px;padding:2px 8px;border-radius:6px;cursor:pointer">コピー</button></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#D1FAE5;">口座名義:</span><span style="font-weight:600;font-size:12px">タカハラ ケイイチロウ</span></div>
+          <hr style="border-color:#065F46;margin:4px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#D1FAE5;font-size:11px">記号番号:</span><div style="display:flex;align-items:center;gap:8px"><span style="font-weight:bold;font-size:13px">12030-21684881</span><button onclick="pmCopyText('1203021684881')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;font-size:11px;padding:2px 8px;border-radius:6px;cursor:pointer">コピー</button></div></div>
         </div>
-        <div class="bg-yellow-50 rounded-xl p-2 mt-3">
-          <p class="text-yellow-800 text-xs font-bold mb-1">⚠️ Ghi tên khi chuyển:</p>
-          <p class="text-yellow-900 text-xs">Ô <strong>振込人名義</strong> → gõ: <strong id="pm-bank-nameformat" class="text-red-600"></strong></p>
+        <div style="background:#FEF3C7;border-radius:10px;padding:8px;margin-top:12px">
+          <p style="color:#92400E;font-size:11px;font-weight:bold;margin:0 0 4px 0">⚠️ Ghi tên khi chuyển:</p>
+          <p style="color:#78350F;font-size:11px;margin:0">Ô <strong>振込人名義</strong> → gõ: <strong id="pm-bank-nameformat" style="color:#C8102E"></strong></p>
         </div>
       </div>
 
-      <!-- Gửi biên lai section -->
-      <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mt-4">
-        <p class="text-sm font-bold text-green-800 mb-2">✅ Đã chuyển tiền xong?</p>
-        <p class="text-xs text-green-700 mb-3">Bấm nút dưới để gửi biên lai (ảnh chụp màn hình) cho shop xác nhận:</p>
-        <button onclick="switchPmView('upload')" class="w-full py-3 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-700">📸 Gửi Biên Lai Chuyển Tiền</button>
+      <!-- Gửi biên lai section — blue theme (swap from green) -->
+      <div style="background:#DBEAFE;border:2px solid #60A5FA;border-radius:16px;padding:16px;margin-top:16px;">
+        <p style="font-size:14px;font-weight:bold;color:#1E40AF;margin:0 0 8px 0">✅ Đã chuyển tiền xong?</p>
+        <p style="font-size:12px;color:#1E3A8A;margin:0 0 12px 0">Bấm nút dưới để gửi biên lai (ảnh chụp màn hình) cho shop xác nhận:</p>
+        <button onclick="switchPmView('upload')" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1E40AF,#1D4ED8);color:white;font-weight:bold;font-size:14px;border:none;cursor:pointer" onmouseover="this.style.background='linear-gradient(135deg,#1E3A8A,#1E40AF)'" onmouseout="this.style.background='linear-gradient(135deg,#1E40AF,#1D4ED8)'">📸 Gửi Biên Lai Chuyển Tiền</button>
       </div>
 
       <button onclick="closePaymentUpload()" class="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm mt-3">Đóng</button>
