@@ -1301,45 +1301,68 @@ async function _loadDashboardImpl(retryAttempt) {
     // Auto-retry with DIRECT FETCH (bypass Supabase JS client) if all queries failed
     const allFailed = !profileRes.data && !balRes.data && !historyRes.data && !couponsRes.data && !ordersRes.data;
     if (allFailed && retryAttempt === 0) {
-      console.log('[loadDashboard] all queries failed - falling back to direct fetch');
+      dbgLog('⚠ all queries timed out -> trying pure fetch');
       if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải (fallback)...</p>';
 
+      // Read access_token DIRECTLY from localStorage (KHONG goi sb.auth.getSession - hang on iOS Safari)
+      var accessToken = null;
       try {
-        const { data: { session } } = await sb.auth.getSession();
-        if (session?.access_token) {
-          const headers = {
-            'apikey': SUPABASE_ANON,
-            'Authorization': 'Bearer ' + session.access_token,
-            'Accept': 'application/json'
-          };
-          // iOS Safari < 15 khong ho tro AbortSignal.timeout -> dung pattern cu compat rong rai hon
-          function fetchWithTimeout(url, ms) {
-            var ctrl = new AbortController();
-            var timeoutId = setTimeout(function() { ctrl.abort(); }, ms);
-            return fetch(url, { headers: headers, signal: ctrl.signal })
-              .finally(function() { clearTimeout(timeoutId); });
+        for (var i = 0; i < localStorage.length; i++) {
+          var key = localStorage.key(i);
+          if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+            var raw = localStorage.getItem(key);
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              accessToken = parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token);
+              if (accessToken) { dbgLog('✓ got token from ' + key.substring(0, 30) + '...'); break; }
+            }
           }
+        }
+      } catch(e) { dbgLog('✗ localStorage parse err: ' + e.message); }
 
-          // Direct fetch for orders (most important) — parallel with profile + balance
-          const [oResp, pResp, bResp] = await Promise.allSettled([
-            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/orders?user_id=eq.${uid}&order=created_at.desc&limit=30`, 10000).then(r => r.ok ? r.json() : []),
-            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, 10000).then(r => r.ok ? r.json() : []),
-            fetchWithTimeout(`${SUPABASE_URL}/rest/v1/points_balance?user_id=eq.${uid}`, 10000).then(r => r.ok ? r.json() : [])
-          ]);
-          if (oResp.status === 'fulfilled') {
-            const ordersData = oResp.value || [];
-            dbgLog('✓ direct-fetch orders: ' + ordersData.length + ' rows');
+      if (!accessToken) {
+        dbgLog('✗ no access_token in localStorage');
+      } else {
+        var headers = {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + accessToken,
+          'Accept': 'application/json'
+        };
+        function fetchWithTimeout(url, ms) {
+          var ctrl = new AbortController();
+          var timeoutId = setTimeout(function() { ctrl.abort(); }, ms);
+          return fetch(url, { headers: headers, signal: ctrl.signal })
+            .finally(function() { clearTimeout(timeoutId); });
+        }
+
+        try {
+          dbgLog('→ fetch orders...');
+          var oResp = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/orders?user_id=eq.' + uid + '&order=created_at.desc&limit=30', 8000);
+          dbgLog('← orders HTTP ' + oResp.status);
+          if (oResp.ok) {
+            var ordersData = await oResp.json();
+            dbgLog('✓ direct orders: ' + ordersData.length + ' rows');
             ordersRes = { data: ordersData, error: null };
           } else {
-            dbgLog('✗ direct-fetch orders FAIL: ' + (oResp.reason?.message || oResp.reason));
+            var errText = await oResp.text();
+            dbgLog('✗ orders HTTP ' + oResp.status + ': ' + errText.substring(0, 100));
           }
-          if (pResp.status === 'fulfilled' && pResp.value?.[0]) profileRes = { data: pResp.value[0], error: null };
-          if (bResp.status === 'fulfilled' && bResp.value?.[0]) balRes = { data: bResp.value[0], error: null };
-        } else {
-          console.warn('[loadDashboard] no session for direct fetch');
+        } catch(e) {
+          dbgLog('✗ fetch orders exception: ' + (e.message || e.name || e));
         }
-      } catch (e) {
-        console.warn('[loadDashboard] direct fetch fallback failed:', e);
+
+        try {
+          dbgLog('→ fetch profile + balance...');
+          var pbResults = await Promise.allSettled([
+            fetchWithTimeout(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + uid, 6000).then(function(r) { return r.ok ? r.json() : []; }),
+            fetchWithTimeout(SUPABASE_URL + '/rest/v1/points_balance?user_id=eq.' + uid, 6000).then(function(r) { return r.ok ? r.json() : []; })
+          ]);
+          if (pbResults[0].status === 'fulfilled' && pbResults[0].value && pbResults[0].value[0]) profileRes = { data: pbResults[0].value[0], error: null };
+          if (pbResults[1].status === 'fulfilled' && pbResults[1].value && pbResults[1].value[0]) balRes = { data: pbResults[1].value[0], error: null };
+          dbgLog('✓ profile/balance done');
+        } catch(e) {
+          dbgLog('✗ profile/balance exception: ' + (e.message || e));
+        }
       }
     }
 
