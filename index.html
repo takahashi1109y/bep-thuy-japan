@@ -700,8 +700,10 @@
 <script>
 // Hiện nút "Xem Thực Đơn" khi scroll qua hero
 window.addEventListener('scroll', function() {
-  const btn = document.getElementById('btn-go-menu');
-  const heroHeight = document.querySelector('.hero-bg').offsetHeight;
+  var btn = document.getElementById('btn-go-menu');
+  if (!btn) return;
+  var heroEl = document.querySelector('.hero-bg') || document.querySelector('section');
+  var heroHeight = heroEl ? heroEl.offsetHeight : 500;
   btn.style.display = window.scrollY > heroHeight ? 'block' : 'none';
 });
 
