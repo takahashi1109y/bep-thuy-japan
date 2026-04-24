@@ -1347,13 +1347,29 @@ async function _loadDashboardImpl(retryAttempt) {
       }
     };
 
-    [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.all([
-      safeQuery(() => sb.from('profiles').select('*').eq('id', uid).single(), 'profiles'),
-      safeQuery(() => sb.from('points_balance').select('total_points').eq('user_id', uid).single(), 'points_balance'),
-      safeQuery(() => sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50), 'points_transactions'),
-      safeQuery(() => sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 'coupons'),
-      safeQuery(() => sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30), 'orders')
-    ]);
+    // FAST PATH: 1 RPC call returns ALL data (saves 4 HTTP roundtrips)
+    var fastRes = await safeQuery(() => sb.rpc('get_member_dashboard'), 'dashboard_rpc');
+    if (fastRes.data && !fastRes.error && !fastRes.data.error) {
+      dbgLog('⚡ fast-path OK (1 roundtrip)');
+      var d = fastRes.data;
+      profileRes = { data: d.profile, error: null };
+      balRes = { data: { total_points: d.balance || 0 }, error: null };
+      historyRes = { data: d.transactions || [], error: null };
+      couponsRes = { data: d.coupons || [], error: null };
+      ordersRes = { data: d.orders || [], error: null };
+      // Expose birthday flag
+      if (d.is_birthday !== undefined) window._isBirthdayToday = d.is_birthday;
+    } else {
+      // FALLBACK: 5 separate queries (neu RPC chua duoc tao hoac fail)
+      dbgLog('⚠ fast-path failed, fallback to 5 queries');
+      [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.all([
+        safeQuery(() => sb.from('profiles').select('*').eq('id', uid).single(), 'profiles'),
+        safeQuery(() => sb.from('points_balance').select('total_points').eq('user_id', uid).single(), 'points_balance'),
+        safeQuery(() => sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50), 'points_transactions'),
+        safeQuery(() => sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 'coupons'),
+        safeQuery(() => sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30), 'orders')
+      ]);
+    }
     clearTimeout(hangTimeout);
     console.log('[loadDashboard] all queries done. orders count:', ordersRes.data?.length);
 
