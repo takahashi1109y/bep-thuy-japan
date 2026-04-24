@@ -1297,9 +1297,11 @@ function switchDashTab(tab) {
   });
   // Auto-refresh data on tab switch
   if (tab === 'orders') {
-    // Show loading immediately
+    // Only show loading if no cache (otherwise keep showing existing orders)
     var orderBoxEl = document.getElementById('order-history');
-    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
+    if (orderBoxEl && (!orderBoxEl.innerHTML || orderBoxEl.innerHTML.indexOf('Đơn #') === -1)) {
+      orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
+    }
     loadDashboard().catch(e => console.warn('Refresh orders err:', e));
   }
   if (tab === 'messages') loadMessages();
@@ -1344,26 +1346,34 @@ async function _loadDashboardImpl(retryAttempt) {
   dbgLog('🚀 loadDashboard start attempt=' + retryAttempt + ' uid=' + currentUser.id.substring(0,8));
   var t_start = Date.now();
 
-  // INSTANT RENDER: Render cached orders NGAY neu co, truoc khi fetch fresh
+  // Check if we have usable cache
+  var hasCache = false;
   if (retryAttempt === 0) {
     try {
       const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
       if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders) && cached.orders.length > 0) {
         renderOrdersToUI(cached.orders);
+        hasCache = true;
         dbgLog('⚡ instant-render from cache (' + cached.orders.length + ' orders)');
       }
     } catch(e) {}
   }
 
   var orderBoxEl = document.getElementById('order-history');
-  if (orderBoxEl && retryAttempt === 0) {
+  // ONLY show loading text if NO cache (otherwise keep showing cached orders)
+  if (orderBoxEl && retryAttempt === 0 && !hasCache) {
     orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
   }
 
-  // Safety timeout: nếu queries bị treo > 25 giây, show error với nút thử lại
+  // Safety timeout: chi hien loi KHI khong co cache (neu co cache, user van thay data)
   var hangTimeout = setTimeout(function() {
-    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">⚠️ Tải dữ liệu bị treo. <button onclick="loadDashboard()" class="text-brand-red underline ml-1">Thử lại</button></p>';
-  }, 25000);
+    if (orderBoxEl && !hasCache) {
+      orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">⚠️ Kết nối chậm. <button onclick="loadDashboard()" class="text-brand-red underline ml-1 font-semibold">🔄 Thử lại</button></p>';
+    } else if (hasCache) {
+      // Co cache -> chi hien small indicator, ko phan UI chinh
+      console.warn('[loadDashboard] slow connection but cache is showing');
+    }
+  }, 20000);
 
   // Helper: timeout 20s (du thoi gian cho Supabase auth/session init lan dau)
   function withTimeout(promise, label, ms = 20000) {
