@@ -320,6 +320,8 @@
           <li>Không thể hủy đơn đã được xác nhận thanh toán hoặc đã gửi hàng</li>
         </ul>
       </div>
+      <!-- Debug panel (shown on error for mobile debugging) -->
+      <div id="order-debug" class="hidden bg-gray-900 text-green-300 text-xs rounded-xl p-3 mb-3 font-mono" style="font-family:monospace;max-height:200px;overflow-y:auto"></div>
       <div id="order-history" class="space-y-2 mb-6">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
       </div>
@@ -1235,9 +1237,22 @@ async function loadDashboard(retryAttempt = 0) {
   return _loadDashboardImpl(retryAttempt);
 }
 
+function dbgLog(msg) {
+  try {
+    var panel = document.getElementById('order-debug');
+    if (panel) {
+      panel.classList.remove('hidden');
+      var t = new Date().toLocaleTimeString('ja-JP');
+      panel.innerHTML += '<div>[' + t + '] ' + msg + '</div>';
+      panel.scrollTop = panel.scrollHeight;
+    }
+  } catch(e) {}
+  console.log('[DBG]', msg);
+}
+
 async function _loadDashboardImpl(retryAttempt) {
-  if (!currentUser) { console.warn('[loadDashboard] no currentUser'); return; }
-  console.log('[loadDashboard] start, attempt:', retryAttempt);
+  if (!currentUser) { dbgLog('❌ no currentUser'); return; }
+  dbgLog('🚀 loadDashboard start attempt=' + retryAttempt + ' uid=' + currentUser.id.substring(0,8));
 
   var orderBoxEl = document.getElementById('order-history');
   if (orderBoxEl && retryAttempt === 0) {
@@ -1265,10 +1280,10 @@ async function _loadDashboardImpl(retryAttempt) {
       try {
         const t0 = Date.now();
         const result = await withTimeout(fn(), label);
-        console.log('[loadDashboard]', label, 'done in', Date.now() - t0, 'ms');
+        dbgLog('✓ ' + label + ' ' + (Date.now() - t0) + 'ms (' + (result.data ? (Array.isArray(result.data) ? result.data.length + ' rows' : 'obj') : 'null') + ')');
         return result;
       } catch (e) {
-        console.warn('[loadDashboard]', label, 'failed:', e.message);
+        dbgLog('✗ ' + label + ' FAIL: ' + e.message);
         return { data: null, error: e };
       }
     };
@@ -1313,10 +1328,10 @@ async function _loadDashboardImpl(retryAttempt) {
           ]);
           if (oResp.status === 'fulfilled') {
             const ordersData = oResp.value || [];
-            console.log('[loadDashboard] direct fetch got', ordersData.length, 'orders');
+            dbgLog('✓ direct-fetch orders: ' + ordersData.length + ' rows');
             ordersRes = { data: ordersData, error: null };
           } else {
-            console.warn('[loadDashboard] direct fetch orders failed:', oResp.reason);
+            dbgLog('✗ direct-fetch orders FAIL: ' + (oResp.reason?.message || oResp.reason));
           }
           if (pResp.status === 'fulfilled' && pResp.value?.[0]) profileRes = { data: pResp.value[0], error: null };
           if (bResp.status === 'fulfilled' && bResp.value?.[0]) balRes = { data: bResp.value[0], error: null };
