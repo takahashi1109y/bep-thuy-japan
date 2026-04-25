@@ -7,7 +7,7 @@
 <meta name="description" content="Hướng dẫn từng bước đăng ký thành viên Bếp Thuỷ Japan, xác thực email và kích hoạt 100 điểm thưởng.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -15,53 +15,196 @@
       extend: {
         colors: {
           'brand-red': '#C8102E',
+          'brand-red-dark': '#8B0A1F',
           'brand-dark': '#2C1A0E',
+          'brand-warm': '#5A3A24',
           'brand-cream': '#FFF8F0',
-          'brand-gold': '#D4A017'
+          'brand-gold': '#D4A017',
+          'brand-gold-light': '#F4CC54'
         },
-        fontFamily: { sans: ['Inter', 'sans-serif'] }
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          serif: ['Playfair Display', 'serif']
+        }
       }
     }
   };
 </script>
 <style>
-  body { font-family: 'Inter', sans-serif; background: #FFF8F0; color: #2C1A0E; -webkit-font-smoothing: antialiased; }
-  .step-number {
-    width: 56px; height: 56px; border-radius: 50%;
-    background: linear-gradient(135deg, #C8102E, #8B0A1F);
-    color: white; font-size: 24px; font-weight: 800;
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #FFF8F0;
+    color: #2C1A0E;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+
+  /* Hero */
+  .hero-bg {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212, 160, 23, 0.18), transparent 50%),
+      radial-gradient(circle at 80% 100%, rgba(200, 16, 46, 0.18), transparent 50%),
+      linear-gradient(135deg, #2C1A0E 0%, #4A2C1A 50%, #2C1A0E 100%);
+    position: relative; overflow: hidden;
+  }
+  .hero-bg::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(255,255,255,0.04) 0%, transparent 6%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0%, transparent 6%),
+      radial-gradient(circle at 30% 90%, rgba(255,255,255,0.04) 0%, transparent 6%);
+    pointer-events: none;
+  }
+  .pill-tag {
+    background: linear-gradient(135deg, #D4A017, #F4CC54);
+    color: #2C1A0E;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    display: inline-block;
+  }
+
+  /* Step number — elegant circle with brand gradient */
+  .step-num {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #C8102E 0%, #8B0A1F 100%);
+    color: white;
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(200, 16, 46, 0.25);
+    box-shadow: 0 8px 24px rgba(200, 16, 46, 0.3), inset 0 1px 2px rgba(255,255,255,0.2);
+    position: relative;
+    z-index: 2;
   }
+  .step-num::before {
+    content: '';
+    position: absolute; inset: -6px;
+    border: 1px solid rgba(212, 160, 23, 0.4);
+    border-radius: 50%;
+  }
+
+  /* Step card */
   .step-card {
-    background: white; border-radius: 20px; padding: 24px;
-    border: 1px solid #FCE7B5; box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    background: white;
+    border-radius: 24px;
+    padding: 28px 24px;
+    border: 1px solid rgba(212, 160, 23, 0.2);
+    box-shadow: 0 10px 40px rgba(44, 26, 14, 0.06), 0 2px 4px rgba(44, 26, 14, 0.04);
+    position: relative;
   }
+  .step-card::before {
+    content: ''; position: absolute;
+    top: -1px; left: 24px; right: 24px; height: 2px;
+    background: linear-gradient(90deg, transparent, #D4A017, transparent);
+  }
+
+  /* Timeline connector */
+  .step-row { position: relative; }
+  .step-row + .step-row::before {
+    content: '';
+    position: absolute;
+    top: -38px; left: 50%;
+    transform: translateX(-50%);
+    width: 2px; height: 38px;
+    background: linear-gradient(180deg, #D4A017, transparent);
+    z-index: 0;
+  }
+
+  /* Section divider with chopsticks */
+  .ornament {
+    text-align: center;
+    color: #D4A017;
+    font-size: 14px;
+    letter-spacing: 8px;
+    margin: 8px 0;
+  }
+
+  /* Cards inside steps */
+  .info-card {
+    background: linear-gradient(180deg, #FFFEFB 0%, #FFF8F0 100%);
+    border: 1px solid rgba(212, 160, 23, 0.18);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .field-card {
+    background: white;
+    border: 1px solid #E8DDC8;
+    border-radius: 14px;
+    padding: 16px;
+    transition: all 0.2s;
+  }
+  .field-card:hover { border-color: #D4A017; transform: translateY(-1px); }
+  .field-card.required { border-left: 4px solid #C8102E; }
+  .field-card.optional { border-left: 4px solid #D4A017; }
+
+  /* Info boxes */
   .tip-box {
-    background: #FEF3C7; border-left: 4px solid #D4A017;
-    border-radius: 10px; padding: 14px 18px;
+    background: linear-gradient(135deg, #FEF3C7 0%, #FFF8F0 100%);
+    border-left: 4px solid #D4A017;
+    border-radius: 12px;
+    padding: 14px 18px;
   }
   .warning-box {
-    background: #FEE2E2; border-left: 4px solid #DC2626;
-    border-radius: 10px; padding: 14px 18px;
+    background: linear-gradient(135deg, #FEE2E2 0%, #FFF5F5 100%);
+    border-left: 4px solid #DC2626;
+    border-radius: 12px;
+    padding: 14px 18px;
   }
-  .image-placeholder {
-    background: #F9FAFB; border: 2px dashed #D1D5DB;
-    border-radius: 12px; padding: 40px 20px;
-    text-align: center; color: #9CA3AF;
-    font-size: 13px;
+  .success-box {
+    background: linear-gradient(135deg, #D1FAE5 0%, #ECFDF5 100%);
+    border: 2px solid #34D399;
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
   }
-  .gradient-hero {
-    background: linear-gradient(135deg, #2C1A0E 0%, #4A2C1A 100%);
+  .info-blue {
+    background: linear-gradient(135deg, #DBEAFE 0%, #EFF6FF 100%);
+    border-left: 4px solid #2563EB;
+    border-radius: 12px;
+    padding: 14px 18px;
   }
-  .anchor-nav a { transition: all 0.15s; }
-  .anchor-nav a:hover { background: #FEF3C7; }
-  .anchor-nav a.active { background: #C8102E; color: white; }
-  html { scroll-behavior: smooth; }
-  /* Yellow ellipse highlight overlay on screenshots */
+
+  /* Action box (next step direction) */
+  .action-box {
+    background: linear-gradient(135deg, #FFF8F0 0%, #FEF3C7 100%);
+    border: 2px dashed #D4A017;
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+
+  /* Sticky nav */
+  .anchor-nav {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(255, 248, 240, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(212, 160, 23, 0.2);
+  }
+  .anchor-pill {
+    flex-shrink: 0; padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: #5A3A24;
+    background: white;
+    border: 1px solid #E8DDC8;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .anchor-pill:hover { border-color: #D4A017; }
+  .anchor-pill.active {
+    background: #C8102E;
+    color: white;
+    border-color: #C8102E;
+  }
+
+  /* Yellow ellipse highlight overlay */
   .img-mark { position: relative; display: inline-block; max-width: 100%; }
-  .img-mark img { display: block; width: 100%; height: auto; }
+  .img-mark img { display: block; width: 100%; height: auto; border-radius: 14px; }
   .highlight-ellipse {
     position: absolute;
     border: 3px solid #F59E0B;
@@ -74,496 +217,542 @@
     0%, 100% { transform: scale(1); opacity: 0.95; }
     50% { transform: scale(1.04); opacity: 1; }
   }
+
+  .image-placeholder {
+    background: #F9FAFB; border: 2px dashed #D1D5DB;
+    border-radius: 14px; padding: 36px 20px;
+    text-align: center; color: #9CA3AF;
+    font-size: 13px;
+  }
+
+  /* CTA buttons */
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #C8102E 0%, #8B0A1F 100%);
+    color: white;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(200, 16, 46, 0.3);
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(200, 16, 46, 0.4); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px;
+    background: white; color: #C8102E;
+    border: 2px solid #C8102E;
+    font-weight: 700;
+    padding: 12px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+  }
+  .btn-secondary:hover { background: #FEE2E2; }
+
+  html { scroll-behavior: smooth; }
+  code {
+    font-family: 'SF Mono', Monaco, 'Roboto Mono', monospace;
+    background: #F4ECD8; color: #5A3A24;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 12px;
+  }
+
+  /* Sparkle decoration */
+  .sparkle { position: relative; display: inline-block; }
+  .sparkle::before, .sparkle::after {
+    content: '✦'; position: absolute; color: #D4A017; font-size: 18px;
+    animation: sparkle-fade 3s ease-in-out infinite;
+  }
+  .sparkle::before { top: -10px; left: -18px; animation-delay: 0s; }
+  .sparkle::after { bottom: -10px; right: -18px; animation-delay: 1.5s; }
+  @keyframes sparkle-fade {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
 </style>
 </head>
 <body>
 
 <!-- HERO -->
-<header class="gradient-hero text-white py-12 px-4">
-  <div class="max-w-3xl mx-auto text-center">
-    <div class="inline-block bg-brand-gold text-brand-dark px-4 py-1 rounded-full text-xs font-bold tracking-wider mb-4">📘 HƯỚNG DẪN</div>
-    <h1 class="text-3xl md:text-4xl font-extrabold leading-tight mb-3">Đăng Ký Thành Viên<br>Bếp Thuỷ Japan</h1>
-    <p class="text-yellow-100 text-base md:text-lg mb-6">Chỉ 5 phút · Nhận ngay <span class="font-bold text-yellow-300">100 điểm thưởng</span> miễn phí</p>
-    <a href="#step-1" class="inline-block bg-brand-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full text-base shadow-lg">Bắt Đầu Ngay →</a>
+<header class="hero-bg text-white pt-14 pb-20 px-4 relative">
+  <div class="max-w-3xl mx-auto text-center relative z-10">
+    <span class="pill-tag mb-6">📘 HƯỚNG DẪN TỪNG BƯỚC</span>
+    <h1 class="serif text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mt-5 mb-4">
+      <span class="sparkle">Đăng Ký Thành Viên</span><br>
+      <span class="text-yellow-200" style="font-style: italic; font-weight: 400;">Bếp Thuỷ Japan</span>
+    </h1>
+    <div class="ornament" style="color: #F4CC54;">✦ &nbsp; 🥢 &nbsp; ✦</div>
+    <p class="text-yellow-50 text-base md:text-lg mb-8 leading-relaxed max-w-xl mx-auto">
+      Chỉ <strong>5 phút</strong> · Nhận ngay <span class="font-bold text-yellow-300">100 điểm thưởng</span> miễn phí<br>
+      <span class="text-sm text-yellow-100/80">Đặc sản Phố Cổ Hà Nội tại Nhật Bản</span>
+    </p>
+    <a href="#step-1" class="btn-primary text-base">Bắt Đầu Ngay <span class="text-lg">→</span></a>
   </div>
 </header>
 
-<!-- INTRO -->
-<section class="max-w-3xl mx-auto px-4 -mt-8 mb-12">
-  <div class="bg-white rounded-2xl shadow-lg p-6 border border-orange-100">
-    <h2 class="text-xl font-bold text-brand-dark mb-3">🎁 Anh/chị nhận được gì?</h2>
-    <ul class="space-y-2 text-sm text-gray-700">
-      <li class="flex gap-3"><span class="text-brand-red font-bold">✓</span><span><strong>100 điểm thưởng</strong> miễn phí ngay khi xác thực email (1 điểm = ¥1, dùng giảm giá đơn hàng).</span></li>
-      <li class="flex gap-3"><span class="text-brand-red font-bold">✓</span><span><strong>Tích điểm tự động</strong> mỗi đơn hàng: ¥100 chi tiêu = 1 điểm.</span></li>
-      <li class="flex gap-3"><span class="text-brand-red font-bold">✓</span><span><strong>Giảm giá sinh nhật 10%</strong> trong tháng sinh nhật của anh/chị.</span></li>
-      <li class="flex gap-3"><span class="text-brand-red font-bold">✓</span><span><strong>Tự động điền địa chỉ</strong> khi đặt hàng — không phải gõ lại.</span></li>
-      <li class="flex gap-3"><span class="text-brand-red font-bold">✓</span><span><strong>Xem lịch sử đơn hàng</strong> và liên hệ hỗ trợ ngay trong tài khoản.</span></li>
-    </ul>
+<!-- BENEFITS -->
+<section class="max-w-3xl mx-auto px-4 -mt-12 relative z-10 mb-12">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 border border-orange-100" style="box-shadow: 0 20px 60px rgba(44, 26, 14, 0.1);">
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-2">🎁</div>
+      <h2 class="serif text-2xl font-bold text-brand-dark">Anh/chị nhận được gì?</h2>
+      <div class="ornament">✦ ✦ ✦</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="flex gap-3 items-start">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-xl">💰</div>
+        <div><p class="font-bold text-brand-dark text-sm">100 điểm thưởng</p><p class="text-xs text-gray-600">Miễn phí khi xác thực email · 1 điểm = ¥1</p></div>
+      </div>
+      <div class="flex gap-3 items-start">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center text-xl">⭐</div>
+        <div><p class="font-bold text-brand-dark text-sm">Tích điểm tự động</p><p class="text-xs text-gray-600">¥100 chi tiêu = 1 điểm cho đơn sau</p></div>
+      </div>
+      <div class="flex gap-3 items-start">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-xl">🎂</div>
+        <div><p class="font-bold text-brand-dark text-sm">Giảm 10% sinh nhật</p><p class="text-xs text-gray-600">Áp dụng tự động trong tháng sinh nhật</p></div>
+      </div>
+      <div class="flex gap-3 items-start">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-xl">📍</div>
+        <div><p class="font-bold text-brand-dark text-sm">Tự động điền địa chỉ</p><p class="text-xs text-gray-600">Không phải gõ lại khi đặt hàng</p></div>
+      </div>
+      <div class="flex gap-3 items-start md:col-span-2">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-xl">📦</div>
+        <div><p class="font-bold text-brand-dark text-sm">Lịch sử đơn hàng & tin nhắn</p><p class="text-xs text-gray-600">Theo dõi đơn, liên hệ shop trực tiếp trong tài khoản</p></div>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- ANCHOR NAV -->
-<nav class="anchor-nav max-w-3xl mx-auto px-4 mb-8 sticky top-0 bg-brand-cream/90 backdrop-blur z-10 py-3">
-  <div class="flex gap-2 overflow-x-auto pb-1">
-    <a href="#step-1" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold text-gray-700 bg-white border border-gray-200">1. Mở trang đăng ký</a>
-    <a href="#step-2" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold text-gray-700 bg-white border border-gray-200">2. Điền form</a>
-    <a href="#step-3" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold text-gray-700 bg-white border border-gray-200">3. Mở email</a>
-    <a href="#step-4" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold text-gray-700 bg-white border border-gray-200">4. Click xác thực</a>
-    <a href="#step-5" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold text-gray-700 bg-white border border-gray-200">5. Nhận 100 điểm</a>
+<nav class="anchor-nav py-3 mb-10">
+  <div class="max-w-3xl mx-auto px-4">
+    <div class="flex gap-2 overflow-x-auto pb-1">
+      <a href="#step-1" class="anchor-pill">1. Mở trang</a>
+      <a href="#step-2" class="anchor-pill">2. Điền form</a>
+      <a href="#step-3" class="anchor-pill">3. Mở email</a>
+      <a href="#step-4" class="anchor-pill">4. Xác thực</a>
+      <a href="#step-5" class="anchor-pill">5. Nhận 100 điểm</a>
+    </div>
   </div>
 </nav>
 
 <!-- STEPS CONTAINER -->
-<main class="max-w-3xl mx-auto px-4 pb-16 space-y-8">
+<main class="max-w-3xl mx-auto px-4 pb-16">
+  <div class="space-y-12">
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- STEP 1: Mở trang đăng ký                                  -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <section id="step-1" class="step-card scroll-mt-20">
-    <div class="flex items-start gap-4 mb-5">
-      <div class="step-number">1</div>
-      <div>
-        <p class="text-xs font-bold text-brand-red tracking-wider mb-1">BƯỚC 1</p>
-        <h2 class="text-2xl font-extrabold text-brand-dark leading-tight">Mở Trang Đăng Ký</h2>
-        <p class="text-gray-600 text-sm mt-1">Truy cập trang thành viên của Bếp Thuỷ Japan trên điện thoại hoặc máy tính.</p>
-      </div>
-    </div>
-
-    <!-- Instructions -->
-    <div class="space-y-4 mb-5">
-
-      <div>
-        <p class="font-semibold text-brand-dark mb-2">📱 Cách 1: Trên điện thoại</p>
-        <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
-          <li>Mở trình duyệt (Safari, Chrome…)</li>
-          <li>Gõ vào ô địa chỉ: <code class="bg-gray-100 px-2 py-0.5 rounded text-brand-red font-mono text-xs">thuyjapan.com/thanh-vien</code></li>
-          <li>Nhấn Enter để vào trang.</li>
-        </ol>
+  <section id="step-1" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">1</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC MỘT</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Mở Trang Đăng Ký</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Truy cập trang thành viên của Bếp Thuỷ Japan trên điện thoại hoặc máy tính.</p>
+        </div>
       </div>
 
-      <div>
-        <p class="font-semibold text-brand-dark mb-2">💻 Cách 2: Trên máy tính</p>
-        <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
-          <li>Mở trình duyệt (Chrome, Safari, Edge…)</li>
-          <li>Vào địa chỉ: <code class="bg-gray-100 px-2 py-0.5 rounded text-brand-red font-mono text-xs">https://www.thuyjapan.com/thanh-vien</code></li>
-        </ol>
+      <div class="space-y-4 mb-6">
+        <div class="info-card">
+          <p class="font-bold text-brand-warm mb-2 flex items-center gap-2"><span class="text-lg">📱</span>Cách 1 — Trên điện thoại</p>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
+            <li>Mở trình duyệt (Safari, Chrome…)</li>
+            <li>Gõ vào ô địa chỉ: <code>thuyjapan.com/thanh-vien</code></li>
+            <li>Nhấn Enter để vào trang.</li>
+          </ol>
+        </div>
+
+        <div class="info-card">
+          <p class="font-bold text-brand-warm mb-2 flex items-center gap-2"><span class="text-lg">💻</span>Cách 2 — Trên máy tính</p>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
+            <li>Mở trình duyệt (Chrome, Safari, Edge…)</li>
+            <li>Vào địa chỉ: <code>https://www.thuyjapan.com/thanh-vien</code></li>
+          </ol>
+        </div>
+
+        <div class="info-card text-center">
+          <p class="font-bold text-brand-warm mb-3 flex items-center justify-center gap-2"><span class="text-lg">🔗</span>Cách 3 — Click trực tiếp</p>
+          <a href="https://www.thuyjapan.com/thanh-vien" target="_blank" rel="noopener" class="btn-primary text-sm">Mở trang Thành Viên →</a>
+        </div>
       </div>
 
-      <div>
-        <p class="font-semibold text-brand-dark mb-2">🔗 Cách 3: Click trực tiếp</p>
-        <a href="https://www.thuyjapan.com/thanh-vien" target="_blank" rel="noopener" class="inline-block bg-brand-red hover:bg-red-700 text-white font-bold py-2 px-5 rounded-full text-sm">→ Mở trang Thành Viên</a>
+      <div class="action-box mb-4">
+        <p class="font-bold text-brand-dark mb-1 flex items-center gap-2"><span>👉</span>Tiếp theo cần làm</p>
+        <p class="text-sm text-gray-700">Trên trang vừa mở, anh/chị sẽ thấy <strong>2 tab</strong> ở phía trên: <strong>"Đăng Nhập"</strong> và <strong>"Đăng Ký Mới"</strong>. Hãy bấm vào tab <strong class="text-brand-red">"Đăng Ký Mới"</strong> để chuyển sang form đăng ký.</p>
       </div>
 
+      <div class="tip-box">
+        <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
+        <p class="text-sm text-gray-700">Nếu trang không mở được, kiểm tra kết nối Wi-Fi/4G. Hoặc thử bấm vào nút <strong>"Mở trang Thành Viên"</strong> ở Cách 3 phía trên.</p>
+      </div>
     </div>
-
-    <!-- Image placeholder -->
-    <div class="image-placeholder mb-5">
-      📸 Ảnh minh hoạ: trang Thành Viên với 2 tab "Đăng Nhập" và "Đăng Ký Mới"<br>
-      <span class="text-xs">(Em sẽ chụp ảnh khi anh confirm nội dung bước này)</span>
-    </div>
-
-    <!-- What to do next -->
-    <div class="bg-orange-50 rounded-xl p-4">
-      <p class="font-bold text-brand-dark mb-2">👉 Tiếp theo cần làm:</p>
-      <p class="text-sm text-gray-700">Trên trang vừa mở, anh/chị sẽ thấy <strong>2 tab</strong> ở phía trên: <strong>"Đăng Nhập"</strong> và <strong>"Đăng Ký Mới"</strong>. Hãy bấm vào tab <strong class="text-brand-red">"Đăng Ký Mới"</strong> để chuyển sang form đăng ký.</p>
-    </div>
-
-    <!-- Tip box -->
-    <div class="tip-box mt-4">
-      <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
-      <p class="text-sm text-gray-700">Nếu trang không mở được, kiểm tra kết nối Wi-Fi/4G. Hoặc thử bấm vào nút <strong>"Mở trang Thành Viên"</strong> ở Cách 3 phía trên.</p>
-    </div>
-
   </section>
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- STEP 2: Điền Form Đăng Ký                                 -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <section id="step-2" class="step-card scroll-mt-20">
-    <div class="flex items-start gap-4 mb-5">
-      <div class="step-number">2</div>
-      <div>
-        <p class="text-xs font-bold text-brand-red tracking-wider mb-1">BƯỚC 2</p>
-        <h2 class="text-2xl font-extrabold text-brand-dark leading-tight">Điền Form Đăng Ký</h2>
-        <p class="text-gray-600 text-sm mt-1">Sau khi bấm tab <strong>"Đăng Ký Mới"</strong>, anh/chị sẽ thấy form với các ô cần điền.</p>
+  <section id="step-2" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">2</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC HAI</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Điền Form Đăng Ký</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Sau khi bấm tab <strong>"Đăng Ký Mới"</strong>, anh/chị sẽ thấy form với các ô cần điền.</p>
+        </div>
+      </div>
+
+      <div class="info-blue mb-6">
+        <p class="font-semibold text-brand-dark mb-1 text-sm">📌 Ký hiệu cần biết</p>
+        <p class="text-gray-700 text-sm"><span class="text-brand-red font-bold">*</span> = ô <strong>bắt buộc</strong> phải điền &nbsp; · &nbsp; không có dấu * = ô <strong>tuỳ chọn</strong> (có thể để trống)</p>
+      </div>
+
+      <!-- Required fields -->
+      <div class="mb-8">
+        <h3 class="serif text-2xl font-bold text-brand-red mb-4 flex items-center gap-2"><span class="w-2 h-8 bg-brand-red rounded"></span>Phần bắt buộc <span class="text-sm font-sans text-gray-500 font-normal">(5 ô)</span></h3>
+        <div class="space-y-3">
+
+          <div class="field-card required">
+            <p class="font-bold text-brand-dark mb-1">1. Email <span class="text-brand-red">*</span></p>
+            <p class="text-sm text-gray-700 mb-2">Địa chỉ email anh/chị đang dùng (Gmail, Yahoo, iCloud…). Bếp Thuỷ sẽ gửi email xác nhận đến đây.</p>
+            <p class="text-xs text-gray-500">Ví dụ: <code>nguyenthithuy@gmail.com</code></p>
+            <div class="warning-box mt-3">
+              <p class="text-sm text-gray-800"><strong>⚠️ Quan trọng:</strong> Phải gõ đúng email — vì email xác nhận chỉ gửi đến đây. Nếu gõ sai sẽ không nhận được link kích hoạt 100 điểm.</p>
+            </div>
+          </div>
+
+          <div class="field-card required">
+            <p class="font-bold text-brand-dark mb-1">2. Mật Khẩu <span class="text-brand-red">*</span></p>
+            <p class="text-sm text-gray-700 mb-2">Đặt mật khẩu để đăng nhập. <strong>Tối thiểu 6 ký tự.</strong></p>
+            <p class="text-xs text-gray-500 mb-2">Ví dụ: <code>thuy2026</code></p>
+            <div class="tip-box">
+              <p class="text-sm text-gray-800"><strong>💡 Mẹo đặt mật khẩu an toàn:</strong> kết hợp <strong>chữ + số</strong>, dài tối thiểu 8 ký tự. Tránh dùng "123456" hoặc "password". Ghi mật khẩu vào sổ tay để không quên.</p>
+            </div>
+          </div>
+
+          <div class="field-card required">
+            <p class="font-bold text-brand-dark mb-1">3. Xác Nhận Mật Khẩu <span class="text-brand-red">*</span></p>
+            <p class="text-sm text-gray-700">Gõ <strong>lại đúng</strong> mật khẩu vừa đặt ở ô số 2. Để chắc chắn anh/chị không gõ nhầm.</p>
+          </div>
+
+          <div class="field-card required">
+            <p class="font-bold text-brand-dark mb-1">4. Họ và Tên <span class="text-brand-red">*</span></p>
+            <p class="text-sm text-gray-700 mb-2">Tên đầy đủ của anh/chị. Bếp Thuỷ dùng tên này để chào và in vào đơn hàng.</p>
+            <p class="text-xs text-gray-500">Ví dụ: <code>Nguyễn Thị Thuỷ</code></p>
+          </div>
+
+          <div class="field-card required">
+            <p class="font-bold text-brand-dark mb-1">5. Số Điện Thoại <span class="text-brand-red">*</span></p>
+            <p class="text-sm text-gray-700 mb-2">Số điện thoại Nhật Bản (bắt đầu bằng 080, 090, 070…). Người vận chuyển có thể gọi nếu cần.</p>
+            <p class="text-xs text-gray-500">Ví dụ: <code>080-1234-5678</code></p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Optional fields -->
+      <div class="mb-6">
+        <h3 class="serif text-2xl font-bold text-brand-warm mb-2 flex items-center gap-2"><span class="w-2 h-8 bg-brand-gold rounded"></span>Phần tuỳ chọn <span class="text-sm font-sans text-gray-500 font-normal">(5 ô)</span></h3>
+        <p class="text-sm text-gray-600 mb-4 italic">Có thể để trống và điền sau, nhưng nếu điền ngay thì lúc đặt hàng sẽ <strong>không phải gõ lại địa chỉ</strong>.</p>
+        <div class="space-y-3">
+
+          <div class="field-card optional">
+            <p class="font-bold text-brand-dark mb-1">6. Giới Tính</p>
+            <p class="text-sm text-gray-700">Chọn <strong>Nữ</strong> 👩, <strong>Nam</strong> 👨, hoặc <strong>Khác</strong>. Giúp Bếp Thuỷ chào "anh" hay "chị" cho phù hợp.</p>
+          </div>
+
+          <div class="field-card optional" style="background: linear-gradient(135deg, #FEF3C7 0%, #FFFEF7 50%);">
+            <p class="font-bold text-brand-dark mb-1">7. Ngày Sinh 🎂 <span class="text-xs font-normal text-gray-500">(rất nên điền)</span></p>
+            <p class="text-sm text-gray-700 mb-2">Bấm vào ô để chọn ngày/tháng/năm sinh. <strong>Anh/chị sẽ được giảm 10%</strong> trên đơn hàng đặt trong tháng sinh nhật!</p>
+            <div class="tip-box">
+              <p class="text-sm text-gray-800"><strong>🎁 Lưu ý:</strong> ngày sinh chỉ điền được <strong>1 lần</strong> — sau khi lưu sẽ không sửa được. Hãy chọn cẩn thận.</p>
+            </div>
+          </div>
+
+          <div class="field-card optional">
+            <p class="font-bold text-brand-dark mb-1">8. Tỉnh / Thành Phố</p>
+            <p class="text-sm text-gray-700">Bấm vào danh sách và chọn tỉnh anh/chị đang ở tại Nhật. Ví dụ: <strong>東京都 - Tokyo</strong>, <strong>大阪府 - Osaka</strong>, <strong>千葉県 - Chiba</strong>…</p>
+          </div>
+
+          <div class="field-card optional">
+            <p class="font-bold text-brand-dark mb-1">9. Mã Bưu Điện (〒Postal Code)</p>
+            <p class="text-sm text-gray-700 mb-2">7 chữ số trên thư từ/hoá đơn ở Nhật. Ví dụ: <code>123-4567</code></p>
+            <p class="text-xs text-gray-500">Không nhớ? Tra trên Google: gõ "địa chỉ + 郵便番号"</p>
+          </div>
+
+          <div class="field-card optional">
+            <p class="font-bold text-brand-dark mb-1">10. Địa Chỉ Đầy Đủ</p>
+            <p class="text-sm text-gray-700 mb-2">Địa chỉ chi tiết: tên khu, số nhà, tên chung cư, số phòng…</p>
+            <p class="text-xs text-gray-500">Ví dụ: <code>千葉市美浜区高浜3-1-2 サンライズ 305号室</code></p>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="action-box mb-4">
+        <p class="font-bold text-brand-dark mb-2">👉 Cuối form: bấm nút <strong class="text-brand-red">"Đăng Ký Thành Viên"</strong></p>
+        <p class="text-sm text-gray-700 mb-2">Khi đã điền đủ phần bắt buộc, kéo xuống cuối và bấm nút màu đỏ.</p>
+        <p class="text-sm text-gray-700">Hệ thống sẽ kiểm tra anh/chị không phải robot (qua hCaptcha — tự động, không cần làm gì) rồi gửi email xác nhận.</p>
+      </div>
+
+      <div class="warning-box">
+        <p class="font-bold text-brand-dark mb-2">⚠️ Lỗi thường gặp</p>
+        <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
+          <li><strong>"Email đã được đăng ký"</strong> → Email này đã có người dùng. Thử email khác hoặc bấm tab "Đăng Nhập".</li>
+          <li><strong>"Mật khẩu quá ngắn"</strong> → Cần tối thiểu 6 ký tự.</li>
+          <li><strong>"Mật khẩu không khớp"</strong> → Ô số 2 và số 3 phải giống hệt nhau.</li>
+          <li><strong>Không thấy nút bấm</strong> → Kéo xuống cuối form, nút "Đăng Ký Thành Viên" màu đỏ to nằm ngay dưới các ô.</li>
+        </ul>
       </div>
     </div>
-
-    <!-- Required vs Optional notice -->
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 text-sm">
-      <p class="font-semibold text-brand-dark mb-1">📌 Ký hiệu cần biết</p>
-      <p class="text-gray-700"><span class="text-brand-red font-bold">*</span> = ô <strong>bắt buộc</strong> phải điền &nbsp; · &nbsp; không có dấu * = ô <strong>tuỳ chọn</strong> (có thể để trống)</p>
-    </div>
-
-    <!-- Required fields section -->
-    <div class="mb-6">
-      <h3 class="text-lg font-bold text-brand-red mb-3">🔴 Phần bắt buộc (5 ô)</h3>
-      <div class="space-y-4">
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">1. Email <span class="text-brand-red">*</span></p>
-          <p class="text-sm text-gray-700 mb-2">Địa chỉ email anh/chị đang dùng (Gmail, Yahoo, iCloud…). Bếp Thuỷ sẽ gửi email xác nhận đến đây.</p>
-          <p class="text-xs text-gray-500">Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">nguyenthithuy@gmail.com</code></p>
-          <div class="warning-box mt-3">
-            <p class="text-sm text-gray-800"><strong>⚠️ Quan trọng:</strong> Phải gõ đúng email — vì email xác nhận chỉ gửi đến đây. Nếu gõ sai sẽ không nhận được link kích hoạt 100 điểm.</p>
-          </div>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">2. Mật Khẩu <span class="text-brand-red">*</span></p>
-          <p class="text-sm text-gray-700 mb-2">Đặt mật khẩu để đăng nhập. <strong>Tối thiểu 6 ký tự.</strong></p>
-          <p class="text-xs text-gray-500 mb-2">Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">thuy2026</code></p>
-          <div class="tip-box">
-            <p class="text-sm text-gray-800"><strong>💡 Mẹo đặt mật khẩu an toàn:</strong> kết hợp <strong>chữ + số</strong>, dài tối thiểu 8 ký tự. Tránh dùng "123456" hoặc "password". Ghi mật khẩu vào sổ tay để không quên.</p>
-          </div>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">3. Xác Nhận Mật Khẩu <span class="text-brand-red">*</span></p>
-          <p class="text-sm text-gray-700">Gõ <strong>lại đúng</strong> mật khẩu vừa đặt ở ô số 2. Để chắc chắn anh/chị không gõ nhầm.</p>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">4. Họ và Tên <span class="text-brand-red">*</span></p>
-          <p class="text-sm text-gray-700 mb-2">Tên đầy đủ của anh/chị. Bếp Thuỷ dùng tên này để chào và in vào đơn hàng.</p>
-          <p class="text-xs text-gray-500">Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">Nguyễn Thị Thuỷ</code></p>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">5. Số Điện Thoại <span class="text-brand-red">*</span></p>
-          <p class="text-sm text-gray-700 mb-2">Số điện thoại Nhật Bản (bắt đầu bằng 080, 090, 070…). Người vận chuyển có thể gọi nếu cần.</p>
-          <p class="text-xs text-gray-500">Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">080-1234-5678</code></p>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Optional fields section -->
-    <div class="mb-6">
-      <h3 class="text-lg font-bold text-gray-700 mb-3">⚪ Phần tuỳ chọn (5 ô — nên điền để được tự động)</h3>
-      <p class="text-sm text-gray-600 mb-4 italic">Có thể để trống và điền sau, nhưng nếu điền ngay thì lúc đặt hàng sẽ <strong>không phải gõ lại địa chỉ</strong>.</p>
-      <div class="space-y-4">
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">6. Giới Tính</p>
-          <p class="text-sm text-gray-700">Chọn <strong>Nữ</strong> 👩, <strong>Nam</strong> 👨, hoặc <strong>Khác</strong>. Giúp Bếp Thuỷ chào "anh" hay "chị" cho phù hợp.</p>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4 bg-yellow-50">
-          <p class="font-bold text-brand-dark mb-1">7. Ngày Sinh 🎂 <span class="text-xs font-normal text-gray-500">(rất nên điền)</span></p>
-          <p class="text-sm text-gray-700 mb-2">Bấm vào ô để chọn ngày/tháng/năm sinh. <strong>Anh/chị sẽ được giảm 10%</strong> trên đơn hàng đặt trong tháng sinh nhật!</p>
-          <div class="tip-box">
-            <p class="text-sm text-gray-800"><strong>🎁 Lưu ý:</strong> ngày sinh chỉ điền được <strong>1 lần</strong> — sau khi lưu sẽ không sửa được. Hãy chọn cẩn thận.</p>
-          </div>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">8. Tỉnh / Thành Phố</p>
-          <p class="text-sm text-gray-700">Bấm vào danh sách và chọn tỉnh anh/chị đang ở tại Nhật. Ví dụ: <strong>東京都 - Tokyo</strong>, <strong>大阪府 - Osaka</strong>, <strong>千葉県 - Chiba</strong>…</p>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">9. Mã Bưu Điện (〒Postal Code)</p>
-          <p class="text-sm text-gray-700 mb-2">7 chữ số trên thư từ/hoá đơn ở Nhật. Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">123-4567</code></p>
-          <p class="text-xs text-gray-500">Không nhớ? Tra trên Google: gõ "địa chỉ + 郵便番号"</p>
-        </div>
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">10. Địa Chỉ Đầy Đủ</p>
-          <p class="text-sm text-gray-700 mb-2">Địa chỉ chi tiết: tên khu, số nhà, tên chung cư, số phòng…</p>
-          <p class="text-xs text-gray-500">Ví dụ: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">千葉市美浜区高浜3-1-2 サンライズ 305号室</code></p>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Image placeholder -->
-    <div class="image-placeholder mb-5">
-      📸 Ảnh minh hoạ: form đăng ký với tất cả các ô<br>
-      <span class="text-xs">(Em sẽ chụp ảnh sau khi anh confirm nội dung)</span>
-    </div>
-
-    <!-- Submit button info -->
-    <div class="bg-orange-50 rounded-xl p-4">
-      <p class="font-bold text-brand-dark mb-2">👉 Cuối form: bấm nút "Đăng Ký Thành Viên"</p>
-      <p class="text-sm text-gray-700 mb-2">Khi đã điền đủ phần bắt buộc, kéo xuống cuối và bấm nút màu đỏ <strong class="text-brand-red">"Đăng Ký Thành Viên"</strong>.</p>
-      <p class="text-sm text-gray-700">Hệ thống sẽ kiểm tra anh/chị không phải robot (qua hCaptcha — tự động, không cần làm gì) rồi gửi email xác nhận.</p>
-    </div>
-
-    <!-- Common errors -->
-    <div class="warning-box mt-4">
-      <p class="font-bold text-brand-dark mb-2">⚠️ Lỗi thường gặp</p>
-      <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
-        <li><strong>"Email đã được đăng ký"</strong> → Email này đã có người dùng. Thử email khác hoặc bấm tab "Đăng Nhập".</li>
-        <li><strong>"Mật khẩu quá ngắn"</strong> → Cần tối thiểu 6 ký tự.</li>
-        <li><strong>"Mật khẩu không khớp"</strong> → Ô số 2 và số 3 phải giống hệt nhau.</li>
-        <li><strong>Không thấy nút bấm</strong> → Kéo xuống cuối form, nút "Đăng Ký Thành Viên" màu đỏ to nằm ngay dưới các ô.</li>
-      </ul>
-    </div>
-
   </section>
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- STEP 3: Mở Email Xác Nhận                                 -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <section id="step-3" class="step-card scroll-mt-20">
-    <div class="flex items-start gap-4 mb-5">
-      <div class="step-number">3</div>
-      <div>
-        <p class="text-xs font-bold text-brand-red tracking-wider mb-1">BƯỚC 3</p>
-        <h2 class="text-2xl font-extrabold text-brand-dark leading-tight">Mở Email Xác Nhận</h2>
-        <p class="text-gray-600 text-sm mt-1">Sau khi đăng ký, Bếp Thuỷ sẽ gửi 1 email xác nhận đến hòm thư của anh/chị. Hãy tìm và mở email này.</p>
-      </div>
-    </div>
-
-    <!-- Wait time notice -->
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
-      <p class="font-semibold text-brand-dark mb-1">⏱️ Email gửi trong bao lâu?</p>
-      <p class="text-sm text-gray-700">Thường <strong>1-2 phút</strong>. Đôi khi tới <strong>5 phút</strong> nếu mạng chậm. Anh/chị đợi một chút rồi mở email.</p>
-    </div>
-
-    <!-- How to open mail app -->
-    <div class="mb-6">
-      <h3 class="text-lg font-bold text-brand-red mb-3">📬 Mở hòm thư</h3>
-      <div class="space-y-3">
-
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">Nếu dùng Gmail (Google)</p>
-          <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
-            <li>Trên điện thoại: mở app <strong>Gmail</strong> (icon chữ M màu đỏ).</li>
-            <li>Trên máy tính: vào <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">gmail.com</code> và đăng nhập.</li>
-          </ul>
+  <section id="step-3" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">3</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC BA</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Mở Email Xác Nhận</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Sau khi đăng ký, Bếp Thuỷ sẽ gửi <strong>2 email</strong> đến hòm thư của anh/chị. Hãy mở app email lên.</p>
         </div>
+      </div>
 
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">Nếu dùng Yahoo Mail</p>
-          <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
-            <li>Mở app <strong>Yahoo Mail</strong> hoặc vào <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">mail.yahoo.co.jp</code></li>
-          </ul>
+      <div class="info-blue mb-6">
+        <p class="font-semibold text-brand-dark mb-1">⏱️ Email gửi trong bao lâu?</p>
+        <p class="text-sm text-gray-700">Thường <strong>1-2 phút</strong>. Đôi khi tới <strong>5 phút</strong> nếu mạng chậm. Anh/chị đợi một chút rồi mở email.</p>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="serif text-xl font-bold text-brand-warm mb-3">📬 Mở hòm thư</h3>
+        <div class="space-y-3">
+          <div class="info-card">
+            <p class="font-bold text-brand-dark mb-1">Nếu dùng Gmail (Google)</p>
+            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
+              <li>Trên điện thoại: mở app <strong>Gmail</strong> (icon chữ M màu đỏ).</li>
+              <li>Trên máy tính: vào <code>gmail.com</code> và đăng nhập.</li>
+            </ul>
+          </div>
+          <div class="info-card">
+            <p class="font-bold text-brand-dark mb-1">Nếu dùng Yahoo Mail</p>
+            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
+              <li>Mở app <strong>Yahoo Mail</strong> hoặc vào <code>mail.yahoo.co.jp</code></li>
+            </ul>
+          </div>
+          <div class="info-card">
+            <p class="font-bold text-brand-dark mb-1">Nếu dùng iCloud (iPhone)</p>
+            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
+              <li>Mở app <strong>Mail</strong> sẵn có trên iPhone (icon phong bì xanh).</li>
+            </ul>
+          </div>
         </div>
+      </div>
 
-        <div class="border border-gray-200 rounded-xl p-4">
-          <p class="font-bold text-brand-dark mb-1">Nếu dùng iCloud (iPhone)</p>
-          <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 ml-2">
-            <li>Mở app <strong>Mail</strong> sẵn có trên iPhone (icon phong bì xanh).</li>
-          </ul>
+      <!-- Inbox screenshot -->
+      <figure class="text-center my-6">
+        <div class="img-mark mx-auto shadow-lg" style="max-width:300px; border-radius:18px; overflow:hidden; border:1px solid #E8DDC8;">
+          <img src="assets/huong-dan/buoc3-inbox.png" alt="Hòm thư Gmail với 2 emails từ Bếp Thuỷ Japan">
+          <div class="highlight-ellipse" style="top:31%; left:2%; width:96%; height:8%;"></div>
         </div>
+        <figcaption class="text-xs text-gray-600 mt-3 italic max-w-md mx-auto">Trong inbox sẽ có <strong>2 email</strong> từ Bếp Thuỷ. Anh/chị mở email được <strong style="color:#D4A017;">khoanh vàng</strong> ("Xác nhận đăng ký…") <strong>TRƯỚC</strong>.</figcaption>
+      </figure>
 
+      <div class="warning-box mb-4">
+        <p class="font-bold text-brand-dark mb-2">⚠️ Không thấy email? Kiểm tra thư mục Spam!</p>
+        <p class="text-sm text-gray-700 mb-3">Đôi khi email bị Gmail/Yahoo cho vào thư mục <strong>Spam</strong> (thư rác). Cách kiểm tra:</p>
+        <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
+          <li><strong>Gmail:</strong> bấm menu ☰ ở góc trên bên trái → chọn <strong>"Spam"</strong> (hoặc <strong>"Thư rác"</strong>).</li>
+          <li><strong>Yahoo:</strong> tìm thư mục <strong>"迷惑メール"</strong> hoặc <strong>"Spam"</strong> ở danh sách bên trái.</li>
+          <li><strong>iCloud Mail:</strong> bấm "Hộp thư" → chọn <strong>"Thư rác"</strong>.</li>
+        </ul>
+        <p class="text-sm text-gray-700 mt-3">Tìm thấy email? Bấm vào và <strong>chọn "Không phải thư rác"</strong> để các email sau từ Bếp Thuỷ vào thẳng hộp thư chính.</p>
+      </div>
+
+      <div class="action-box mb-4">
+        <p class="font-bold text-brand-dark mb-2">😟 Đợi 5 phút vẫn không có email?</p>
+        <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
+          <li>Kiểm tra lại email đã gõ ở Bước 2 — có gõ sai chữ nào không (vd. <code>gmial.com</code> thay vì <code>gmail.com</code>)?</li>
+          <li>Quay lại trang đăng ký, bấm <strong>"Đăng ký lại"</strong> với email khác.</li>
+          <li>Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-red underline font-semibold">support@thuyjapan.com</a> để được hỗ trợ.</li>
+        </ul>
+      </div>
+
+      <div class="tip-box">
+        <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
+        <p class="text-sm text-gray-700">Để email Bếp Thuỷ luôn vào hộp thư chính (không bị spam), anh/chị có thể <strong>thêm <code>support@thuyjapan.com</code> vào danh bạ</strong> trên app email.</p>
       </div>
     </div>
-
-    <!-- Find the email -->
-    <div class="mb-6">
-      <h3 class="text-lg font-bold text-brand-red mb-3">🔍 Tìm email từ Bếp Thuỷ</h3>
-      <p class="text-sm text-gray-700 mb-3">Email anh/chị cần tìm có các đặc điểm sau:</p>
-
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 text-sm">
-        <p><span class="text-gray-500 inline-block w-24">Người gửi:</span> <code class="bg-white px-2 py-0.5 rounded border text-brand-red">support@thuyjapan.com</code></p>
-        <p><span class="text-gray-500 inline-block w-24">Tiêu đề:</span> <strong>Confirm your signup</strong> hoặc <strong>Xác nhận đăng ký</strong></p>
-        <p><span class="text-gray-500 inline-block w-24">Nội dung:</span> có 1 nút lớn màu đỏ <strong>"Xác nhận email"</strong> (hoặc link dài)</p>
-      </div>
-    </div>
-
-    <!-- Inbox screenshot -->
-    <figure class="text-center mb-5">
-      <div class="img-mark mx-auto rounded-xl border border-gray-200 shadow-sm overflow-hidden" style="max-width:300px;">
-        <img src="assets/huong-dan/buoc3-inbox.png" alt="Hòm thư Gmail với 2 emails từ Bếp Thuỷ Japan">
-        <!-- Highlight: 'Xác nhận đăng ký' email row (2nd in list) -->
-        <div class="highlight-ellipse" style="top:31%; left:2%; width:96%; height:8%;"></div>
-      </div>
-      <figcaption class="text-xs text-gray-500 mt-2 italic max-w-md mx-auto">Trong inbox sẽ có <strong>2 email</strong> từ Bếp Thuỷ. Anh/chị mở email được khoanh vàng (<strong>"Xác nhận đăng ký..."</strong>) <strong>TRƯỚC</strong>.</figcaption>
-    </figure>
-
-    <!-- Important: Spam folder -->
-    <div class="warning-box mb-5">
-      <p class="font-bold text-brand-dark mb-2">⚠️ Không thấy email? Kiểm tra thư mục Spam!</p>
-      <p class="text-sm text-gray-700 mb-3">Đôi khi email bị Gmail/Yahoo cho vào thư mục <strong>Spam</strong> (thư rác). Cách kiểm tra:</p>
-      <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
-        <li><strong>Gmail:</strong> bấm menu ☰ ở góc trên bên trái → chọn <strong>"Spam"</strong> (hoặc <strong>"Thư rác"</strong>).</li>
-        <li><strong>Yahoo:</strong> tìm thư mục <strong>"迷惑メール"</strong> hoặc <strong>"Spam"</strong> ở danh sách bên trái.</li>
-        <li><strong>iCloud Mail:</strong> bấm "Hộp thư" → chọn <strong>"Thư rác"</strong>.</li>
-      </ul>
-      <p class="text-sm text-gray-700 mt-3">Tìm thấy email? Bấm vào và <strong>chọn "Không phải thư rác"</strong> để các email sau từ Bếp Thuỷ vào thẳng hộp thư chính.</p>
-    </div>
-
-    <!-- Still no email -->
-    <div class="bg-orange-50 rounded-xl p-4">
-      <p class="font-bold text-brand-dark mb-2">😟 Đợi 5 phút vẫn không có email?</p>
-      <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
-        <li>Kiểm tra lại email đã gõ ở Bước 2 — có gõ sai chữ nào không (vd. <code class="bg-gray-100 px-1 py-0.5 rounded">gmial.com</code> thay vì <code class="bg-gray-100 px-1 py-0.5 rounded">gmail.com</code>)?</li>
-        <li>Quay lại trang đăng ký, bấm <strong>"Đăng ký lại"</strong> với email khác.</li>
-        <li>Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-red underline font-semibold">support@thuyjapan.com</a> để được hỗ trợ.</li>
-      </ul>
-    </div>
-
-    <!-- Tip -->
-    <div class="tip-box mt-4">
-      <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
-      <p class="text-sm text-gray-700">Để email Bếp Thuỷ luôn vào hộp thư chính (không bị spam), anh/chị có thể <strong>thêm <code class="bg-white px-1 py-0.5 rounded border">support@thuyjapan.com</code> vào danh bạ</strong> trên app email.</p>
-    </div>
-
   </section>
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- STEP 4: Click Xác Thực Email                              -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <section id="step-4" class="step-card scroll-mt-20">
-    <div class="flex items-start gap-4 mb-5">
-      <div class="step-number">4</div>
-      <div>
-        <p class="text-xs font-bold text-brand-red tracking-wider mb-1">BƯỚC 4</p>
-        <h2 class="text-2xl font-extrabold text-brand-dark leading-tight">Click Xác Thực Email</h2>
-        <p class="text-gray-600 text-sm mt-1">Mở email <strong>"Xác nhận đăng ký thành viên"</strong>, bấm nút đỏ và đăng nhập vào tài khoản.</p>
+  <section id="step-4" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">4</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC BỐN</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Click Xác Thực Email</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Mở email <strong>"Xác nhận đăng ký thành viên"</strong>, bấm nút đỏ và đăng nhập vào tài khoản.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        <figure class="text-center">
+          <div class="inline-block bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="letter-spacing:1px;">4.1</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc4-1-email.png" alt="Email xác nhận đăng ký với nút Xác Nhận Email">
+            <div class="highlight-ellipse" style="top:60%; left:10%; width:80%; height:9%;"></div>
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Mở email "Xác nhận đăng ký"</strong><br>Bấm nút đỏ <strong class="text-brand-red">"✅ Xác Nhận Email"</strong> (khoanh vàng)</figcaption>
+        </figure>
+
+        <figure class="text-center">
+          <div class="inline-block bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="letter-spacing:1px;">4.2</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc4-2-popup.png" alt="Popup mở bằng — chọn trình duyệt">
+            <div class="highlight-ellipse" style="top:53%; left:3%; width:94%; height:9%;"></div>
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Chọn trình duyệt</strong><br>📱 iPhone → <strong>Chrome</strong> hoặc Safari<br>🤖 Android → <strong>Chrome</strong></figcaption>
+        </figure>
+
+        <figure class="text-center">
+          <div class="inline-block bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="letter-spacing:1px;">4.3</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc4-3-thanhvien.png" alt="Trang Thành Viên đã đăng nhập thành công">
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Đăng nhập thành công!</strong><br>Trang Thành Viên hiện tên anh/chị. Đang là <strong>0 điểm</strong> — qua Bước 5.</figcaption>
+        </figure>
+      </div>
+
+      <div class="warning-box mb-4">
+        <p class="font-bold text-brand-dark mb-1">⚠️ Quan trọng</p>
+        <p class="text-sm text-gray-700">Sau Bước 4, anh/chị mới chỉ <strong>xác nhận email</strong> — chưa nhận 100 điểm. Quay lại hòm thư và mở <strong>email thứ 2</strong> ("Nguyen ơi — 100 điểm chào mừng…") để kích hoạt điểm ở <strong>Bước 5</strong>.</p>
+      </div>
+
+      <div class="tip-box">
+        <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
+        <p class="text-sm text-gray-700">Lần đầu bấm vào link, điện thoại có thể hiện popup hỏi <strong>"Mở bằng…"</strong>. Đây là chuyện bình thường — chọn trình duyệt anh/chị hay dùng và có thể bấm <strong>"Luôn dùng ứng dụng này"</strong> để lần sau không phải chọn lại.</p>
       </div>
     </div>
-
-    <!-- 3 sub-steps in a grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-
-      <!-- 4.1 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">4.1</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc4-1-email.png" alt="Email xác nhận đăng ký với nút Xác Nhận Email">
-          <!-- Highlight: red 'Xác Nhận Email' button -->
-          <div class="highlight-ellipse" style="top:60%; left:10%; width:80%; height:9%;"></div>
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Mở email "Xác nhận đăng ký"</strong><br>Bấm nút đỏ <strong class="text-brand-red">"✅ Xác Nhận Email"</strong> (khoanh vàng)</figcaption>
-      </figure>
-
-      <!-- 4.2 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">4.2</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc4-2-popup.png" alt="Popup mở bằng — chọn trình duyệt">
-          <!-- Highlight: Chrome (1st option in popup) -->
-          <div class="highlight-ellipse" style="top:53%; left:3%; width:94%; height:9%;"></div>
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Chọn trình duyệt</strong><br>📱 iPhone → <strong>Chrome</strong> (hoặc "Ứng dụng trình duyệt mặc định" = Safari)<br>🤖 Android → <strong>Chrome</strong></figcaption>
-      </figure>
-
-      <!-- 4.3 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">4.3</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc4-3-thanhvien.png" alt="Trang Thành Viên đã đăng nhập thành công">
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Đăng nhập thành công!</strong><br>Trang Thành Viên hiện tên anh/chị. Đang là <strong>0 điểm</strong> — qua Bước 5 để nhận 100 điểm.</figcaption>
-      </figure>
-
-    </div>
-
-    <!-- Important note -->
-    <div class="warning-box mb-5">
-      <p class="font-bold text-brand-dark mb-1">⚠️ Quan trọng</p>
-      <p class="text-sm text-gray-700">Sau Bước 4, anh/chị mới chỉ <strong>xác nhận email</strong> — chưa nhận 100 điểm. Quay lại hòm thư và mở <strong>email thứ 2</strong> ("Nguyen ơi — 100 điểm chào mừng…") để kích hoạt điểm ở <strong>Bước 5</strong>.</p>
-    </div>
-
-    <!-- Tip -->
-    <div class="tip-box">
-      <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
-      <p class="text-sm text-gray-700">Lần đầu bấm vào link, điện thoại có thể hiện popup hỏi <strong>"Mở bằng…"</strong>. Đây là chuyện bình thường — chọn trình duyệt anh/chị hay dùng và có thể bấm <strong>"Luôn dùng ứng dụng này"</strong> để lần sau không phải chọn lại.</p>
-    </div>
-
   </section>
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- STEP 5: Kích Hoạt 100 Điểm                                -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <section id="step-5" class="step-card scroll-mt-20">
-    <div class="flex items-start gap-4 mb-5">
-      <div class="step-number">5</div>
-      <div>
-        <p class="text-xs font-bold text-brand-red tracking-wider mb-1">BƯỚC 5</p>
-        <h2 class="text-2xl font-extrabold text-brand-dark leading-tight">Kích Hoạt 100 Điểm</h2>
-        <p class="text-gray-600 text-sm mt-1">Quay lại hòm thư, mở email thứ 2 (<strong>"Nguyen ơi — 100 điểm chào mừng…"</strong>) và bấm nút kích hoạt.</p>
+  <section id="step-5" class="step-row scroll-mt-20">
+    <div class="step-card" style="background: linear-gradient(180deg, #FFFEFB 0%, #FFF5E0 100%);">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num" style="background: linear-gradient(135deg, #D4A017, #B8860B);">5</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold tracking-[3px] mb-1" style="color:#B8860B;">BƯỚC NĂM · QUAN TRỌNG</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Kích Hoạt 100 Điểm</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Quay lại hòm thư, mở email thứ 2 (<strong>"Nguyen ơi — 100 điểm chào mừng…"</strong>) và bấm nút kích hoạt.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        <figure class="text-center">
+          <div class="inline-block text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="background: linear-gradient(135deg, #D4A017, #B8860B); letter-spacing:1px;">5.1</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc5-1-email-top.png" alt="Email 100 điểm chào mừng — phần đầu">
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Mở email "100 điểm chào mừng"</strong><br>Email từ Bếp Thuỷ với chủ đề <strong>"Nguyen ơi — 100 điểm…"</strong></figcaption>
+        </figure>
+
+        <figure class="text-center">
+          <div class="inline-block text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="background: linear-gradient(135deg, #D4A017, #B8860B); letter-spacing:1px;">5.2</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc5-2-button.png" alt="Nút Kích Hoạt 100 Điểm Ngay">
+            <div class="highlight-ellipse" style="top:46%; left:7%; width:86%; height:11%;"></div>
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Kéo xuống và bấm nút đỏ</strong> (khoanh vàng)<br><strong class="text-brand-red">"✨ KÍCH HOẠT 100 ĐIỂM NGAY"</strong></figcaption>
+        </figure>
+
+        <figure class="text-center">
+          <div class="inline-block text-white text-xs font-bold py-1 px-3 rounded-full mb-3" style="background: linear-gradient(135deg, #D4A017, #B8860B); letter-spacing:1px;">5.3</div>
+          <div class="img-mark shadow-md" style="border-radius:14px; overflow:hidden; border:1px solid #E8DDC8;">
+            <img src="assets/huong-dan/buoc5-3-popup.png" alt="Popup mở bằng">
+            <div class="highlight-ellipse" style="top:53%; left:3%; width:94%; height:9%;"></div>
+          </div>
+          <figcaption class="text-xs text-gray-700 mt-3 leading-snug px-2"><strong>Chọn trình duyệt</strong><br>📱 iPhone → <strong>Safari</strong> hoặc Chrome<br>🤖 Android → <strong>Chrome</strong></figcaption>
+        </figure>
+      </div>
+
+      <div class="success-box mb-5">
+        <div class="text-6xl mb-3">🎉</div>
+        <h3 class="serif text-3xl font-bold text-green-700 mb-2">Hoàn thành!</h3>
+        <p class="text-sm text-gray-700 mb-4">Sau khi bấm nút, anh/chị sẽ được tự động chuyển về trang Thành Viên với <strong class="text-green-700 text-base">100 ĐIỂM</strong> hiển thị trong vòng tròn vàng.</p>
+        <div class="image-placeholder">
+          📸 Ảnh minh hoạ: Trang Thành Viên với <strong>100 ĐIỂM</strong> trong vòng tròn vàng<br>
+          <span class="text-xs">(Tính năng đang được tinh chỉnh — anh sẽ chụp ảnh sau)</span>
+        </div>
+      </div>
+
+      <div class="tip-box mb-4">
+        <p class="font-bold text-brand-dark mb-1">💡 Lưu ý nhỏ</p>
+        <p class="text-sm text-gray-700">Email "100 điểm chào mừng" có thể đến <strong>sau email xác nhận đăng ký vài phút</strong>. Nếu chưa thấy ngay, đợi 2-3 phút rồi <strong>kéo xuống/làm mới hộp thư</strong>.</p>
+      </div>
+
+      <div class="action-box">
+        <p class="font-bold text-brand-dark mb-2">📌 Để không bỏ lỡ ưu đãi tháng sau</p>
+        <p class="text-sm text-gray-700 mb-2">Sau khi nhận 100 điểm, anh/chị nên:</p>
+        <ol class="list-decimal list-inside text-sm text-gray-700 space-y-1 ml-2">
+          <li>Kéo email Bếp Thuỷ vào <strong>Hộp thư đến chính</strong> (Inbox), tránh để vào Spam.</li>
+          <li>Thêm <code>support@thuyjapan.com</code> vào <strong>danh bạ</strong>.</li>
+        </ol>
+        <p class="text-sm text-gray-700 mt-2">Như vậy anh/chị sẽ không bỏ lỡ <strong>ưu đãi giảm 20-30% mỗi tháng</strong> 🎁</p>
       </div>
     </div>
-
-    <!-- Visual sub-steps -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-
-      <!-- 5.1 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">5.1</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc5-1-email-top.png" alt="Email 100 điểm chào mừng — phần đầu">
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Mở email "100 điểm chào mừng"</strong><br>Email từ Bếp Thuỷ với chủ đề <strong>"Nguyen ơi — 100 điểm…"</strong></figcaption>
-      </figure>
-
-      <!-- 5.2 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">5.2</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc5-2-button.png" alt="Nút Kích Hoạt 100 Điểm Ngay">
-          <!-- Highlight: red 'KÍCH HOẠT 100 ĐIỂM NGAY' button -->
-          <div class="highlight-ellipse" style="top:46%; left:7%; width:86%; height:11%;"></div>
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Kéo xuống và bấm nút đỏ</strong> (khoanh vàng)<br><strong class="text-brand-red">"✨ KÍCH HOẠT 100 ĐIỂM NGAY"</strong></figcaption>
-      </figure>
-
-      <!-- 5.3 -->
-      <figure class="text-center">
-        <div class="bg-brand-red text-white text-xs font-bold py-1 px-3 rounded-full inline-block mb-2">5.3</div>
-        <div class="img-mark rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <img src="assets/huong-dan/buoc5-3-popup.png" alt="Popup mở bằng">
-          <!-- Highlight: Chrome (1st option in popup) -->
-          <div class="highlight-ellipse" style="top:53%; left:3%; width:94%; height:9%;"></div>
-        </div>
-        <figcaption class="text-xs text-gray-700 mt-2 leading-snug"><strong>Chọn trình duyệt</strong><br>📱 iPhone → <strong>Safari</strong> hoặc Chrome<br>🤖 Android → <strong>Chrome</strong></figcaption>
-      </figure>
-
-    </div>
-
-    <!-- Result -->
-    <div class="bg-green-50 border border-green-300 rounded-2xl p-6 mb-5 text-center">
-      <div class="text-5xl mb-3">🎉</div>
-      <h3 class="text-2xl font-extrabold text-green-700 mb-2">Hoàn thành!</h3>
-      <p class="text-sm text-gray-700 mb-3">Sau khi bấm nút, anh/chị sẽ được tự động chuyển về trang Thành Viên với <strong class="text-green-700">100 ĐIỂM</strong> hiển thị trong vòng tròn vàng.</p>
-      <div class="image-placeholder">
-        📸 Ảnh minh hoạ: Trang Thành Viên với <strong>100 ĐIỂM</strong> trong vòng tròn vàng<br>
-        <span class="text-xs">(Tính năng đang được tinh chỉnh — anh sẽ chụp ảnh sau)</span>
-      </div>
-    </div>
-
-    <!-- Note about email being delayed -->
-    <div class="tip-box mb-5">
-      <p class="font-bold text-brand-dark mb-1">💡 Lưu ý nhỏ</p>
-      <p class="text-sm text-gray-700">Email "100 điểm chào mừng" có thể đến <strong>sau email xác nhận đăng ký vài phút</strong>. Nếu chưa thấy ngay, đợi 2-3 phút rồi <strong>kéo xuống/làm mới hộp thư</strong>.</p>
-    </div>
-
-    <!-- Anti-spam tip from email -->
-    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
-      <p class="font-bold text-brand-dark mb-2">📌 Để không bỏ lỡ ưu đãi tháng sau</p>
-      <p class="text-sm text-gray-700 mb-2">Sau khi nhận 100 điểm, anh/chị nên:</p>
-      <ol class="list-decimal list-inside text-sm text-gray-700 space-y-1 ml-2">
-        <li>Kéo email Bếp Thuỷ vào <strong>Hộp thư đến chính</strong> (Inbox), tránh để vào Spam.</li>
-        <li>Thêm <code class="bg-white px-1.5 py-0.5 rounded border text-brand-red">support@thuyjapan.com</code> vào <strong>danh bạ</strong>.</li>
-      </ol>
-      <p class="text-sm text-gray-700 mt-2">Như vậy anh/chị sẽ không bỏ lỡ <strong>ưu đãi giảm 20-30% mỗi tháng</strong> 🎁</p>
-    </div>
-
   </section>
+
+  </div><!-- /space-y-12 -->
 
   <!-- COMPLETION -->
-  <section class="text-center py-10">
-    <div class="text-5xl mb-3">🥢</div>
-    <h2 class="text-2xl font-extrabold text-brand-dark mb-2">Cảm ơn anh/chị!</h2>
-    <p class="text-gray-600 text-sm mb-6 max-w-md mx-auto">Anh/chị đã hoàn tất 5 bước. Bây giờ có thể bắt đầu mua hàng và dùng 100 điểm để giảm giá đơn đầu tiên.</p>
-    <div class="flex flex-col sm:flex-row gap-3 justify-center">
-      <a href="https://www.thuyjapan.com/" class="bg-brand-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full text-sm">🛒 Đặt Hàng Ngay</a>
-      <a href="https://www.thuyjapan.com/thanh-vien" class="bg-white border-2 border-brand-red text-brand-red hover:bg-red-50 font-bold py-3 px-6 rounded-full text-sm">👤 Xem Tài Khoản</a>
+  <section class="text-center mt-16 mb-8">
+    <div class="ornament" style="font-size:18px;">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="text-6xl mb-4">🥢</div>
+    <h2 class="serif text-4xl font-bold text-brand-dark mb-3">Cảm ơn anh/chị!</h2>
+    <p class="text-gray-600 text-base mb-8 max-w-md mx-auto leading-relaxed">Anh/chị đã hoàn tất 5 bước. Bây giờ có thể bắt đầu mua hàng và dùng <strong class="text-brand-red">100 điểm</strong> để giảm giá đơn đầu tiên.</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="https://www.thuyjapan.com/" class="btn-primary">🛒 Đặt Hàng Ngay</a>
+      <a href="https://www.thuyjapan.com/thanh-vien" class="btn-secondary">👤 Xem Tài Khoản</a>
     </div>
   </section>
-
 </main>
 
 <!-- FOOTER -->
-<footer class="bg-brand-dark text-yellow-100 py-8 px-4 text-center text-sm">
-  <p class="mb-2">Cần hỗ trợ? Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-gold underline">support@thuyjapan.com</a></p>
-  <p class="text-xs text-yellow-200/70">© Bếp Thuỷ Japan · Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản</p>
+<footer class="bg-brand-dark text-yellow-100 py-10 px-4 text-center">
+  <div class="max-w-3xl mx-auto">
+    <p class="serif text-xl font-bold text-yellow-200 mb-2">Bếp Thuỷ Japan</p>
+    <p class="text-xs text-yellow-100/70 tracking-widest uppercase mb-4">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản ✦</p>
+    <p class="text-sm">Cần hỗ trợ? Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-gold-light underline font-semibold">support@thuyjapan.com</a></p>
+  </div>
 </footer>
+
+<script>
+  // Highlight active nav pill on scroll
+  const sections = ['step-1','step-2','step-3','step-4','step-5'];
+  const pills = document.querySelectorAll('.anchor-pill');
+  function updateNav() {
+    let active = sections[0];
+    for (const id of sections) {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top < 150) active = id;
+    }
+    pills.forEach(p => p.classList.toggle('active', p.getAttribute('href') === '#' + active));
+  }
+  window.addEventListener('scroll', updateNav);
+  updateNav();
+</script>
 
 </body>
 </html>
