@@ -299,23 +299,23 @@
         </div>
       </div>
 
-      <!-- Product costs management -->
+      <!-- Product catalog (fixed 10 products) -->
       <div class="card" style="margin-bottom: 16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
           <h3 style="margin:0;font-size:16px;">🧾 Giá vốn sản phẩm</h3>
-          <button onclick="syncAndRenderProductCosts()" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">🔄 Đồng bộ sản phẩm mới</button>
+          <button onclick="loadProductCatalog().then(renderProductCostsTable).then(renderAllStats)" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">🔄 Tải lại</button>
         </div>
-        <p style="font-size:12px;color:#6B7280;margin:0 0 10px;">Nhập giá vốn (¥) cho từng sản phẩm để tính lợi nhuận thực tế. Sản phẩm xuất hiện trong đơn hàng được tự động thêm vào danh sách.</p>
+        <p style="font-size:12px;color:#6B7280;margin:0 0 10px;">Nhập giá vốn (¥) cho mỗi đơn vị (0.5kg cho giò/chả/mọc, 1 hộp cho nem/pate). Sau khi lưu, lợi nhuận của tất cả đơn hàng tự động cập nhật theo cost thực.</p>
         <div id="product-costs-stat" style="font-size:11px;color:#6B7280;margin-bottom:10px;"></div>
         <div class="tbl-wrap">
           <table class="tbl">
             <thead>
               <tr>
                 <th>Sản phẩm</th>
-                <th style="text-align:right;">Đã bán</th>
-                <th style="text-align:right;">Doanh thu</th>
-                <th style="text-align:right;">Giá bán TB</th>
+                <th style="text-align:right;">Giá bán</th>
                 <th>Giá vốn (¥)</th>
+                <th style="text-align:right;">Lợi nhuận / unit</th>
+                <th style="text-align:right;">% Lợi nhuận</th>
                 <th></th>
               </tr>
             </thead>
@@ -1697,116 +1697,83 @@ async function sendMessageToCustomer(userId) {
 
 // ============ DETAILED STATS REPORT ============
 let statsOrders = [];
-let productCostsMap = {}; // product_key → cost
+let productCatalog = []; // [{id, name, unit_label, unit_price, cost, ...}]
 
 async function loadStats() {
-  const [ordersRes, costsRes] = await Promise.all([
-    sb.from('orders').select('total, shipping_fee, status, created_at, items').neq('status', 'cancelled'),
-    sb.from('product_costs').select('product_key, cost')
+  const [ordersRes] = await Promise.all([
+    sb.from('orders').select('total, shipping_fee, status, created_at, items').neq('status', 'cancelled')
   ]);
   statsOrders = ordersRes.data || [];
-  productCostsMap = {};
-  (costsRes.data || []).forEach(c => { productCostsMap[c.product_key] = Number(c.cost || 0); });
+  await loadProductCatalog();
   initProfitMarginInput();
-  renderAllStats();
-  await syncAndRenderProductCosts();
-}
-
-function productKey(name, size) {
-  return (name || '').trim() + '|' + (size || '').trim();
-}
-
-function getAllProductsFromOrders() {
-  const seen = {};
-  statsOrders.forEach(o => {
-    const items = Array.isArray(o.items) ? o.items : [];
-    items.forEach(i => {
-      const key = productKey(i.name, i.size);
-      if (!seen[key]) seen[key] = { key, name: i.name || '', size: i.size || '', totalQty: 0, totalRevenue: 0, lastUsed: o.created_at };
-      const qty = Number(i.qty || 0);
-      const price = Number(i.price || 0);
-      seen[key].totalQty += qty;
-      seen[key].totalRevenue += price * qty;
-      if (o.created_at > seen[key].lastUsed) seen[key].lastUsed = o.created_at;
-    });
-  });
-  return Object.values(seen).sort((a, b) => b.totalQty - a.totalQty);
-}
-
-async function syncAndRenderProductCosts() {
-  const products = getAllProductsFromOrders();
-  // Re-fetch costs (in case other admin updated)
-  const { data: existing } = await sb.from('product_costs').select('product_key, cost');
-  productCostsMap = {};
-  (existing || []).forEach(c => { productCostsMap[c.product_key] = Number(c.cost || 0); });
-  const existingKeys = new Set(Object.keys(productCostsMap));
-  // Insert any new products discovered in orders
-  const newOnes = products.filter(p => !existingKeys.has(p.key));
-  if (newOnes.length > 0) {
-    const inserts = newOnes.map(p => ({
-      product_key: p.key,
-      product_name: p.name,
-      product_size: p.size || null,
-      cost: 0
-    }));
-    const { error } = await sb.from('product_costs').insert(inserts);
-    if (!error) {
-      newOnes.forEach(p => { productCostsMap[p.key] = 0; });
-      showToast(`✅ Thêm ${newOnes.length} sản phẩm mới`, 'success');
-    } else if (error.code !== '23505') {
-      showToast('Lỗi đồng bộ: ' + error.message, 'error');
-    }
-  }
   renderProductCostsTable();
   renderAllStats();
+}
+
+async function loadProductCatalog() {
+  const { data } = await sb.from('product_catalog').select('*').order('display_order');
+  productCatalog = data || [];
+}
+
+// Match an order item to a catalog product by name (catalog name = "[CODE] Tên")
+function findProductByItemName(itemName) {
+  if (!itemName) return null;
+  const exact = productCatalog.find(p => p.name === itemName);
+  if (exact) return exact;
+  // Fallback: match by [CODE] prefix in case the item name has extra text
+  const m = itemName.match(/^\[([^\]]+)\]/);
+  if (m) {
+    const code = '[' + m[1] + ']';
+    return productCatalog.find(p => p.name.startsWith(code)) || null;
+  }
+  return null;
 }
 
 function renderProductCostsTable() {
   const tbody = document.getElementById('product-costs-tbody');
   const stat = document.getElementById('product-costs-stat');
   if (!tbody) return;
-  const products = getAllProductsFromOrders();
-  if (products.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">Chưa có sản phẩm nào trong đơn hàng</td></tr>';
+  if (productCatalog.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">Chưa load được catalog. Anh đã chạy SQL <code>supabase-product-catalog.sql</code> chưa?</td></tr>';
     if (stat) stat.textContent = '';
     return;
   }
-  const haveCost = products.filter(p => (productCostsMap[p.key] || 0) > 0).length;
-  if (stat) stat.textContent = `Đã nhập giá vốn: ${haveCost}/${products.length} sản phẩm` + (haveCost === products.length ? ' · ✅ Lợi nhuận tính theo cost thực' : ' · còn lại dùng tỷ suất ước');
-  tbody.innerHTML = products.map(p => {
-    const cost = productCostsMap[p.key] || 0;
-    const avgPrice = p.totalQty > 0 ? p.totalRevenue / p.totalQty : 0;
-    const keyAttr = p.key.replace(/"/g, '&quot;');
+  const haveCost = productCatalog.filter(p => (Number(p.cost) || 0) > 0).length;
+  if (stat) {
+    stat.textContent = `Đã nhập giá vốn: ${haveCost}/${productCatalog.length} sản phẩm` +
+      (haveCost === productCatalog.length ? ' · ✅ Lợi nhuận tính theo cost thực' : ' · còn lại dùng tỷ suất ước (fallback)');
+  }
+  tbody.innerHTML = productCatalog.map(p => {
+    const cost = Number(p.cost) || 0;
+    const profit = p.unit_price - cost;
+    const profitPct = cost > 0 ? ((profit / p.unit_price) * 100).toFixed(1) + '%' : '-';
+    const profitColor = cost === 0 ? '#9CA3AF' : (profit > 0 ? '#10B981' : '#EF4444');
     return `<tr>
       <td>
         <div style="font-weight:600;">${escapeHtml(p.name)}</div>
-        ${p.size ? `<div style="font-size:11px;color:#6B7280;">${escapeHtml(p.size)}</div>` : ''}
+        <div style="font-size:11px;color:#6B7280;">/ ${escapeHtml(p.unit_label)}</div>
       </td>
-      <td style="text-align:right;">${p.totalQty}</td>
-      <td style="text-align:right;">${fmtY(p.totalRevenue)}</td>
-      <td style="text-align:right;color:#6B7280;">${fmtY(avgPrice)}</td>
-      <td><input type="number" data-key="${escapeHtml(p.key)}" value="${cost}" min="0" step="1" class="cost-input input" style="width:110px;padding:6px 10px;text-align:right;font-size:13px;"></td>
-      <td><button data-key="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name)}" data-size="${escapeHtml(p.size || '')}" onclick="saveProductCost(this)" class="btn btn-primary" style="padding:5px 10px;font-size:12px;">💾 Lưu</button></td>
+      <td style="text-align:right;font-weight:700;">¥${Number(p.unit_price).toLocaleString()}</td>
+      <td><input type="number" data-id="${p.id}" value="${cost}" min="0" step="1" class="cost-input input" style="width:110px;padding:6px 10px;text-align:right;font-size:13px;"></td>
+      <td style="text-align:right;font-weight:700;color:${profitColor};">${cost === 0 ? '-' : '¥' + Math.round(profit).toLocaleString()}</td>
+      <td style="text-align:right;font-weight:700;color:${profitColor};">${profitPct}</td>
+      <td><button data-id="${p.id}" onclick="saveProductCost(this)" class="btn btn-primary" style="padding:5px 10px;font-size:12px;">💾 Lưu</button></td>
     </tr>`;
   }).join('');
 }
 
 async function saveProductCost(btn) {
-  const key = btn.dataset.key;
-  const name = btn.dataset.name;
-  const size = btn.dataset.size;
-  const inp = document.querySelector(`.cost-input[data-key="${CSS.escape(key)}"]`);
+  const id = parseInt(btn.dataset.id);
+  const inp = document.querySelector(`.cost-input[data-id="${id}"]`);
   if (!inp) return;
   const cost = Math.max(0, Number(inp.value) || 0);
   btn.disabled = true; const oldText = btn.textContent; btn.textContent = '⏳';
-  const { error } = await sb.from('product_costs').upsert(
-    { product_key: key, product_name: name, product_size: size || null, cost: cost },
-    { onConflict: 'product_key' }
-  );
+  const { error } = await sb.from('product_catalog').update({ cost: cost }).eq('id', id);
   btn.disabled = false; btn.textContent = oldText;
   if (error) { showToast('Lỗi: ' + error.message, 'error'); return; }
-  productCostsMap[key] = cost;
-  showToast(`✅ Đã lưu giá vốn ${name}`, 'success');
+  const p = productCatalog.find(x => x.id === id);
+  if (p) p.cost = cost;
+  showToast(`✅ Đã lưu`, 'success');
   renderProductCostsTable();
   renderAllStats();
 }
@@ -1822,15 +1789,15 @@ function computeAgg(filterFn) {
   const shipping = filtered.reduce((s, o) => s + Number(o.shipping_fee || 0), 0);
   const subtotal = revenue - shipping;
   const margin = getProfitMarginRatio();
-  // Per-item cost: use real cost if defined (>0), else fallback margin estimate on item revenue
+  // Per-item cost: match by catalog (by [CODE] in name), else margin fallback
   let totalCost = 0;
   filtered.forEach(o => {
     const items = Array.isArray(o.items) ? o.items : [];
     items.forEach(i => {
       const qty = Number(i.qty || 0);
       const price = Number(i.price || 0);
-      const cost = productCostsMap[productKey(i.name, i.size)];
-      if (cost !== undefined && cost > 0) totalCost += cost * qty;
+      const product = findProductByItemName(i.name);
+      if (product && Number(product.cost) > 0) totalCost += Number(product.cost) * qty;
       else totalCost += price * (1 - margin) * qty;
     });
   });
