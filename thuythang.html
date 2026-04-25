@@ -87,6 +87,13 @@
   /* Items list in modal */
   .item-line { padding: 8px 0; border-bottom: 1px dashed #E5E7EB; display: flex; justify-content: space-between; font-size: 13px; }
   .item-line:last-child { border-bottom: none; }
+  /* Sub-tabs (Orders status groups) */
+  .sub-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sub-tab { padding: 8px 14px; border-radius: 999px; background: #F3F4F6; color: #374151; font-weight: 600; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .sub-tab:hover:not(.active) { background: #E5E7EB; }
+  .sub-tab.active { background: #2C1A0E; color: white; }
+  .sub-tab-count { background: rgba(255,255,255,0.25); padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; min-width: 20px; text-align: center; }
+  .sub-tab:not(.active) .sub-tab-count { background: white; color: #6B7280; border: 1px solid #E5E7EB; }
   /* Pagination */
   .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
   .pagination .page-info { font-size: 12px; color: #6B7280; margin-right: 8px; }
@@ -203,18 +210,19 @@
 
     <!-- ORDERS TAB -->
     <div id="tab-orders" class="hidden">
+      <!-- Sub-tabs: status groups -->
+      <div class="card" style="margin-bottom: 12px; padding: 10px;">
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-tab="all" onclick="setOrdersSubTab('all')">📊 Tổng đơn hàng <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom: 16px;">
-        <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
           <input id="orders-search" type="text" placeholder="🔍 Tìm theo mã đơn, tên, email, SDT..." class="input" oninput="filterOrders()">
-          <select id="orders-status-filter" class="select" style="min-width: 160px;" onchange="filterOrders()">
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">⏳ Chờ thanh toán</option>
-            <option value="customer_paid">💰 Khách báo TT</option>
-            <option value="confirmed">✅ Đã xác nhận</option>
-            <option value="shipped">🚚 Đã gửi</option>
-            <option value="delivered">📦 Đã nhận</option>
-            <option value="cancelled">❌ Đã hủy</option>
-          </select>
           <button onclick="loadOrders()" class="btn btn-ghost">🔄</button>
         </div>
       </div>
@@ -388,6 +396,14 @@ let ordersFilteredCache = [];
 // Selection state for bulk actions
 const selectedOrders = new Set();
 let shipModalOrders = [];
+// Sub-tab state for orders (all | unpaid | paid | cancelled)
+let ordersSubTab = 'all';
+const ORDERS_STATUS_GROUPS = {
+  all: null,
+  unpaid: ['pending', 'customer_paid'],
+  paid: ['confirmed', 'shipped', 'delivered'],
+  cancelled: ['cancelled']
+};
 let ordersPage = 1;
 let customersFilteredCache = [];
 let customersPage = 1;
@@ -748,9 +764,9 @@ async function loadOrders() {
 
 function filterOrders() {
   const q = (document.getElementById('orders-search').value || '').toLowerCase().trim();
-  const status = document.getElementById('orders-status-filter').value;
   let list = allOrders;
-  if (status) list = list.filter(o => o.status === status);
+  const group = ORDERS_STATUS_GROUPS[ordersSubTab];
+  if (group) list = list.filter(o => group.includes(o.status));
   if (q) list = list.filter(o =>
     (o.order_no || '').toLowerCase().includes(q) ||
     (o.customer_name || '').toLowerCase().includes(q) ||
@@ -759,7 +775,29 @@ function filterOrders() {
   );
   ordersFilteredCache = list;
   ordersPage = 1;
+  updateSubTabCounts();
   renderOrdersTable();
+}
+
+function setOrdersSubTab(tab) {
+  if (ordersSubTab === tab) return;
+  ordersSubTab = tab;
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  clearSelection();
+  filterOrders();
+}
+
+function updateSubTabCounts() {
+  const counts = {
+    all: allOrders.length,
+    unpaid: allOrders.filter(o => ['pending', 'customer_paid'].includes(o.status)).length,
+    paid: allOrders.filter(o => ['confirmed', 'shipped', 'delivered'].includes(o.status)).length,
+    cancelled: allOrders.filter(o => o.status === 'cancelled').length
+  };
+  Object.entries(counts).forEach(([k, v]) => {
+    const el = document.querySelector(`.sub-tab[data-tab="${k}"] .sub-tab-count`);
+    if (el) el.textContent = v;
+  });
 }
 
 function renderOrdersTable() {
