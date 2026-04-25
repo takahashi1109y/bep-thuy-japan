@@ -295,6 +295,10 @@
         <h3 style="margin:0 0 8px;font-size:16px;font-weight:800;">💬 Tin Nhắn Khách Hàng</h3>
         <p style="font-size:12px;color:#6B7280;margin:0;">Trả lời tin nhắn của khách trực tiếp tại đây.</p>
       </div>
+      <div id="messages-unread-alert" class="hidden" style="background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:12px 16px;margin-bottom:10px;color:#7F1D1D;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>🔔 Có <span id="messages-unread-count">0</span> tin nhắn mới chưa đọc</span>
+        <button onclick="markAllMessagesRead()" class="btn btn-ghost" style="padding:4px 12px;font-size:12px;">✓ Đánh dấu tất cả đã đọc</button>
+      </div>
       <div id="messages-filter-banner" class="hidden" style="margin-bottom: 10px;"></div>
       <div id="messages-pagination-top" class="pagination" style="margin-top: 0; margin-bottom: 10px;"></div>
       <div id="msg-threads-list" class="card">
@@ -658,13 +662,8 @@ async function loadAdminMessages() {
     messageProfilesCache = profMap;
     messagesPage = 1;
     await renderMessagesPage();
-
-    // Auto mark as read by shop (all threads, not just current page)
-    const unreadIds = threads.filter(t => t.unread_by_shop).map(t => t.id);
-    if (unreadIds.length > 0) {
-      await sb.from('message_threads').update({ unread_by_shop: false }).in('id', unreadIds);
-    }
-    updateMsgBadge(0);
+    // Don't auto-mark as read — admin must reply or click "Đánh dấu đã đọc" to clear unread state
+    updateMsgBadge(threads.filter(t => t.unread_by_shop).length);
   } catch(e) {
     console.warn('loadAdminMessages err:', e);
     box.innerHTML = '<p style="color:#EF4444;padding:20px;">Lỗi: ' + (e.message||e) + '</p>';
@@ -677,6 +676,7 @@ async function renderMessagesPage() {
   let threads = messageThreadsCache;
   if (messagesFilterUserId) threads = threads.filter(t => t.user_id === messagesFilterUserId);
   updateMessagesFilterBanner();
+  updateMessagesUnreadAlert();
   if (threads.length === 0 && messagesFilterUserId) {
     box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:30px;">Khách này chưa có tin nhắn nào.</p>';
     ['messages-pagination-top','messages-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
@@ -688,7 +688,7 @@ async function renderMessagesPage() {
     const { data: msgs } = await sb.from('messages').select('*').eq('thread_id', t.id).order('created_at', { ascending: true });
     const items = (msgs || []).map(m => {
       const isShop = m.sender === 'shop';
-      const date = new Date(m.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const date = fmtJST(m.created_at, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
       return `<div style="background:${isShop?'#EFF6FF':'#F9FAFB'};border:1px solid ${isShop?'#BFDBFE':'#E5E7EB'};border-radius:10px;padding:10px;margin-bottom:6px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
           <span style="font-size:11px;font-weight:700;color:${isShop?'#1E40AF':'#374151'};">${isShop ? '🏪 Bếp Thuỷ' : '👤 Khách'}</span>
@@ -734,6 +734,8 @@ async function replyToThread(threadId) {
   try {
     const { error } = await sb.from('messages').insert({ thread_id: threadId, sender: 'shop', body: body });
     if (error) throw error;
+    // Reply implies shop has read the thread → mark unread_by_shop=false
+    await sb.from('message_threads').update({ unread_by_shop: false, last_message_at: new Date().toISOString() }).eq('id', threadId);
     inp.value = '';
     showToast('✅ Đã gửi trả lời', 'success');
     await loadAdminMessages();
@@ -769,6 +771,36 @@ function updateMessagesFilterBanner() {
     banner.innerHTML = '';
     banner.classList.add('hidden');
   }
+}
+
+function updateMessagesUnreadAlert() {
+  const alert = document.getElementById('messages-unread-alert');
+  if (!alert) return;
+  let threads = messageThreadsCache;
+  if (messagesFilterUserId) threads = threads.filter(t => t.user_id === messagesFilterUserId);
+  const unreadCount = threads.filter(t => t.unread_by_shop).length;
+  if (unreadCount > 0) {
+    document.getElementById('messages-unread-count').textContent = unreadCount;
+    alert.classList.remove('hidden');
+  } else {
+    alert.classList.add('hidden');
+  }
+}
+
+async function markAllMessagesRead() {
+  let threads = messageThreadsCache;
+  if (messagesFilterUserId) threads = threads.filter(t => t.user_id === messagesFilterUserId);
+  const unreadIds = threads.filter(t => t.unread_by_shop).map(t => t.id);
+  if (unreadIds.length === 0) return;
+  const { error } = await sb.from('message_threads').update({ unread_by_shop: false }).in('id', unreadIds);
+  if (error) { showToast('❌ Lỗi: ' + error.message, 'error'); return; }
+  unreadIds.forEach(id => {
+    const t = messageThreadsCache.find(x => x.id === id);
+    if (t) t.unread_by_shop = false;
+  });
+  await renderMessagesPage();
+  checkUnreadMessages();
+  showToast(`✅ Đã đánh dấu ${unreadIds.length} tin đã đọc`, 'success');
 }
 
 function updateMsgBadge(unreadCount) {
@@ -885,7 +917,7 @@ function renderOrdersTable() {
   }
   const slice = paginate(orders, ordersPage, PAGE_SIZE);
   tbody.innerHTML = slice.map(o => {
-    const date = new Date(o.created_at).toLocaleString('ja-JP', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const date = fmtJST(o.created_at, { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
     const checked = selectedOrders.has(o.order_no) ? 'checked' : '';
     return `<tr>
       <td><input type="checkbox" class="order-checkbox" data-order="${o.order_no}" ${checked} onchange="toggleSelect('${o.order_no}')"></td>
@@ -1087,7 +1119,7 @@ async function openOrderModal(orderNo) {
   const itemsHtml = items.length
     ? items.map(i => `<div class="item-line"><span>${escapeHtml(i.name)}${i.size?' ('+escapeHtml(i.size)+')':''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`).join('')
     : '<p style="color: #9CA3AF; font-size: 13px;">Không có thông tin sản phẩm</p>';
-  const date = new Date(o.created_at).toLocaleString('ja-JP');
+  const date = fmtJST(o.created_at);
 
   // Fetch payment confirmations for this order
   let paymentHtml = '';
@@ -1105,7 +1137,7 @@ async function openOrderModal(orderNo) {
       paymentHtml = '<div class="card" style="margin-bottom: 12px; border:2px solid #10B981;">' +
         '<h4 style="margin: 0 0 8px; font-size: 14px;">💳 Hóa Đơn Thanh Toán Khách Gửi (' + confs.length + ')</h4>' +
         confs.map(c => {
-          const cdate = new Date(c.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+          const cdate = fmtJST(c.created_at, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
           const methodTxt = c.method === 'paypay' ? '💳 PayPay' : '🏦 Chuyển khoản NH';
           const amountMismatch = Math.abs(c.claimed_amount - o.total) > 1;
           const STATUS_CONF = {
@@ -1167,7 +1199,7 @@ async function openOrderModal(orderNo) {
         ${o.carrier ? `<div>Đơn vị: <strong>${escapeHtml(o.carrier)}</strong></div>` : ''}
         ${o.shipping_method ? `<div>Phương thức: ${escapeHtml(o.shipping_method)}</div>` : ''}
         ${o.tracking_number ? `<div>Mã vận đơn: <code style="background:#fff;padding:2px 8px;border-radius:4px;font-weight:700;">${escapeHtml(o.tracking_number)}</code></div>` : ''}
-        ${o.shipped_at ? `<div style="font-size: 11px; color: #065F46; margin-top: 4px;">📅 Gửi ngày: ${new Date(o.shipped_at).toLocaleString('ja-JP')}</div>` : ''}
+        ${o.shipped_at ? `<div style="font-size: 11px; color: #065F46; margin-top: 4px;">📅 Gửi ngày: ${fmtJST(o.shipped_at)}</div>` : ''}
       </div>
     </div>` : ''}
     <div class="card" style="margin-bottom: 12px;">
@@ -1313,7 +1345,7 @@ function renderCustomersTable() {
       : c.orderCount >= 3 ? '<span class="badge badge-confirmed">⭐ Thân thiết</span>'
       : c.lastOrder && (Date.now() - new Date(c.lastOrder).getTime()) > 30*86400000
         ? '<span class="badge badge-pending">😴 Không QL</span>' : '';
-    const lastOrder = c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('ja-JP') : '-';
+    const lastOrder = fmtJSTDate(c.lastOrder);
     const bell = c.unread > 0
       ? `<span title="${c.unread} tin nhắn chưa đọc" style="display:inline-flex;align-items:center;gap:3px;background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:4px;">🔔 ${c.unread}</span>`
       : '';
@@ -1398,7 +1430,7 @@ async function openCustomerModal(userId, focusMessage = false) {
     </div>
     <div class="stat-card"><div class="label">Tổng chi</div><div class="value" style="color:#C8102E;font-size:20px;">¥${Number(c.totalSpent).toLocaleString()}</div></div>
     <div class="stat-card"><div class="label">Điểm</div><div class="value" style="color:#10B981;">${Number(c.points).toLocaleString()}</div></div>
-    <div class="stat-card"><div class="label">Đơn gần nhất</div><div class="value" style="font-size:14px;">${c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('ja-JP') : '-'}</div></div>
+    <div class="stat-card"><div class="label">Đơn gần nhất</div><div class="value" style="font-size:14px;">${fmtJSTDate(c.lastOrder)}</div></div>
   </div>`;
 
   const contactHtml = `<div class="card" style="margin-bottom: 12px;">
@@ -1414,7 +1446,7 @@ async function openCustomerModal(userId, focusMessage = false) {
     <h4 style="margin: 0 0 10px; font-size: 14px;">💬 Nhắn tin ${c.unread > 0 ? `<span style="background:#EF4444;color:white;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:6px;">🔔 ${c.unread} chưa đọc</span>` : ''}</h4>`;
   if (threads.length > 0) {
     const latest = threads[0];
-    const when = new Date(latest.last_message_at || latest.created_at).toLocaleDateString('ja-JP');
+    const when = fmtJSTDate(latest.last_message_at || latest.created_at);
     messagesHtml += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Có <strong>${threads.length}</strong> chủ đề · Gần nhất: ${escapeHtml(latest.subject || '-')} (${when})</div>
       <button onclick="viewCustomerMessagesInTab('${userId}')" class="btn btn-ghost" style="margin-bottom:8px;padding:6px 12px;font-size:12px;">📋 Xem đầy đủ ở tab Tin Nhắn</button>`;
   } else {
@@ -1431,7 +1463,7 @@ async function openCustomerModal(userId, focusMessage = false) {
     ordersHtml += '<p style="font-size:12px;color:#9CA3AF;margin:0;">Chưa có đơn hàng nào.</p>';
   } else {
     ordersHtml += orders.map(o => {
-      const date = new Date(o.created_at).toLocaleDateString('ja-JP');
+      const date = fmtJSTDate(o.created_at);
       return `<div style="padding:10px 0;border-bottom:1px solid #F3F4F6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
           <a href="javascript:void(0)" onclick="closeCustomerModal();openOrderModal('${o.order_no}');" style="font-weight:800;color:#C8102E;">#${o.order_no}</a>
@@ -1510,6 +1542,16 @@ async function loadAnalytics() {
 
 // ============ UTILS ============
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Format date/time in JST (Asia/Tokyo, GMT+9) regardless of viewer's timezone
+function fmtJST(iso, opts) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleString('ja-JP', { ...(opts || {}), timeZone: 'Asia/Tokyo' });
+}
+function fmtJSTDate(iso) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
+}
 
 function linkifyOrderNos(text) {
   // Escape first, then link order refs. Matches #0034, #TJ0034, TJ0034.
