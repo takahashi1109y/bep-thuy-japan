@@ -87,6 +87,14 @@
   /* Items list in modal */
   .item-line { padding: 8px 0; border-bottom: 1px dashed #E5E7EB; display: flex; justify-content: space-between; font-size: 13px; }
   .item-line:last-child { border-bottom: none; }
+  /* Pagination */
+  .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  .pagination .page-info { font-size: 12px; color: #6B7280; margin-right: 8px; }
+  .page-btn { min-width: 34px; padding: 6px 10px; border: 1px solid #E5E7EB; background: white; border-radius: 8px; font-size: 13px; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.15s; }
+  .page-btn:hover:not(:disabled) { background: #F3F4F6; border-color: #C8102E; color: #C8102E; }
+  .page-btn.active { background: #C8102E; color: white; border-color: #C8102E; }
+  .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-ellipsis { padding: 6px 4px; color: #9CA3AF; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -186,29 +194,10 @@
         </div>
       </div>
 
-      <div class="grid-content">
-        <!-- Priority: Orders needing action -->
-        <div class="card">
-          <h3 style="margin: 0 0 14px; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-            <span>🔥</span> Đơn Cần Xử Lý
-            <span id="priority-count" style="margin-left: auto; font-size: 12px; color: #6B7280; font-weight: 500;"></span>
-          </h3>
-          <div id="priority-list">
-            <div style="text-align: center; padding: 40px 0; color: #9CA3AF; font-size: 13px;">
-              <div style="font-size: 36px; margin-bottom: 8px;">✨</div>
-              Không có đơn nào cần xử lý
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent orders summary -->
-        <div class="card">
-          <h3 style="margin: 0 0 14px; font-size: 16px; font-weight: 800;">📋 Đơn Mới Nhất</h3>
-          <div id="recent-orders">
-            <div style="text-align: center; padding: 20px 0; color: #9CA3AF; font-size: 13px;">Đang tải...</div>
-          </div>
-          <button onclick="switchTab('orders')" class="btn btn-ghost" style="width: 100%; justify-content: center; margin-top: 10px;">Xem tất cả →</button>
-        </div>
+      <div style="margin-top: 8px;">
+        <button onclick="switchTab('orders')" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 14px;">
+          📦 Xem tất cả đơn hàng →
+        </button>
       </div>
     </div>
 
@@ -246,6 +235,7 @@
           </tbody>
         </table>
       </div>
+      <div id="orders-pagination" class="pagination"></div>
     </div>
 
     <!-- CUSTOMERS TAB -->
@@ -270,6 +260,7 @@
           </tbody>
         </table>
       </div>
+      <div id="customers-pagination" class="pagination"></div>
     </div>
 
     <!-- MESSAGES TAB -->
@@ -281,6 +272,7 @@
       <div id="msg-threads-list" class="card">
         <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
       </div>
+      <div id="messages-pagination" class="pagination"></div>
     </div>
 
     <!-- ANALYTICS TAB (placeholder Đợt 3) -->
@@ -330,6 +322,64 @@ let allOrders = [];
 let allCustomers = [];
 let hcaptchaWidgetId = null;
 let _captchaResolve = null;
+
+// ============ PAGINATION STATE ============
+const PAGE_SIZE = 25;
+let ordersFilteredCache = [];
+let ordersPage = 1;
+let customersFilteredCache = [];
+let customersPage = 1;
+let messageThreadsCache = [];
+let messageProfilesCache = {};
+let messagesPage = 1;
+
+function paginate(arr, page, size) {
+  const start = (page - 1) * size;
+  return arr.slice(start, start + size);
+}
+
+function renderPagination(containerId, currentPage, totalItems, pageSize, onChange) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (totalItems === 0) { c.innerHTML = ''; return; }
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const from = (currentPage - 1) * pageSize + 1;
+  const to = Math.min(currentPage * pageSize, totalItems);
+  if (totalPages === 1) {
+    c.innerHTML = `<span class="page-info">Hiển thị ${totalItems} mục</span>`;
+    return;
+  }
+  // Build smart page list: 1 ... [current-2..current+2] ... last
+  const pages = [];
+  pages.push(1);
+  const start = Math.max(2, currentPage - 2);
+  const end = Math.min(totalPages - 1, currentPage + 2);
+  if (start > 2) pages.push('…');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < totalPages - 1) pages.push('…');
+  if (totalPages > 1) pages.push(totalPages);
+
+  c.innerHTML =
+    `<span class="page-info">Hiển thị ${from}-${to} / ${totalItems}</span>` +
+    `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="prev">‹ Trước</button>` +
+    pages.map(p => p === '…'
+      ? `<span class="page-ellipsis">…</span>`
+      : `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`
+    ).join('') +
+    `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="next">Sau ›</button>`;
+
+  c.querySelectorAll('.page-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      const p = btn.dataset.page;
+      let newPage = currentPage;
+      if (p === 'prev') newPage = Math.max(1, currentPage - 1);
+      else if (p === 'next') newPage = Math.min(totalPages, currentPage + 1);
+      else newPage = parseInt(p, 10);
+      if (newPage !== currentPage) onChange(newPage);
+    };
+  });
+}
 
 function initHCaptcha() {
   if (typeof hcaptcha === 'undefined') return;
@@ -474,12 +524,14 @@ function switchTab(name) {
 // ═══════════════════ MESSAGES (Admin side) ═══════════════════
 async function loadAdminMessages() {
   const box = document.getElementById('msg-threads-list');
+  const pagBox = document.getElementById('messages-pagination');
   box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:20px;">Đang tải...</p>';
   try {
     const { data: threads, error } = await sb.from('message_threads').select('*').order('last_message_at', { ascending: false });
     if (error) throw error;
     if (!threads || threads.length === 0) {
       box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:40px;">Chưa có tin nhắn nào</p>';
+      if (pagBox) pagBox.innerHTML = '';
       updateMsgBadge(0);
       return;
     }
@@ -489,40 +541,12 @@ async function loadAdminMessages() {
     const { data: profiles } = await sb.from('profiles').select('id, display_name, phone').in('id', userIds);
     const profMap = {}; (profiles||[]).forEach(p => profMap[p.id] = p);
 
-    const html = await Promise.all(threads.map(async t => {
-      const { data: msgs } = await sb.from('messages').select('*').eq('thread_id', t.id).order('created_at', { ascending: true });
-      const items = (msgs || []).map(m => {
-        const isShop = m.sender === 'shop';
-        const date = new Date(m.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-        return `<div style="background:${isShop?'#EFF6FF':'#F9FAFB'};border:1px solid ${isShop?'#BFDBFE':'#E5E7EB'};border-radius:10px;padding:10px;margin-bottom:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <span style="font-size:11px;font-weight:700;color:${isShop?'#1E40AF':'#374151'};">${isShop ? '🏪 Bếp Thuỷ' : '👤 Khách'}</span>
-            <span style="font-size:11px;color:#9CA3AF;">${date}</span>
-          </div>
-          <p style="font-size:13px;color:#1C1C1E;white-space:pre-wrap;margin:0;">${escapeHtml(m.body)}</p>
-        </div>`;
-      }).join('');
-      const profile = profMap[t.user_id] || {};
-      const unreadBadge = t.unread_by_shop
-        ? '<span style="background:#EF4444;color:white;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;">MỚI</span>' : '';
-      return `<div style="border-bottom:1px solid #E5E7EB;padding:14px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
-          <div>
-            <div style="font-weight:800;font-size:14px;color:#1C1C1E;">📩 ${escapeHtml(t.subject)} ${unreadBadge}</div>
-            <div style="font-size:11px;color:#6B7280;margin-top:2px;">${escapeHtml(profile.display_name || 'Khách')} · ${escapeHtml(profile.phone || '-')}</div>
-          </div>
-        </div>
-        <div style="margin:10px 0;">${items}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;">
-          <input id="reply-${t.id}" type="text" placeholder="Trả lời khách..." class="input" style="flex:1;font-size:13px;padding:8px 10px;" onkeydown="if(event.key==='Enter')replyToThread(${t.id})">
-          <button onclick="replyToThread(${t.id})" class="btn btn-primary" style="padding:8px 14px;font-size:12px;">📤 Gửi</button>
-        </div>
-      </div>`;
-    }));
+    messageThreadsCache = threads;
+    messageProfilesCache = profMap;
+    messagesPage = 1;
+    await renderMessagesPage();
 
-    box.innerHTML = html.join('');
-
-    // Auto mark as read by shop
+    // Auto mark as read by shop (all threads, not just current page)
     const unreadIds = threads.filter(t => t.unread_by_shop).map(t => t.id);
     if (unreadIds.length > 0) {
       await sb.from('message_threads').update({ unread_by_shop: false }).in('id', unreadIds);
@@ -532,6 +556,52 @@ async function loadAdminMessages() {
     console.warn('loadAdminMessages err:', e);
     box.innerHTML = '<p style="color:#EF4444;padding:20px;">Lỗi: ' + (e.message||e) + '</p>';
   }
+}
+
+async function renderMessagesPage() {
+  const box = document.getElementById('msg-threads-list');
+  const threads = messageThreadsCache;
+  const profMap = messageProfilesCache;
+  const slice = paginate(threads, messagesPage, PAGE_SIZE);
+
+  const html = await Promise.all(slice.map(async t => {
+    const { data: msgs } = await sb.from('messages').select('*').eq('thread_id', t.id).order('created_at', { ascending: true });
+    const items = (msgs || []).map(m => {
+      const isShop = m.sender === 'shop';
+      const date = new Date(m.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      return `<div style="background:${isShop?'#EFF6FF':'#F9FAFB'};border:1px solid ${isShop?'#BFDBFE':'#E5E7EB'};border-radius:10px;padding:10px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:700;color:${isShop?'#1E40AF':'#374151'};">${isShop ? '🏪 Bếp Thuỷ' : '👤 Khách'}</span>
+          <span style="font-size:11px;color:#9CA3AF;">${date}</span>
+        </div>
+        <p style="font-size:13px;color:#1C1C1E;white-space:pre-wrap;margin:0;">${escapeHtml(m.body)}</p>
+      </div>`;
+    }).join('');
+    const profile = profMap[t.user_id] || {};
+    const unreadBadge = t.unread_by_shop
+      ? '<span style="background:#EF4444;color:white;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;">MỚI</span>' : '';
+    return `<div style="border-bottom:1px solid #E5E7EB;padding:14px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:800;font-size:14px;color:#1C1C1E;">📩 ${escapeHtml(t.subject)} ${unreadBadge}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:2px;">${escapeHtml(profile.display_name || 'Khách')} · ${escapeHtml(profile.phone || '-')}</div>
+        </div>
+      </div>
+      <div style="margin:10px 0;">${items}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input id="reply-${t.id}" type="text" placeholder="Trả lời khách..." class="input" style="flex:1;font-size:13px;padding:8px 10px;" onkeydown="if(event.key==='Enter')replyToThread(${t.id})">
+        <button onclick="replyToThread(${t.id})" class="btn btn-primary" style="padding:8px 14px;font-size:12px;">📤 Gửi</button>
+      </div>
+    </div>`;
+  }));
+
+  box.innerHTML = html.join('');
+
+  renderPagination('messages-pagination', messagesPage, threads.length, PAGE_SIZE, (p) => {
+    messagesPage = p;
+    renderMessagesPage();
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 async function replyToThread(threadId) {
@@ -566,57 +636,15 @@ async function checkUnreadMessages() {
 
 // ============ DASHBOARD ============
 async function loadDashboard() {
-  const [statsRes, ordersRes] = await Promise.allSettled([
-    sb.from('admin_stats_today').select('*').maybeSingle(),
-    sb.from('orders').select('*').order('created_at', { ascending: false }).limit(20)
-  ]);
-
-  if (statsRes.status === 'fulfilled' && statsRes.value.data) {
-    const s = statsRes.value.data;
+  const { data, error } = await sb.from('admin_stats_today').select('*').maybeSingle();
+  if (!error && data) {
+    const s = data;
     document.getElementById('stat-orders-today').textContent = s.orders_today || 0;
     document.getElementById('stat-revenue-today').textContent = '¥' + Number(s.revenue_today || 0).toLocaleString();
     document.getElementById('stat-revenue-month').textContent = 'Tháng này: ¥' + Number(s.revenue_month || 0).toLocaleString();
     document.getElementById('stat-pending').textContent = (s.pending_count || 0) + (s.customer_paid_count || 0);
     document.getElementById('stat-shipped-today').textContent = s.shipped_today || 0;
   }
-
-  if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
-    allOrders = ordersRes.value.data;
-    renderPriorityList(allOrders.filter(o => o.status === 'pending' || o.status === 'customer_paid' || o.status === 'confirmed'));
-    renderRecentOrders(allOrders.slice(0, 5));
-  }
-}
-
-function renderPriorityList(orders) {
-  const box = document.getElementById('priority-list');
-  const countEl = document.getElementById('priority-count');
-  countEl.textContent = orders.length ? orders.length + ' đơn' : '';
-  if (orders.length === 0) {
-    box.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #9CA3AF; font-size: 13px;">
-      <div style="font-size: 36px; margin-bottom: 8px;">✨</div>Không có đơn nào cần xử lý</div>`;
-    return;
-  }
-  box.innerHTML = orders.map(o => renderOrderCard(o)).join('');
-}
-
-function renderOrderCard(o) {
-  const badge = statusBadge(o.status);
-  const action = primaryAction(o);
-  const date = new Date(o.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-  return `<div style="padding: 12px; border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 8px; background: #FAFAFA;">
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-      <div>
-        <div class="order-no">#${o.order_no}</div>
-        <div class="customer-name">${escapeHtml(o.customer_name || 'Khách lẻ')}</div>
-        <div class="meta">${date} · ¥${Number(o.total).toLocaleString()}</div>
-      </div>
-      ${badge}
-    </div>
-    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
-      <button onclick="openOrderModal('${o.order_no}')" class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">👁 Chi tiết</button>
-      ${action}
-    </div>
-  </div>`;
 }
 
 function primaryAction(o) {
@@ -642,24 +670,6 @@ function statusBadge(s) {
   return `<span class="badge ${b.cls}">${b.text}</span>`;
 }
 
-function renderRecentOrders(orders) {
-  const box = document.getElementById('recent-orders');
-  if (orders.length === 0) { box.innerHTML = '<p style="color: #9CA3AF; font-size: 13px; text-align: center; padding: 20px;">Chưa có đơn hàng</p>'; return; }
-  box.innerHTML = orders.map(o => {
-    const date = new Date(o.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    return `<div style="padding: 10px 0; border-bottom: 1px solid #F3F4F6; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="openOrderModal('${o.order_no}')">
-      <div>
-        <div style="font-weight: 700; font-size: 13px;">#${o.order_no} · ${escapeHtml(o.customer_name || '-')}</div>
-        <div class="meta">${date}</div>
-      </div>
-      <div style="text-align: right;">
-        <div style="font-weight: 700; font-size: 13px;">¥${Number(o.total).toLocaleString()}</div>
-        ${statusBadge(o.status)}
-      </div>
-    </div>`;
-  }).join('');
-}
-
 // ============ ORDERS TAB ============
 async function loadOrders() {
   const tbody = document.getElementById('orders-tbody');
@@ -681,16 +691,22 @@ function filterOrders() {
     (o.customer_email || '').toLowerCase().includes(q) ||
     (o.customer_phone || '').toLowerCase().includes(q)
   );
-  renderOrdersTable(list);
+  ordersFilteredCache = list;
+  ordersPage = 1;
+  renderOrdersTable();
 }
 
-function renderOrdersTable(orders) {
+function renderOrdersTable() {
   const tbody = document.getElementById('orders-tbody');
+  const orders = ordersFilteredCache;
+  const pagBox = document.getElementById('orders-pagination');
   if (orders.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có đơn nào phù hợp</td></tr>';
+    if (pagBox) pagBox.innerHTML = '';
     return;
   }
-  tbody.innerHTML = orders.map(o => {
+  const slice = paginate(orders, ordersPage, PAGE_SIZE);
+  tbody.innerHTML = slice.map(o => {
     const date = new Date(o.created_at).toLocaleString('ja-JP', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
     return `<tr>
       <td><a href="javascript:void(0)" onclick="openOrderModal('${o.order_no}')" style="font-weight: 800; color: #C8102E;">#${o.order_no}</a></td>
@@ -704,11 +720,15 @@ function renderOrdersTable(orders) {
       <td>
         <div style="display: flex; gap: 4px; flex-wrap: wrap;">
           ${primaryAction(o)}
-          <button onclick="openOrderModal('${o.order_no}')" class="btn btn-ghost" style="padding: 5px 8px; font-size: 11px;">👁</button>
         </div>
       </td>
     </tr>`;
   }).join('');
+  renderPagination('orders-pagination', ordersPage, orders.length, PAGE_SIZE, (p) => {
+    ordersPage = p;
+    renderOrdersTable();
+    document.querySelector('#tab-orders .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 // ============ ORDER MODAL ============
@@ -921,16 +941,22 @@ function filterCustomers() {
     (c.name || '').toLowerCase().includes(q) ||
     (c.phone || '').toLowerCase().includes(q)
   );
-  renderCustomersTable(list);
+  customersFilteredCache = list;
+  customersPage = 1;
+  renderCustomersTable();
 }
 
-function renderCustomersTable(customers) {
+function renderCustomersTable() {
   const tbody = document.getElementById('customers-tbody');
+  const customers = customersFilteredCache;
+  const pagBox = document.getElementById('customers-pagination');
   if (customers.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có khách hàng</td></tr>';
+    if (pagBox) pagBox.innerHTML = '';
     return;
   }
-  tbody.innerHTML = customers.map(c => {
+  const slice = paginate(customers, customersPage, PAGE_SIZE);
+  tbody.innerHTML = slice.map(c => {
     const tag = c.orderCount >= 10 ? '<span class="badge badge-delivered">👑 VIP</span>'
       : c.orderCount >= 3 ? '<span class="badge badge-confirmed">⭐ Thân thiết</span>'
       : c.lastOrder && (Date.now() - new Date(c.lastOrder).getTime()) > 30*86400000
@@ -948,6 +974,11 @@ function renderCustomersTable(customers) {
       <td style="text-align: center; font-weight: 700; color: #10B981;">${Number(c.points).toLocaleString()}</td>
     </tr>`;
   }).join('');
+  renderPagination('customers-pagination', customersPage, customers.length, PAGE_SIZE, (p) => {
+    customersPage = p;
+    renderCustomersTable();
+    document.querySelector('#tab-customers .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 // ============ ANALYTICS (placeholder for Đợt 3) ============
