@@ -957,10 +957,30 @@ function primaryAction(o) {
   if (o.status === 'confirmed') {
     parts.push(`<button onclick="openSingleShipModal('${o.order_no}')" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px;">🚚 Đã gửi</button>`);
   }
+  // Message customer (between primary action and Cancel)
+  if (o.user_id && !['shipped', 'delivered', 'cancelled'].includes(o.status)) {
+    parts.push(`<button onclick="messagePaymentReceived('${o.user_id}', '${o.order_no}')" class="btn" style="padding: 5px 8px; font-size: 11px; background:#2563EB; color:white;" title="Nhắn tin báo đã nhận tiền">💬 Báo TT</button>`);
+  }
   if (!['shipped', 'delivered', 'cancelled'].includes(o.status)) {
     parts.push(`<button onclick="doCancelOrder('${o.order_no}')" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;">❌ Hủy</button>`);
   }
   return parts.join(' ');
+}
+
+async function messagePaymentReceived(userId, orderNo) {
+  if (!userId || userId === 'undefined' || userId === 'null') {
+    showToast('Đơn này không có tài khoản (khách lẻ)', 'error');
+    return;
+  }
+  await openCustomerModal(userId, true);
+  setTimeout(() => {
+    const inp = document.getElementById('cust-msg-input');
+    if (inp) {
+      inp.value = `Cảm ơn anh/chị! Bếp Thuỷ đã nhận được tiền chuyển cho đơn #${orderNo}. Shop đang chuẩn bị và sẽ gửi hàng sớm. Cảm ơn anh/chị đã ủng hộ! 🥢`;
+      inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+    }
+  }, 800);
 }
 
 function statusBadge(s) {
