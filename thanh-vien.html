@@ -117,6 +117,21 @@
     <!-- Register Form -->
     <div id="form-register" class="hidden p-6">
      <div id="reg-form-wrap" class="space-y-4">
+
+      <!-- Quick guide: 4 simple steps to get 100 points -->
+      <div class="rounded-2xl p-4 mb-2" style="background:linear-gradient(135deg,#FFF8E7,#FFF8F0);border:1px solid #F4CC54;">
+        <p class="font-bold text-brand-dark text-sm mb-2 flex items-center gap-2"><span>🎁</span>4 bước nhỏ — Nhận 100 điểm thưởng</p>
+        <ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700">
+          <li><strong>Điền form</strong> bên dưới (chỉ 5 ô bắt buộc)</li>
+          <li>Bấm nút <strong>"Đăng Ký Thành Viên"</strong> ở cuối form</li>
+          <li>Mở email Bếp Thuỷ gửi đến → bấm <strong>"Xác Nhận Email"</strong></li>
+          <li>Mở email <strong>"100 điểm chào mừng"</strong> → bấm <strong>"Kích Hoạt"</strong></li>
+        </ol>
+        <a href="/huong-dan-thanh-vien" target="_blank" class="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-brand-red hover:underline">
+          📘 Hướng dẫn chi tiết phần email →
+        </a>
+      </div>
+
       <div>
         <label class="field-label">Email <span class="text-brand-red">*</span></label>
         <input id="reg-email" type="email" placeholder="email@gmail.com" class="field-input">
@@ -197,10 +212,13 @@
          <p class="font-semibold">📌 Các bước tiếp theo:</p>
          <ol class="list-decimal ml-5 space-y-1">
            <li>Mở hộp thư (kể cả thư mục <strong>Spam / Quảng cáo</strong>)</li>
-           <li>Tìm email từ <strong>Bếp Thuỷ Japan</strong> hoặc <strong>Supabase</strong></li>
-           <li>Bấm vào nút/link <strong>"Confirm your email"</strong></li>
-           <li>Trang sẽ tự quay về đây và đăng nhập tự động ✅</li>
+           <li>Tìm <strong>2 email</strong> từ Bếp Thuỷ Japan</li>
+           <li>Email <strong>"Xác nhận đăng ký..."</strong> → bấm <strong>"Xác Nhận Email"</strong></li>
+           <li>Email <strong>"100 điểm chào mừng..."</strong> → bấm <strong>"Kích Hoạt 100 Điểm"</strong></li>
          </ol>
+         <a href="/huong-dan-thanh-vien" target="_blank" class="inline-flex items-center gap-1 mt-2 text-xs font-bold text-brand-red hover:underline">
+           📘 Xem hướng dẫn chi tiết có hình ảnh →
+         </a>
        </div>
        <p class="text-xs text-gray-500">Không nhận được email? Đợi 2-3 phút rồi kiểm tra lại Spam. Hoặc dùng <a href="javascript:void(0)" onclick="location.reload()" class="text-brand-red underline">đăng ký lại</a> với email khác.</p>
        <button onclick="switchAuthTab('login'); document.getElementById('reg-confirm-box').classList.add('hidden'); document.getElementById('reg-form-wrap').classList.remove('hidden');" class="btn-primary w-full py-3 text-sm">← Quay lại đăng nhập</button>
