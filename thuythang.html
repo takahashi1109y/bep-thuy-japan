@@ -1267,7 +1267,10 @@ function renderCustomersTable() {
         <div><a href="javascript:void(0)" onclick="openCustomerModal('${c.id}')" style="font-weight:700;color:#C8102E;text-decoration:underline;">${escapeHtml(c.name || '-')}</a> ${tag}${bell}</div>
         <div style="font-size: 11px; color: #9CA3AF;">${escapeHtml(c.prefecture || '')}</div>
       </td>
-      <td style="font-size: 12px;">${escapeHtml(c.phone || '-')}</td>
+      <td style="font-size: 12px;">
+        <div>📞 ${escapeHtml(c.phone || '-')}</div>
+        ${c.email ? `<div style="color:#6B7280;font-size:11px;margin-top:2px;">✉️ ${escapeHtml(c.email)}</div>` : ''}
+      </td>
       <td style="text-align: right; font-weight: 700;"><a href="javascript:void(0)" onclick="openCustomerModal('${c.id}')" style="color:#C8102E;text-decoration:underline;">${c.orderCount}</a></td>
       <td style="text-align: right; font-weight: 700; color: #C8102E;">¥${Number(c.totalSpent).toLocaleString()}</td>
       <td style="font-size: 12px;">${lastOrder}</td>
