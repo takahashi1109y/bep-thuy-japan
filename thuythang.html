@@ -687,7 +687,7 @@ async function renderMessagesPage() {
   renderPagination(['messages-pagination-top', 'messages-pagination'], messagesPage, threads.length, PAGE_SIZE, (p) => {
     messagesPage = p;
     renderMessagesPage();
-    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 }
 
@@ -842,7 +842,7 @@ function renderOrdersTable() {
   renderPagination(['orders-pagination-top', 'orders-pagination'], ordersPage, orders.length, PAGE_SIZE, (p) => {
     ordersPage = p;
     renderOrdersTable();
-    document.querySelector('#tab-orders .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   syncHeaderCheckbox();
 }
@@ -1251,7 +1251,7 @@ function renderCustomersTable() {
   renderPagination(['customers-pagination-top', 'customers-pagination'], customersPage, customers.length, PAGE_SIZE, (p) => {
     customersPage = p;
     renderCustomersTable();
-    document.querySelector('#tab-customers .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 }
 
