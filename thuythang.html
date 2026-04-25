@@ -31,7 +31,8 @@
   .tab.active { background: #C8102E; color: white; }
   /* Cards */
   .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #E5E5EA; }
-  .stat-card { background: white; border-radius: 14px; padding: 16px; border: 1px solid #E5E5EA; }
+  .stat-card { background: white; border-radius: 14px; padding: 16px; border: 1px solid #E5E5EA; transition: all 0.15s; }
+  .stat-card.clickable:hover { border-color: #C8102E; box-shadow: 0 4px 12px rgba(200,16,46,0.15); transform: translateY(-1px); }
   .stat-card .label { font-size: 12px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .stat-card .value { font-size: 28px; font-weight: 800; color: #1C1C1E; line-height: 1.1; }
   .stat-card .sub { font-size: 11px; color: #6B7280; margin-top: 4px; }
@@ -168,7 +169,6 @@
       <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng <span id="tt-pending-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
-      <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">📈 Thống Kê</button>
     </div>
   </div>
 
@@ -177,27 +177,52 @@
 
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard">
-      <!-- Stats -->
-      <div class="grid-stats" style="margin-bottom: 20px;">
-        <div class="stat-card">
+      <!-- Today stats -->
+      <div class="grid-stats" style="margin-bottom: 14px;">
+        <div class="stat-card clickable" onclick="navToOrdersToday()" style="cursor:pointer;">
           <div class="label">Đơn hôm nay</div>
           <div class="value" id="stat-orders-today">0</div>
-          <div class="sub">đơn đặt</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">đơn đặt →</div>
         </div>
         <div class="stat-card">
           <div class="label">Doanh thu hôm nay</div>
           <div class="value" id="stat-revenue-today">¥0</div>
           <div class="sub" id="stat-revenue-month">Tháng này: ¥0</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="navToOrdersPending()" style="cursor:pointer;">
           <div class="label">Chờ xử lý</div>
           <div class="value" style="color: #F59E0B;" id="stat-pending">0</div>
-          <div class="sub">đơn cần xác nhận</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">đơn cần xác nhận →</div>
         </div>
         <div class="stat-card">
           <div class="label">Đã gửi hôm nay</div>
           <div class="value" style="color: #10B981;" id="stat-shipped-today">0</div>
           <div class="sub">đơn đã ship</div>
+        </div>
+      </div>
+
+      <!-- Analytics: trends -->
+      <div style="margin: 14px 0 8px; font-size: 12px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">📈 Thống Kê</div>
+      <div class="grid-stats" style="margin-bottom: 20px;">
+        <div class="stat-card">
+          <div class="label">Đơn 7 ngày</div>
+          <div class="value" id="ana-7d">-</div>
+          <div class="sub">7 ngày gần nhất</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Đơn 30 ngày</div>
+          <div class="value" id="ana-30d">-</div>
+          <div class="sub">30 ngày gần nhất</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Đơn 90 ngày</div>
+          <div class="value" id="ana-90d">-</div>
+          <div class="sub">90 ngày gần nhất</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Tổng khách</div>
+          <div class="value" id="ana-customers">-</div>
+          <div class="sub">khách đã đăng ký</div>
         </div>
       </div>
 
@@ -219,6 +244,8 @@
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
       </div>
+
+      <div id="orders-date-filter-chip" class="hidden" style="margin-bottom: 12px;"></div>
 
       <div class="card" style="margin-bottom: 16px;">
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
@@ -305,21 +332,6 @@
         <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
       </div>
       <div id="messages-pagination" class="pagination"></div>
-    </div>
-
-    <!-- ANALYTICS TAB (placeholder Đợt 3) -->
-    <div id="tab-analytics" class="hidden">
-      <div class="card" style="text-align: center; padding: 40px;">
-        <div style="font-size: 48px; margin-bottom: 12px;">📊</div>
-        <h3 style="margin: 0 0 8px;">Thống Kê Chi Tiết</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 16px;">Tính năng này sẽ có ở Đợt 3: biểu đồ doanh thu, top sản phẩm, top khách hàng, retention.</p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px;">
-          <div class="stat-card"><div class="label">Đơn 7 ngày</div><div class="value" id="ana-7d">-</div></div>
-          <div class="stat-card"><div class="label">Đơn 30 ngày</div><div class="value" id="ana-30d">-</div></div>
-          <div class="stat-card"><div class="label">Đơn 90 ngày</div><div class="value" id="ana-90d">-</div></div>
-          <div class="stat-card"><div class="label">Tổng khách</div><div class="value" id="ana-customers">-</div></div>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -428,6 +440,8 @@ const ORDERS_STATUS_GROUPS = {
   paid: ['confirmed', 'shipped', 'delivered'],
   cancelled: ['cancelled']
 };
+// Quick date filter for orders tab (null | 'today')
+let ordersDateFilter = null;
 let ordersPage = 1;
 let customersFilteredCache = [];
 let customersPage = 1;
@@ -621,14 +635,13 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','messages','analytics'].forEach(t => {
+  ['dashboard','orders','customers','messages'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
   if (name === 'orders' && allOrders.length === 0) loadOrders();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
-  if (name === 'analytics') loadAnalytics();
 }
 
 // ═══════════════════ MESSAGES (Admin side) ═══════════════════
@@ -829,6 +842,7 @@ async function loadDashboard() {
     document.getElementById('stat-pending').textContent = (s.pending_count || 0) + (s.customer_paid_count || 0);
     document.getElementById('stat-shipped-today').textContent = s.shipped_today || 0;
   }
+  loadAnalytics();
 }
 
 function primaryAction(o) {
@@ -873,6 +887,10 @@ function filterOrders() {
   let list = allOrders;
   const group = ORDERS_STATUS_GROUPS[ordersSubTab];
   if (group) list = list.filter(o => group.includes(o.status));
+  if (ordersDateFilter === 'today') {
+    const today = fmtJSTDate(new Date().toISOString());
+    list = list.filter(o => fmtJSTDate(o.created_at) === today);
+  }
   if (q) list = list.filter(o =>
     (o.order_no || '').toLowerCase().includes(q) ||
     (o.customer_name || '').toLowerCase().includes(q) ||
@@ -882,7 +900,47 @@ function filterOrders() {
   ordersFilteredCache = list;
   ordersPage = 1;
   updateSubTabCounts();
+  updateOrdersDateFilterChip();
   renderOrdersTable();
+}
+
+function updateOrdersDateFilterChip() {
+  const chip = document.getElementById('orders-date-filter-chip');
+  if (!chip) return;
+  if (ordersDateFilter === 'today') {
+    chip.innerHTML = `<div style="background:#DBEAFE;border:1px solid #60A5FA;border-radius:10px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;color:#1E40AF;">📅 Đơn hôm nay (${fmtJSTDate(new Date().toISOString())})</span>
+      <button onclick="clearOrdersDateFilter()" class="btn btn-ghost" style="padding:4px 12px;font-size:12px;">✕ Bỏ lọc</button>
+    </div>`;
+    chip.classList.remove('hidden');
+  } else {
+    chip.innerHTML = '';
+    chip.classList.add('hidden');
+  }
+}
+
+function clearOrdersDateFilter() {
+  ordersDateFilter = null;
+  filterOrders();
+}
+
+function navToOrdersToday() {
+  ordersDateFilter = 'today';
+  ordersSubTab = 'all';
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'all'));
+  clearSelection();
+  switchTab('orders');
+  // If allOrders not loaded yet, loadOrders will call filterOrders. Otherwise re-filter now.
+  if (allOrders.length > 0) filterOrders();
+}
+
+function navToOrdersPending() {
+  ordersDateFilter = null;
+  ordersSubTab = 'unpaid';
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'unpaid'));
+  clearSelection();
+  switchTab('orders');
+  if (allOrders.length > 0) filterOrders();
 }
 
 function setOrdersSubTab(tab) {
