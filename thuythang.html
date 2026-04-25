@@ -644,6 +644,14 @@ async function loadAdminMessages() {
     const { data: profiles } = await sb.from('profiles').select('id, display_name, phone').in('id', userIds);
     const profMap = {}; (profiles||[]).forEach(p => profMap[p.id] = p);
 
+    // Fetch customer_email from orders (profiles table has no email column)
+    const { data: orderEmails } = await sb.from('orders').select('user_id, customer_email').in('user_id', userIds);
+    const emailMap = {};
+    (orderEmails || []).forEach(o => {
+      if (o.customer_email && !emailMap[o.user_id]) emailMap[o.user_id] = o.customer_email;
+    });
+    Object.values(profMap).forEach(p => { p.email = emailMap[p.id] || ''; });
+
     messageThreadsCache = threads;
     messageProfilesCache = profMap;
     messagesPage = 1;
@@ -677,7 +685,7 @@ async function renderMessagesPage() {
           <span style="font-size:11px;font-weight:700;color:${isShop?'#1E40AF':'#374151'};">${isShop ? '🏪 Bếp Thuỷ' : '👤 Khách'}</span>
           <span style="font-size:11px;color:#9CA3AF;">${date}</span>
         </div>
-        <p style="font-size:13px;color:#1C1C1E;white-space:pre-wrap;margin:0;">${escapeHtml(m.body)}</p>
+        <p style="font-size:13px;color:#1C1C1E;white-space:pre-wrap;margin:0;">${linkifyOrderNos(m.body)}</p>
       </div>`;
     }).join('');
     const profile = profMap[t.user_id] || {};
@@ -687,7 +695,10 @@ async function renderMessagesPage() {
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
         <div>
           <div style="font-weight:800;font-size:14px;color:#1C1C1E;">📩 ${escapeHtml(t.subject)} ${unreadBadge}</div>
-          <div style="font-size:11px;color:#6B7280;margin-top:2px;">${escapeHtml(profile.display_name || 'Khách')} · ${escapeHtml(profile.phone || '-')}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:2px;">
+            <a href="javascript:void(0)" onclick="openCustomerModal('${t.user_id}')" style="color:#C8102E;text-decoration:underline;font-weight:600;">${escapeHtml(profile.display_name || 'Khách')}</a>
+            · ${escapeHtml(profile.phone || '-')}${profile.email ? ' · ' + escapeHtml(profile.email) : ''}
+          </div>
         </div>
       </div>
       <div style="margin:10px 0;">${items}</div>
@@ -1026,8 +1037,13 @@ async function doShipSubmit() {
 
 // ============ ORDER MODAL ============
 async function openOrderModal(orderNo) {
-  const o = allOrders.find(x => x.order_no === orderNo);
-  if (!o) return;
+  let o = allOrders.find(x => x.order_no === orderNo);
+  if (!o) {
+    const { data } = await sb.from('orders').select('*').eq('order_no', orderNo).maybeSingle();
+    if (!data) { showToast('❌ Không tìm thấy đơn #' + orderNo, 'error'); return; }
+    o = data;
+    allOrders.push(o);
+  }
   document.getElementById('modal-order-no').textContent = '#' + o.order_no;
   const items = Array.isArray(o.items) ? o.items : [];
   const itemsHtml = items.length
@@ -1287,8 +1303,17 @@ function renderCustomersTable() {
 
 // ============ CUSTOMER DETAIL MODAL ============
 async function openCustomerModal(userId, focusMessage = false) {
-  const c = allCustomers.find(x => x.id === userId);
-  if (!c) return;
+  let c = allCustomers.find(x => x.id === userId);
+  if (!c) {
+    const { data: p } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+    if (!p) { showToast('❌ Không tìm thấy khách hàng', 'error'); return; }
+    c = {
+      id: p.id, name: p.display_name || '', phone: p.phone || '', email: '',
+      prefecture: p.prefecture || '', orderCount: 0, totalSpent: 0,
+      lastOrder: null, points: 0, unread: 0
+    };
+    allCustomers.push(c);
+  }
 
   document.getElementById('customer-modal-name').textContent = c.name || 'Khách';
   const tag = c.orderCount >= 10 ? '<span class="badge badge-delivered">👑 VIP</span>'
@@ -1313,6 +1338,17 @@ async function openCustomerModal(userId, focusMessage = false) {
   allOrders.forEach(o => { map[o.order_no] = o; });
   orders.forEach(o => { map[o.order_no] = o; });
   allOrders = Object.values(map);
+
+  // Refresh stats from fresh data (so cache-miss fallback still shows correct numbers)
+  const validOrders = orders.filter(o => o.status !== 'cancelled');
+  c.orderCount = validOrders.length;
+  c.totalSpent = validOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+  c.lastOrder = validOrders[0]?.created_at || c.lastOrder;
+  c.unread = threads.filter(t => t.unread_by_shop).length;
+  if (!c.email) {
+    const oe = orders.find(o => o.customer_email);
+    if (oe) c.email = oe.customer_email;
+  }
 
   const statsHtml = `<div class="grid-stats" style="margin-bottom: 14px;">
     <div class="stat-card"><div class="label">Tổng đơn</div><div class="value">${c.orderCount}</div></div>
@@ -1430,6 +1466,12 @@ async function loadAnalytics() {
 
 // ============ UTILS ============
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function linkifyOrderNos(text) {
+  // Escape first, then replace TJxxxx patterns with clickable links
+  return escapeHtml(text).replace(/#?(TJ\d{4,})/g, (match, orderNo) =>
+    `<a href="javascript:void(0)" onclick="openOrderModal('${orderNo}')" style="color:#C8102E;font-weight:700;text-decoration:underline;">#${orderNo}</a>`);
+}
 
 function showToast(msg, type = 'default') {
   const t = document.getElementById('toast');
