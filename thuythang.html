@@ -278,10 +278,11 @@
               <th style="text-align:right;">Tổng Chi</th>
               <th>Đơn Gần Nhất</th>
               <th>Điểm</th>
+              <th>Thao Tác</th>
             </tr>
           </thead>
           <tbody id="customers-tbody">
-            <tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Đang tải...</td></tr>
+            <tr><td colspan="7" style="text-align: center; padding: 40px; color: #9CA3AF;">Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
@@ -374,6 +375,21 @@
       <button onclick="closeShipModal()" class="btn btn-ghost">Hủy</button>
       <button onclick="doShipSubmit()" class="btn btn-primary" id="ship-submit-btn">🚚 Xác Nhận Đã Gửi</button>
     </div>
+  </div>
+</div>
+
+<!-- CUSTOMER DETAIL MODAL -->
+<div id="customer-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeCustomerModal()">
+  <div class="modal" style="max-width: 720px;">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+      <div>
+        <div style="font-size: 12px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Khách Hàng</div>
+        <h3 id="customer-modal-name" style="margin: 4px 0; font-size: 22px; color: #1C1C1E;">-</h3>
+        <div id="customer-modal-tag"></div>
+      </div>
+      <button onclick="closeCustomerModal()" class="btn btn-ghost" style="padding: 6px 10px;">✕</button>
+    </div>
+    <div id="customer-modal-content">-</div>
   </div>
 </div>
 
@@ -1170,19 +1186,23 @@ async function doCancelOrder(orderNo) {
 // ============ CUSTOMERS TAB ============
 async function loadCustomers() {
   const tbody = document.getElementById('customers-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">Đang tải...</td></tr>';
 
-  const [profilesRes, ordersRes, pointsRes] = await Promise.allSettled([
+  const [profilesRes, ordersRes, pointsRes, threadsRes] = await Promise.allSettled([
     sb.from('profiles').select('*'),
-    sb.from('orders').select('user_id, total, created_at, status'),
-    sb.from('points_balance').select('user_id, total_points')
+    sb.from('orders').select('user_id, total, created_at, status, customer_email'),
+    sb.from('points_balance').select('user_id, total_points'),
+    sb.from('message_threads').select('user_id, unread_by_shop')
   ]);
 
   const profiles = profilesRes.status === 'fulfilled' ? (profilesRes.value.data || []) : [];
   const orders   = ordersRes.status === 'fulfilled' ? (ordersRes.value.data || []) : [];
   const points   = pointsRes.status === 'fulfilled' ? (pointsRes.value.data || []) : [];
+  const threads  = threadsRes.status === 'fulfilled' ? (threadsRes.value.data || []) : [];
 
   const pointsMap = {}; points.forEach(p => { pointsMap[p.user_id] = p.total_points; });
+  const unreadMap = {};
+  threads.forEach(t => { if (t.unread_by_shop) unreadMap[t.user_id] = (unreadMap[t.user_id] || 0) + 1; });
 
   const customerMap = {};
   profiles.forEach(p => {
@@ -1190,17 +1210,20 @@ async function loadCustomers() {
       id: p.id,
       name: p.display_name || '',
       phone: p.phone || '',
+      email: '',
       prefecture: p.prefecture || '',
       orderCount: 0,
       totalSpent: 0,
       lastOrder: null,
-      points: pointsMap[p.id] || 0
+      points: pointsMap[p.id] || 0,
+      unread: unreadMap[p.id] || 0
     };
   });
   orders.forEach(o => {
-    if (o.status === 'cancelled') return;
     const c = customerMap[o.user_id];
     if (!c) return;
+    if (o.customer_email && !c.email) c.email = o.customer_email;
+    if (o.status === 'cancelled') return;
     c.orderCount += 1;
     c.totalSpent += Number(o.total) || 0;
     if (!c.lastOrder || new Date(o.created_at) > new Date(c.lastOrder)) c.lastOrder = o.created_at;
@@ -1225,7 +1248,7 @@ function renderCustomersTable() {
   const tbody = document.getElementById('customers-tbody');
   const customers = customersFilteredCache;
   if (customers.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có khách hàng</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có khách hàng</td></tr>';
     ['customers-pagination-top','customers-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
     return;
   }
@@ -1236,9 +1259,12 @@ function renderCustomersTable() {
       : c.lastOrder && (Date.now() - new Date(c.lastOrder).getTime()) > 30*86400000
         ? '<span class="badge badge-pending">😴 Không QL</span>' : '';
     const lastOrder = c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('ja-JP') : '-';
+    const bell = c.unread > 0
+      ? `<span title="${c.unread} tin nhắn chưa đọc" style="display:inline-flex;align-items:center;gap:3px;background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:4px;">🔔 ${c.unread}</span>`
+      : '';
     return `<tr>
       <td>
-        <div style="font-weight: 600;">${escapeHtml(c.name || '-')} ${tag}</div>
+        <div><a href="javascript:void(0)" onclick="openCustomerModal('${c.id}')" style="font-weight:700;color:#C8102E;text-decoration:underline;">${escapeHtml(c.name || '-')}</a> ${tag}${bell}</div>
         <div style="font-size: 11px; color: #9CA3AF;">${escapeHtml(c.prefecture || '')}</div>
       </td>
       <td style="font-size: 12px;">${escapeHtml(c.phone || '-')}</td>
@@ -1246,6 +1272,7 @@ function renderCustomersTable() {
       <td style="text-align: right; font-weight: 700; color: #C8102E;">¥${Number(c.totalSpent).toLocaleString()}</td>
       <td style="font-size: 12px;">${lastOrder}</td>
       <td style="text-align: center; font-weight: 700; color: #10B981;">${Number(c.points).toLocaleString()}</td>
+      <td><button onclick="openCustomerModal('${c.id}', true)" class="btn btn-ghost" style="padding:5px 8px;font-size:11px;">💬 Nhắn tin</button></td>
     </tr>`;
   }).join('');
   renderPagination(['customers-pagination-top', 'customers-pagination'], customersPage, customers.length, PAGE_SIZE, (p) => {
@@ -1253,6 +1280,130 @@ function renderCustomersTable() {
     renderCustomersTable();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+}
+
+// ============ CUSTOMER DETAIL MODAL ============
+async function openCustomerModal(userId, focusMessage = false) {
+  const c = allCustomers.find(x => x.id === userId);
+  if (!c) return;
+
+  document.getElementById('customer-modal-name').textContent = c.name || 'Khách';
+  const tag = c.orderCount >= 10 ? '<span class="badge badge-delivered">👑 VIP</span>'
+    : c.orderCount >= 3 ? '<span class="badge badge-confirmed">⭐ Thân thiết</span>'
+    : c.lastOrder && (Date.now() - new Date(c.lastOrder).getTime()) > 30*86400000
+      ? '<span class="badge badge-pending">😴 Không QL</span>'
+      : '<span class="badge badge-paid">🆕 Khách mới</span>';
+  document.getElementById('customer-modal-tag').innerHTML = tag;
+
+  document.getElementById('customer-modal-content').innerHTML = '<p style="text-align:center;padding:30px;color:#9CA3AF;">Đang tải...</p>';
+  document.getElementById('customer-modal').classList.remove('hidden');
+
+  const [ordersRes, threadsRes] = await Promise.all([
+    sb.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    sb.from('message_threads').select('*').eq('user_id', userId).order('last_message_at', { ascending: false })
+  ]);
+  const orders = ordersRes.data || [];
+  const threads = threadsRes.data || [];
+
+  // Cache orders for openOrderModal lookup
+  const map = {};
+  allOrders.forEach(o => { map[o.order_no] = o; });
+  orders.forEach(o => { map[o.order_no] = o; });
+  allOrders = Object.values(map);
+
+  const statsHtml = `<div class="grid-stats" style="margin-bottom: 14px;">
+    <div class="stat-card"><div class="label">Tổng đơn</div><div class="value">${c.orderCount}</div></div>
+    <div class="stat-card"><div class="label">Tổng chi</div><div class="value" style="color:#C8102E;font-size:20px;">¥${Number(c.totalSpent).toLocaleString()}</div></div>
+    <div class="stat-card"><div class="label">Điểm</div><div class="value" style="color:#10B981;">${Number(c.points).toLocaleString()}</div></div>
+    <div class="stat-card"><div class="label">Đơn gần nhất</div><div class="value" style="font-size:14px;">${c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('ja-JP') : '-'}</div></div>
+  </div>`;
+
+  const contactHtml = `<div class="card" style="margin-bottom: 12px;">
+    <h4 style="margin: 0 0 8px; font-size: 14px;">👤 Liên hệ</h4>
+    <div style="font-size: 13px; line-height: 1.8;">
+      <div>📞 ${escapeHtml(c.phone || '-')}</div>
+      ${c.email ? `<div>✉️ ${escapeHtml(c.email)}</div>` : ''}
+      ${c.prefecture ? `<div>📍 ${escapeHtml(c.prefecture)}</div>` : ''}
+    </div>
+  </div>`;
+
+  let messagesHtml = `<div class="card" style="margin-bottom: 12px; ${c.unread > 0 ? 'background: #FEF2F2; border-color: #FCA5A5;' : ''}">
+    <h4 style="margin: 0 0 10px; font-size: 14px;">💬 Nhắn tin ${c.unread > 0 ? `<span style="background:#EF4444;color:white;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:6px;">🔔 ${c.unread} chưa đọc</span>` : ''}</h4>`;
+  if (threads.length > 0) {
+    const latest = threads[0];
+    const when = new Date(latest.last_message_at || latest.created_at).toLocaleDateString('ja-JP');
+    messagesHtml += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Có <strong>${threads.length}</strong> chủ đề · Gần nhất: ${escapeHtml(latest.subject || '-')} (${when})</div>
+      <button onclick="closeCustomerModal(); switchTab('messages');" class="btn btn-ghost" style="margin-bottom:8px;padding:6px 12px;font-size:12px;">📋 Xem đầy đủ ở tab Tin Nhắn</button>`;
+  } else {
+    messagesHtml += '<p style="font-size:12px;color:#9CA3AF;margin:0 0 8px;">Khách chưa có tin nhắn nào.</p>';
+  }
+  messagesHtml += `<div style="display:flex;gap:6px;margin-top:8px;">
+    <input type="text" id="cust-msg-input" placeholder="Nhắn tin cho khách..." class="input" style="flex:1;font-size:13px;padding:8px 10px;" onkeydown="if(event.key==='Enter')sendMessageToCustomer('${userId}')">
+    <button onclick="sendMessageToCustomer('${userId}')" class="btn btn-primary" style="padding:8px 14px;font-size:12px;">📤 Gửi</button>
+  </div></div>`;
+
+  let ordersHtml = `<div class="card">
+    <h4 style="margin: 0 0 10px; font-size: 14px;">📦 Lịch sử đơn hàng (${orders.length})</h4>`;
+  if (orders.length === 0) {
+    ordersHtml += '<p style="font-size:12px;color:#9CA3AF;margin:0;">Chưa có đơn hàng nào.</p>';
+  } else {
+    ordersHtml += orders.map(o => {
+      const date = new Date(o.created_at).toLocaleDateString('ja-JP');
+      return `<div style="padding:10px 0;border-bottom:1px solid #F3F4F6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <a href="javascript:void(0)" onclick="closeCustomerModal();openOrderModal('${o.order_no}');" style="font-weight:800;color:#C8102E;">#${o.order_no}</a>
+          <div style="font-size:11px;color:#6B7280;">${date}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;font-size:13px;">¥${Number(o.total).toLocaleString()}</div>
+          ${statusBadge(o.status)}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  ordersHtml += '</div>';
+
+  document.getElementById('customer-modal-content').innerHTML = statsHtml + contactHtml + messagesHtml + ordersHtml;
+
+  if (focusMessage) {
+    setTimeout(() => {
+      const inp = document.getElementById('cust-msg-input');
+      if (inp) inp.focus();
+    }, 100);
+  }
+}
+
+function closeCustomerModal() {
+  document.getElementById('customer-modal').classList.add('hidden');
+}
+
+async function sendMessageToCustomer(userId) {
+  const inp = document.getElementById('cust-msg-input');
+  const body = (inp?.value || '').trim();
+  if (!body) return;
+  try {
+    const { data: threads } = await sb.from('message_threads')
+      .select('id').eq('user_id', userId).order('last_message_at', { ascending: false }).limit(1);
+    let threadId;
+    if (threads && threads.length > 0) {
+      threadId = threads[0].id;
+    } else {
+      const { data: newThread, error } = await sb.from('message_threads')
+        .insert({ user_id: userId, subject: 'Liên hệ từ shop' })
+        .select('id').single();
+      if (error) throw error;
+      threadId = newThread.id;
+    }
+    const { error: msgErr } = await sb.from('messages')
+      .insert({ thread_id: threadId, sender: 'shop', body: body });
+    if (msgErr) throw msgErr;
+    await sb.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
+    inp.value = '';
+    showToast('✅ Đã gửi tin nhắn', 'success');
+    openCustomerModal(userId);
+  } catch(e) {
+    showToast('❌ Lỗi: ' + (e.message || e), 'error');
+  }
 }
 
 // ============ ANALYTICS (placeholder for Đợt 3) ============
