@@ -240,6 +240,7 @@
         </div>
       </div>
 
+      <div id="orders-pagination-top" class="pagination" style="margin-top: 0; margin-bottom: 10px;"></div>
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
@@ -266,6 +267,7 @@
       <div class="card" style="margin-bottom: 16px;">
         <input id="customers-search" type="text" placeholder="🔍 Tìm theo tên, email, SDT..." class="input" oninput="filterCustomers()">
       </div>
+      <div id="customers-pagination-top" class="pagination" style="margin-top: 0; margin-bottom: 10px;"></div>
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
@@ -292,6 +294,7 @@
         <h3 style="margin:0 0 8px;font-size:16px;font-weight:800;">💬 Tin Nhắn Khách Hàng</h3>
         <p style="font-size:12px;color:#6B7280;margin:0;">Trả lời tin nhắn của khách trực tiếp tại đây.</p>
       </div>
+      <div id="messages-pagination-top" class="pagination" style="margin-top: 0; margin-bottom: 10px;"></div>
       <div id="msg-threads-list" class="card">
         <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
       </div>
@@ -416,46 +419,53 @@ function paginate(arr, page, size) {
   return arr.slice(start, start + size);
 }
 
-function renderPagination(containerId, currentPage, totalItems, pageSize, onChange) {
-  const c = document.getElementById(containerId);
-  if (!c) return;
-  if (totalItems === 0) { c.innerHTML = ''; return; }
+function renderPagination(containerIds, currentPage, totalItems, pageSize, onChange) {
+  const ids = Array.isArray(containerIds) ? containerIds : [containerIds];
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const from = (currentPage - 1) * pageSize + 1;
   const to = Math.min(currentPage * pageSize, totalItems);
-  if (totalPages === 1) {
-    c.innerHTML = `<span class="page-info">Hiển thị ${totalItems} mục</span>`;
-    return;
+
+  let html = '';
+  if (totalItems === 0) {
+    html = '';
+  } else if (totalPages === 1) {
+    html = `<span class="page-info">Hiển thị ${totalItems} mục</span>`;
+  } else {
+    // Build smart page list: 1 ... [current-2..current+2] ... last
+    const pages = [];
+    pages.push(1);
+    const start = Math.max(2, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+    if (start > 2) pages.push('…');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push('…');
+    if (totalPages > 1) pages.push(totalPages);
+
+    html =
+      `<span class="page-info">Hiển thị ${from}-${to} / ${totalItems}</span>` +
+      `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="prev">‹ Trước</button>` +
+      pages.map(p => p === '…'
+        ? `<span class="page-ellipsis">…</span>`
+        : `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`
+      ).join('') +
+      `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="next">Sau ›</button>`;
   }
-  // Build smart page list: 1 ... [current-2..current+2] ... last
-  const pages = [];
-  pages.push(1);
-  const start = Math.max(2, currentPage - 2);
-  const end = Math.min(totalPages - 1, currentPage + 2);
-  if (start > 2) pages.push('…');
-  for (let i = start; i <= end; i++) pages.push(i);
-  if (end < totalPages - 1) pages.push('…');
-  if (totalPages > 1) pages.push(totalPages);
 
-  c.innerHTML =
-    `<span class="page-info">Hiển thị ${from}-${to} / ${totalItems}</span>` +
-    `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="prev">‹ Trước</button>` +
-    pages.map(p => p === '…'
-      ? `<span class="page-ellipsis">…</span>`
-      : `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`
-    ).join('') +
-    `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="next">Sau ›</button>`;
-
-  c.querySelectorAll('.page-btn').forEach(btn => {
-    btn.onclick = () => {
-      if (btn.disabled) return;
-      const p = btn.dataset.page;
-      let newPage = currentPage;
-      if (p === 'prev') newPage = Math.max(1, currentPage - 1);
-      else if (p === 'next') newPage = Math.min(totalPages, currentPage + 1);
-      else newPage = parseInt(p, 10);
-      if (newPage !== currentPage) onChange(newPage);
-    };
+  ids.forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    c.innerHTML = html;
+    c.querySelectorAll('.page-btn').forEach(btn => {
+      btn.onclick = () => {
+        if (btn.disabled) return;
+        const p = btn.dataset.page;
+        let newPage = currentPage;
+        if (p === 'prev') newPage = Math.max(1, currentPage - 1);
+        else if (p === 'next') newPage = Math.min(totalPages, currentPage + 1);
+        else newPage = parseInt(p, 10);
+        if (newPage !== currentPage) onChange(newPage);
+      };
+    });
   });
 }
 
@@ -602,14 +612,13 @@ function switchTab(name) {
 // ═══════════════════ MESSAGES (Admin side) ═══════════════════
 async function loadAdminMessages() {
   const box = document.getElementById('msg-threads-list');
-  const pagBox = document.getElementById('messages-pagination');
   box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:20px;">Đang tải...</p>';
   try {
     const { data: threads, error } = await sb.from('message_threads').select('*').order('last_message_at', { ascending: false });
     if (error) throw error;
     if (!threads || threads.length === 0) {
       box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:40px;">Chưa có tin nhắn nào</p>';
-      if (pagBox) pagBox.innerHTML = '';
+      ['messages-pagination-top','messages-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
       updateMsgBadge(0);
       return;
     }
@@ -675,7 +684,7 @@ async function renderMessagesPage() {
 
   box.innerHTML = html.join('');
 
-  renderPagination('messages-pagination', messagesPage, threads.length, PAGE_SIZE, (p) => {
+  renderPagination(['messages-pagination-top', 'messages-pagination'], messagesPage, threads.length, PAGE_SIZE, (p) => {
     messagesPage = p;
     renderMessagesPage();
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -803,10 +812,9 @@ function updateSubTabCounts() {
 function renderOrdersTable() {
   const tbody = document.getElementById('orders-tbody');
   const orders = ordersFilteredCache;
-  const pagBox = document.getElementById('orders-pagination');
   if (orders.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có đơn nào phù hợp</td></tr>';
-    if (pagBox) pagBox.innerHTML = '';
+    ['orders-pagination-top','orders-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
     syncHeaderCheckbox();
     return;
   }
@@ -831,7 +839,7 @@ function renderOrdersTable() {
       </td>
     </tr>`;
   }).join('');
-  renderPagination('orders-pagination', ordersPage, orders.length, PAGE_SIZE, (p) => {
+  renderPagination(['orders-pagination-top', 'orders-pagination'], ordersPage, orders.length, PAGE_SIZE, (p) => {
     ordersPage = p;
     renderOrdersTable();
     document.querySelector('#tab-orders .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1216,10 +1224,9 @@ function filterCustomers() {
 function renderCustomersTable() {
   const tbody = document.getElementById('customers-tbody');
   const customers = customersFilteredCache;
-  const pagBox = document.getElementById('customers-pagination');
   if (customers.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #9CA3AF;">Không có khách hàng</td></tr>';
-    if (pagBox) pagBox.innerHTML = '';
+    ['customers-pagination-top','customers-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
     return;
   }
   const slice = paginate(customers, customersPage, PAGE_SIZE);
@@ -1241,7 +1248,7 @@ function renderCustomersTable() {
       <td style="text-align: center; font-weight: 700; color: #10B981;">${Number(c.points).toLocaleString()}</td>
     </tr>`;
   }).join('');
-  renderPagination('customers-pagination', customersPage, customers.length, PAGE_SIZE, (p) => {
+  renderPagination(['customers-pagination-top', 'customers-pagination'], customersPage, customers.length, PAGE_SIZE, (p) => {
     customersPage = p;
     renderCustomersTable();
     document.querySelector('#tab-customers .tbl-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
