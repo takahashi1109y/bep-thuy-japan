@@ -203,26 +203,99 @@
 
       <!-- Analytics: trends -->
       <div style="margin: 14px 0 8px; font-size: 12px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">📈 Thống Kê</div>
-      <div class="grid-stats" style="margin-bottom: 20px;">
-        <div class="stat-card">
+      <div class="grid-stats" style="margin-bottom: 16px;">
+        <div class="stat-card clickable" onclick="navToOrdersDate('last7')" style="cursor:pointer;">
           <div class="label">Đơn 7 ngày</div>
           <div class="value" id="ana-7d">-</div>
-          <div class="sub">7 ngày gần nhất</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">7 ngày gần nhất →</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="navToOrdersDate('last30')" style="cursor:pointer;">
           <div class="label">Đơn 30 ngày</div>
           <div class="value" id="ana-30d">-</div>
-          <div class="sub">30 ngày gần nhất</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">30 ngày gần nhất →</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="navToOrdersDate('last90')" style="cursor:pointer;">
           <div class="label">Đơn 90 ngày</div>
           <div class="value" id="ana-90d">-</div>
-          <div class="sub">90 ngày gần nhất</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">90 ngày gần nhất →</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="switchTab('customers')" style="cursor:pointer;">
           <div class="label">Tổng khách</div>
           <div class="value" id="ana-customers">-</div>
-          <div class="sub">khách đã đăng ký</div>
+          <div class="sub" style="color:#C8102E;text-decoration:underline;">khách đã đăng ký →</div>
+        </div>
+      </div>
+
+      <!-- Detailed stats report -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h3 style="margin:0;font-size:16px;">📊 Báo cáo chi tiết</h3>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <label style="font-size:12px;color:#6B7280;">Tỷ suất lợi nhuận:</label>
+            <input id="profit-margin-input" type="number" min="0" max="100" step="1" style="width:58px;padding:4px 8px;border:1px solid #E5E7EB;border-radius:6px;font-size:13px;text-align:right;">
+            <span style="font-size:13px;">%</span>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="margin-bottom:14px;">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Chỉ số</th>
+                <th style="text-align:right;">30 ngày</th>
+                <th style="text-align:right;">6 tháng</th>
+                <th style="text-align:right;">12 tháng</th>
+                <th style="text-align:right;">Từ đầu</th>
+              </tr>
+            </thead>
+            <tbody id="stats-summary-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <label style="font-size:13px;font-weight:600;">Xem theo:</label>
+          <select id="stats-year-select" class="select" style="width:auto;min-width:110px;" onchange="renderSelectedPeriod()"></select>
+          <select id="stats-month-select" class="select" style="width:auto;min-width:120px;" onchange="renderSelectedPeriod()"></select>
+          <button onclick="clearStatsPeriod()" class="btn btn-ghost" style="padding:6px 10px;font-size:12px;">✕ Bỏ chọn</button>
+        </div>
+        <div id="stats-period-result" class="hidden" style="margin-bottom:14px;"></div>
+
+        <h4 style="margin:16px 0 8px;font-size:14px;">So sánh các tháng trong năm <span id="stats-monthly-year">-</span></h4>
+        <div class="tbl-wrap" style="margin-bottom:14px;">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Tháng</th>
+                <th style="text-align:right;">Số đơn</th>
+                <th style="text-align:right;">Doanh thu</th>
+                <th style="text-align:right;">Phí ship</th>
+                <th style="text-align:right;">Lợi nhuận ước</th>
+              </tr>
+            </thead>
+            <tbody id="stats-monthly-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4 style="margin:16px 0 8px;font-size:14px;">So sánh theo năm</h4>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Năm</th>
+                <th style="text-align:right;">Số đơn</th>
+                <th style="text-align:right;">Doanh thu</th>
+                <th style="text-align:right;">Phí ship</th>
+                <th style="text-align:right;">Lợi nhuận ước</th>
+              </tr>
+            </thead>
+            <tbody id="stats-yearly-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -843,6 +916,7 @@ async function loadDashboard() {
     document.getElementById('stat-shipped-today').textContent = s.shipped_today || 0;
   }
   loadAnalytics();
+  loadStats();
 }
 
 function primaryAction(o) {
@@ -890,6 +964,12 @@ function filterOrders() {
   if (ordersDateFilter === 'today') {
     const today = fmtJSTDate(new Date().toISOString());
     list = list.filter(o => fmtJSTDate(o.created_at) === today);
+  } else if (ordersDateFilter && ordersDateFilter.startsWith('last')) {
+    const days = parseInt(ordersDateFilter.slice(4));
+    if (days > 0) {
+      const cutoff = Date.now() - days * 86400000;
+      list = list.filter(o => new Date(o.created_at).getTime() >= cutoff);
+    }
   }
   if (q) list = list.filter(o =>
     (o.order_no || '').toLowerCase().includes(q) ||
@@ -907,9 +987,15 @@ function filterOrders() {
 function updateOrdersDateFilterChip() {
   const chip = document.getElementById('orders-date-filter-chip');
   if (!chip) return;
-  if (ordersDateFilter === 'today') {
+  let label = '';
+  if (ordersDateFilter === 'today') label = `📅 Đơn hôm nay (${fmtJSTDate(new Date().toISOString())})`;
+  else if (ordersDateFilter && ordersDateFilter.startsWith('last')) {
+    const days = parseInt(ordersDateFilter.slice(4));
+    if (days > 0) label = `📅 ${days} ngày gần nhất`;
+  }
+  if (label) {
     chip.innerHTML = `<div style="background:#DBEAFE;border:1px solid #60A5FA;border-radius:10px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:13px;font-weight:600;color:#1E40AF;">📅 Đơn hôm nay (${fmtJSTDate(new Date().toISOString())})</span>
+      <span style="font-size:13px;font-weight:600;color:#1E40AF;">${label}</span>
       <button onclick="clearOrdersDateFilter()" class="btn btn-ghost" style="padding:4px 12px;font-size:12px;">✕ Bỏ lọc</button>
     </div>`;
     chip.classList.remove('hidden');
@@ -925,12 +1011,15 @@ function clearOrdersDateFilter() {
 }
 
 function navToOrdersToday() {
-  ordersDateFilter = 'today';
+  navToOrdersDate('today');
+}
+
+function navToOrdersDate(filter) {
+  ordersDateFilter = filter;
   ordersSubTab = 'all';
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'all'));
   clearSelection();
   switchTab('orders');
-  // If allOrders not loaded yet, loadOrders will call filterOrders. Otherwise re-filter now.
   if (allOrders.length > 0) filterOrders();
 }
 
@@ -1579,7 +1668,201 @@ async function sendMessageToCustomer(userId) {
   }
 }
 
-// ============ ANALYTICS (placeholder for Đợt 3) ============
+// ============ DETAILED STATS REPORT ============
+let statsOrders = [];
+
+async function loadStats() {
+  const { data } = await sb.from('orders')
+    .select('total, shipping_fee, status, created_at')
+    .neq('status', 'cancelled');
+  statsOrders = data || [];
+  initProfitMarginInput();
+  renderAllStats();
+}
+
+function getProfitMarginRatio() {
+  const v = parseFloat(localStorage.getItem('profit_margin') || '30');
+  return isNaN(v) ? 0.3 : v / 100;
+}
+
+function computeAgg(filterFn) {
+  const filtered = statsOrders.filter(filterFn);
+  const revenue = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
+  const shipping = filtered.reduce((s, o) => s + Number(o.shipping_fee || 0), 0);
+  const subtotal = revenue - shipping;
+  const profit = subtotal * getProfitMarginRatio();
+  return { count: filtered.length, revenue, shipping, subtotal, profit };
+}
+
+function fmtY(n) { return '¥' + Math.round(Number(n) || 0).toLocaleString(); }
+
+function renderAllStats() {
+  renderStatsSummary();
+  populateStatsSelectors();
+  const yearVal = parseInt(document.getElementById('stats-year-select').value);
+  renderMonthlyComparison(yearVal || new Date().getFullYear());
+  renderYearlyComparison();
+  renderSelectedPeriod();
+}
+
+function renderStatsSummary() {
+  const tbody = document.getElementById('stats-summary-tbody');
+  if (!tbody) return;
+  const now = Date.now();
+  const periods = {
+    d30: o => new Date(o.created_at).getTime() >= now - 30 * 86400000,
+    m6:  o => new Date(o.created_at).getTime() >= now - 180 * 86400000,
+    m12: o => new Date(o.created_at).getTime() >= now - 365 * 86400000,
+    all: () => true
+  };
+  const s = {};
+  Object.entries(periods).forEach(([k, fn]) => s[k] = computeAgg(fn));
+
+  const rows = [
+    ['Số đơn',              s.d30.count, s.m6.count, s.m12.count, s.all.count],
+    ['💰 Doanh thu',        fmtY(s.d30.revenue),  fmtY(s.m6.revenue),  fmtY(s.m12.revenue),  fmtY(s.all.revenue)],
+    ['🚚 Phí ship',         fmtY(s.d30.shipping), fmtY(s.m6.shipping), fmtY(s.m12.shipping), fmtY(s.all.shipping)],
+    ['📦 Doanh thu sản phẩm', fmtY(s.d30.subtotal), fmtY(s.m6.subtotal), fmtY(s.m12.subtotal), fmtY(s.all.subtotal)],
+    ['📈 Lợi nhuận ước',    fmtY(s.d30.profit),   fmtY(s.m6.profit),   fmtY(s.m12.profit),   fmtY(s.all.profit)]
+  ];
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const [label, ...vals] = r;
+    const isProfit = i === 4;
+    const valStyle = isProfit ? 'font-weight:800;color:#10B981;' : 'font-weight:700;';
+    return `<tr><td style="font-weight:600;">${label}</td>` +
+      vals.map(v => `<td style="text-align:right;${valStyle}">${v}</td>`).join('') + '</tr>';
+  }).join('');
+}
+
+function getAllYears() {
+  const years = new Set();
+  statsOrders.forEach(o => {
+    const d = new Date(o.created_at);
+    years.add(d.getFullYear());
+  });
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+function populateStatsSelectors() {
+  const yearSel = document.getElementById('stats-year-select');
+  const monthSel = document.getElementById('stats-month-select');
+  if (!yearSel || !monthSel) return;
+  const prevYear = yearSel.value;
+  const prevMonth = monthSel.value;
+  const years = getAllYears();
+  yearSel.innerHTML = '<option value="">-- Năm --</option>' + years.map(y => `<option value="${y}">Năm ${y}</option>`).join('');
+  monthSel.innerHTML = '<option value="">-- Tháng --</option>' + Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Tháng ${i + 1}</option>`).join('');
+  if (prevYear) yearSel.value = prevYear;
+  if (prevMonth) monthSel.value = prevMonth;
+}
+
+function renderMonthlyComparison(year) {
+  const tbody = document.getElementById('stats-monthly-tbody');
+  const yearLabel = document.getElementById('stats-monthly-year');
+  if (!tbody || !yearLabel) return;
+  yearLabel.textContent = year;
+  const rows = [];
+  for (let m = 1; m <= 12; m++) {
+    const agg = computeAgg(o => {
+      const d = new Date(o.created_at);
+      return d.getFullYear() === year && (d.getMonth() + 1) === m;
+    });
+    if (agg.count > 0) {
+      rows.push(`<tr>
+        <td style="font-weight:600;">Tháng ${m}/${year}</td>
+        <td style="text-align:right;">${agg.count}</td>
+        <td style="text-align:right;">${fmtY(agg.revenue)}</td>
+        <td style="text-align:right;">${fmtY(agg.shipping)}</td>
+        <td style="text-align:right;font-weight:700;color:#10B981;">${fmtY(agg.profit)}</td>
+      </tr>`);
+    }
+  }
+  tbody.innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">Không có dữ liệu cho năm này</td></tr>';
+}
+
+function renderYearlyComparison() {
+  const tbody = document.getElementById('stats-yearly-tbody');
+  if (!tbody) return;
+  const years = getAllYears();
+  const rows = years.map(y => {
+    const agg = computeAgg(o => new Date(o.created_at).getFullYear() === y);
+    return `<tr>
+      <td style="font-weight:600;">Năm ${y}</td>
+      <td style="text-align:right;">${agg.count}</td>
+      <td style="text-align:right;">${fmtY(agg.revenue)}</td>
+      <td style="text-align:right;">${fmtY(agg.shipping)}</td>
+      <td style="text-align:right;font-weight:700;color:#10B981;">${fmtY(agg.profit)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">Chưa có dữ liệu</td></tr>';
+}
+
+function renderSelectedPeriod() {
+  const yearSel = document.getElementById('stats-year-select');
+  const monthSel = document.getElementById('stats-month-select');
+  const resultBox = document.getElementById('stats-period-result');
+  if (!yearSel || !monthSel || !resultBox) return;
+  const year = parseInt(yearSel.value) || null;
+  const month = parseInt(monthSel.value) || null;
+
+  // Update monthly comparison year if year selected
+  if (year) renderMonthlyComparison(year);
+  else renderMonthlyComparison(new Date().getFullYear());
+
+  if (!year && !month) {
+    resultBox.classList.add('hidden');
+    resultBox.innerHTML = '';
+    return;
+  }
+
+  let filterFn, label;
+  if (year && month) {
+    filterFn = o => { const d = new Date(o.created_at); return d.getFullYear() === year && (d.getMonth() + 1) === month; };
+    label = `Tháng ${month}/${year}`;
+  } else if (year) {
+    filterFn = o => new Date(o.created_at).getFullYear() === year;
+    label = `Năm ${year}`;
+  } else {
+    filterFn = o => (new Date(o.created_at).getMonth() + 1) === month;
+    label = `Tháng ${month} (tất cả các năm)`;
+  }
+  const a = computeAgg(filterFn);
+  resultBox.innerHTML = `<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:14px;">
+    <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;">📌 ${label}</div>
+    <div class="grid-stats" style="grid-template-columns:repeat(2, 1fr);gap:10px;">
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Số đơn</div><div style="font-size:20px;font-weight:800;">${a.count}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Doanh thu</div><div style="font-size:20px;font-weight:800;color:#C8102E;">${fmtY(a.revenue)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Phí ship</div><div style="font-size:20px;font-weight:800;">${fmtY(a.shipping)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Lợi nhuận ước</div><div style="font-size:20px;font-weight:800;color:#10B981;">${fmtY(a.profit)}</div></div>
+    </div>
+  </div>`;
+  resultBox.classList.remove('hidden');
+}
+
+function clearStatsPeriod() {
+  document.getElementById('stats-year-select').value = '';
+  document.getElementById('stats-month-select').value = '';
+  renderSelectedPeriod();
+}
+
+function initProfitMarginInput() {
+  const inp = document.getElementById('profit-margin-input');
+  if (!inp || inp.dataset.bound) return;
+  inp.value = parseInt(localStorage.getItem('profit_margin') || '30');
+  inp.addEventListener('input', () => {
+    const v = Math.max(0, Math.min(100, parseInt(inp.value) || 0));
+    localStorage.setItem('profit_margin', String(v));
+    renderAllStats();
+  });
+  inp.dataset.bound = '1';
+}
+
+// ============ ANALYTICS (legacy small stat cards) ============
 async function loadAnalytics() {
   const now = Date.now();
   const d7  = new Date(now - 7 * 86400000).toISOString();
