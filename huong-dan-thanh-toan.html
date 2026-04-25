@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hướng Dẫn Thanh Toán & Gửi Biên Lai · Bếp Thuỷ Japan</title>
+<meta name="description" content="Hướng dẫn từng bước thanh toán đơn hàng (PayPay / Chuyển khoản) và gửi biên lai chuyển tiền cho Bếp Thuỷ Japan xác nhận.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'brand-red': '#C8102E',
+          'brand-red-dark': '#8B0A1F',
+          'brand-dark': '#2C1A0E',
+          'brand-warm': '#5A3A24',
+          'brand-cream': '#FFF8F0',
+          'brand-gold': '#D4A017',
+          'brand-gold-light': '#F4CC54'
+        },
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          serif: ['Playfair Display', 'serif']
+        }
+      }
+    }
+  };
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #FFF8F0; color: #2C1A0E; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+
+  .hero-bg {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212, 160, 23, 0.18), transparent 50%),
+      radial-gradient(circle at 80% 100%, rgba(200, 16, 46, 0.18), transparent 50%),
+      linear-gradient(135deg, #2C1A0E 0%, #4A2C1A 50%, #2C1A0E 100%);
+    position: relative; overflow: hidden;
+  }
+  .hero-bg::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(255,255,255,0.04) 0%, transparent 6%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0%, transparent 6%),
+      radial-gradient(circle at 30% 90%, rgba(255,255,255,0.04) 0%, transparent 6%);
+    pointer-events: none;
+  }
+  .pill-tag {
+    background: linear-gradient(135deg, #D4A017, #F4CC54);
+    color: #2C1A0E; padding: 6px 16px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 2px; display: inline-block;
+  }
+  .step-num {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #C8102E 0%, #8B0A1F 100%);
+    color: white; font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(200, 16, 46, 0.3), inset 0 1px 2px rgba(255,255,255,0.2);
+    position: relative; z-index: 2;
+  }
+  .step-num::before {
+    content: ''; position: absolute; inset: -6px;
+    border: 1px solid rgba(212, 160, 23, 0.4); border-radius: 50%;
+  }
+  .step-card {
+    background: white; border-radius: 24px; padding: 28px 24px;
+    border: 1px solid rgba(212, 160, 23, 0.2);
+    box-shadow: 0 10px 40px rgba(44, 26, 14, 0.06), 0 2px 4px rgba(44, 26, 14, 0.04);
+    position: relative;
+  }
+  .step-card::before {
+    content: ''; position: absolute;
+    top: -1px; left: 24px; right: 24px; height: 2px;
+    background: linear-gradient(90deg, transparent, #D4A017, transparent);
+  }
+  .ornament {
+    text-align: center; color: #D4A017; font-size: 14px;
+    letter-spacing: 8px; margin: 8px 0;
+  }
+  .info-card {
+    background: linear-gradient(180deg, #FFFEFB 0%, #FFF8F0 100%);
+    border: 1px solid rgba(212, 160, 23, 0.18);
+    border-radius: 16px; padding: 16px;
+  }
+  .tip-box {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FFF8F0 100%);
+    border-left: 4px solid #D4A017;
+    border-radius: 12px; padding: 14px 18px;
+  }
+  .warning-box {
+    background: linear-gradient(135deg, #FEE2E2 0%, #FFF5F5 100%);
+    border-left: 4px solid #DC2626;
+    border-radius: 12px; padding: 14px 18px;
+  }
+  .success-box {
+    background: linear-gradient(135deg, #D1FAE5 0%, #ECFDF5 100%);
+    border: 2px solid #34D399;
+    border-radius: 20px; padding: 24px; text-align: center;
+  }
+  .info-blue {
+    background: linear-gradient(135deg, #DBEAFE 0%, #EFF6FF 100%);
+    border-left: 4px solid #2563EB;
+    border-radius: 12px; padding: 14px 18px;
+  }
+  .action-box {
+    background: linear-gradient(135deg, #FFF8F0 0%, #FEF3C7 100%);
+    border: 2px dashed #D4A017;
+    border-radius: 14px; padding: 16px 20px;
+  }
+  .anchor-nav {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(255, 248, 240, 0.92);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(212, 160, 23, 0.2);
+  }
+  .anchor-pill {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; color: #5A3A24;
+    background: white; border: 1px solid #E8DDC8;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .anchor-pill:hover { border-color: #D4A017; }
+  .anchor-pill.active {
+    background: #C8102E; color: white; border-color: #C8102E;
+  }
+  .img-mark { position: relative; display: inline-block; max-width: 100%; }
+  .img-mark img { display: block; width: 100%; height: auto; border-radius: 14px; }
+  .highlight-ellipse {
+    position: absolute;
+    border: 3px solid #F59E0B; border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22), 0 0 18px rgba(245, 158, 11, 0.45);
+    animation: hl-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes hl-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.04); opacity: 1; }
+  }
+  .image-placeholder {
+    background: #F9FAFB; border: 2px dashed #D1D5DB;
+    border-radius: 14px; padding: 36px 20px;
+    text-align: center; color: #9CA3AF; font-size: 13px;
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(135deg, #C8102E 0%, #8B0A1F 100%);
+    color: white; font-weight: 700;
+    padding: 14px 28px; border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(200, 16, 46, 0.3);
+    transition: all 0.2s; text-decoration: none;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(200, 16, 46, 0.4); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: white; color: #C8102E;
+    border: 2px solid #C8102E; font-weight: 700;
+    padding: 12px 26px; border-radius: 999px; text-decoration: none;
+  }
+  .btn-secondary:hover { background: #FEE2E2; }
+  html { scroll-behavior: smooth; }
+  code {
+    font-family: 'SF Mono', Monaco, 'Roboto Mono', monospace;
+    background: #F4ECD8; color: #5A3A24;
+    padding: 2px 8px; border-radius: 6px; font-size: 12px;
+  }
+  .sparkle { position: relative; display: inline-block; }
+  .sparkle::before, .sparkle::after {
+    content: '✦'; position: absolute; color: #D4A017; font-size: 18px;
+    animation: sparkle-fade 3s ease-in-out infinite;
+  }
+  .sparkle::before { top: -10px; left: -18px; animation-delay: 0s; }
+  .sparkle::after { bottom: -10px; right: -18px; animation-delay: 1.5s; }
+  @keyframes sparkle-fade {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+  /* Method tab cards */
+  .pay-method {
+    border-radius: 14px; padding: 18px; color: white;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .pay-method.paypay { background: linear-gradient(135deg, #DC2626, #B91C1C); }
+  .pay-method.bank { background: linear-gradient(135deg, #047857, #10B981); }
+  .pay-method h4 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header class="hero-bg text-white pt-14 pb-20 px-4 relative">
+  <div class="max-w-3xl mx-auto text-center relative z-10">
+    <span class="pill-tag mb-6">💳 SAU KHI ĐẶT HÀNG</span>
+    <h1 class="serif text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mt-5 mb-4">
+      <span class="sparkle">Thanh Toán &amp; Gửi Biên Lai</span><br>
+      <span class="text-yellow-200" style="font-style: italic; font-weight: 400;">Đơn Hàng</span>
+    </h1>
+    <div class="ornament" style="color: #F4CC54;">✦ &nbsp; 💰 &nbsp; ✦</div>
+    <p class="text-yellow-50 text-base md:text-lg mb-8 leading-relaxed max-w-xl mx-auto">
+      Hướng dẫn 5 bước nhỏ để thanh toán bằng <strong>PayPay</strong> hoặc <strong>chuyển khoản</strong>, rồi gửi biên lai cho Bếp Thuỷ xác nhận.<br>
+      <span class="text-sm text-yellow-100/80">Đặc sản Phố Cổ Hà Nội tại Nhật Bản</span>
+    </p>
+    <a href="#step-1" class="btn-primary text-base">Bắt Đầu Ngay <span class="text-lg">→</span></a>
+  </div>
+</header>
+
+<!-- INFO CARD -->
+<section class="max-w-3xl mx-auto px-4 -mt-12 relative z-10 mb-12">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 border border-orange-100" style="box-shadow: 0 20px 60px rgba(44, 26, 14, 0.1);">
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-2">💸</div>
+      <h2 class="serif text-2xl font-bold text-brand-dark">2 cách thanh toán</h2>
+      <div class="ornament">✦ ✦ ✦</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="pay-method paypay">
+        <div class="text-3xl mb-2">💳</div>
+        <h4>PayPay</h4>
+        <p class="text-xs text-red-100">Scan QR · chuyển trong app · nhanh nhất</p>
+      </div>
+      <div class="pay-method bank">
+        <div class="text-3xl mb-2">🏦</div>
+        <h4>Chuyển Khoản NH</h4>
+        <p class="text-xs text-green-100">Japan Post Bank · 振込人名義 đúng format</p>
+      </div>
+    </div>
+    <div class="warning-box mt-5">
+      <p class="text-sm text-gray-800"><strong>⚠️ Quan trọng:</strong> Thanh toán xong <strong>phải gửi biên lai</strong> cho shop xác nhận. Không gửi biên lai = đơn không được xử lý.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ANCHOR NAV -->
+<nav class="anchor-nav py-3 mb-10">
+  <div class="max-w-3xl mx-auto px-4">
+    <div class="flex gap-2 overflow-x-auto pb-1">
+      <a href="#step-1" class="anchor-pill">1. Mở đơn</a>
+      <a href="#step-2" class="anchor-pill">2. Thanh toán</a>
+      <a href="#step-3" class="anchor-pill">3. Chụp ảnh</a>
+      <a href="#step-4" class="anchor-pill">4. Gửi biên lai</a>
+      <a href="#step-5" class="anchor-pill">5. Đợi xác nhận</a>
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-3xl mx-auto px-4 pb-16">
+  <div class="space-y-12">
+
+  <!-- STEP 1 -->
+  <section id="step-1" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">1</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC MỘT</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Mở Đơn Hàng Cần Thanh Toán</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Sau khi đặt hàng xong, đơn của anh/chị sẽ ở trạng thái <strong>"⏳ Chờ thanh toán"</strong>. Vào tài khoản để thanh toán.</p>
+        </div>
+      </div>
+
+      <div class="space-y-4 mb-5">
+        <div class="info-card">
+          <p class="font-bold text-brand-warm mb-2">📱 Trên điện thoại / máy tính:</p>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
+            <li>Mở <code>thuyjapan.com/thanh-vien</code> (hoặc bấm link Bếp Thuỷ gửi qua email).</li>
+            <li>Đăng nhập (nếu chưa).</li>
+            <li>Bấm tab <strong>"📦 Đơn Hàng"</strong>.</li>
+            <li>Tìm đơn có badge vàng <strong>"⏳ Chờ thanh toán"</strong>.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="image-placeholder mb-5">
+        📸 Ảnh minh hoạ: Tab "Đơn Hàng" với đơn ⏳ Chờ thanh toán + nút "💳 Thanh toán"<br>
+        <span class="text-xs">(Anh sẽ chụp ảnh khi review nội dung bước này)</span>
+      </div>
+
+      <div class="action-box">
+        <p class="font-bold text-brand-dark mb-2">👉 Tiếp theo cần làm</p>
+        <p class="text-sm text-gray-700">Trên đơn cần thanh toán, bấm nút <strong class="text-brand-red">"💳 Thanh toán"</strong> (hoặc <strong>"📸 Gửi biên lai"</strong> nếu đã chuyển tiền rồi). Một cửa sổ mới sẽ hiện ra với 2 cách thanh toán.</p>
+      </div>
+
+      <div class="tip-box mt-4">
+        <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
+        <p class="text-sm text-gray-700">Nếu mới đặt hàng xong, anh/chị cũng có thể bấm <strong>"Thanh toán ngay"</strong> ở trang xác nhận đơn — không cần vào lại tài khoản.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="step-2" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">2</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC HAI</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Thanh Toán Bằng PayPay Hoặc Chuyển Khoản</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Cửa sổ thanh toán có 2 tab. Chọn cách phù hợp với anh/chị.</p>
+        </div>
+      </div>
+
+      <!-- PayPay -->
+      <div class="info-card mb-4" style="border-left: 4px solid #DC2626;">
+        <h3 class="serif text-xl font-bold text-brand-dark mb-3 flex items-center gap-2"><span class="text-2xl">💳</span>Cách 1 — PayPay (nhanh nhất)</h3>
+        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-2">
+          <li>Bấm tab <strong>"💳 PayPay"</strong> trên cửa sổ.</li>
+          <li>Mở app <strong>PayPay</strong> trên điện thoại.</li>
+          <li>Bấm icon <strong>📷 Scan</strong> trong app PayPay.</li>
+          <li>Quét mã QR hiện trên màn hình Bếp Thuỷ.</li>
+          <li>Nhập <strong>đúng số tiền</strong> như trên đơn (đã hiện sẵn).</li>
+          <li>Bấm <strong>"Pay"</strong> trong PayPay.</li>
+        </ol>
+        <div class="image-placeholder mt-4">
+          📸 Ảnh minh hoạ: Tab PayPay với QR code + số tiền cần thanh toán<br>
+          <span class="text-xs">(Anh sẽ chụp ảnh khi review)</span>
+        </div>
+      </div>
+
+      <!-- Bank Transfer -->
+      <div class="info-card mb-4" style="border-left: 4px solid #047857;">
+        <h3 class="serif text-xl font-bold text-brand-dark mb-3 flex items-center gap-2"><span class="text-2xl">🏦</span>Cách 2 — Chuyển khoản ngân hàng</h3>
+        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-2">
+          <li>Bấm tab <strong>"🏦 Chuyển khoản"</strong> trên cửa sổ.</li>
+          <li>Copy thông tin tài khoản <strong>Japan Post Bank (ゆうちょ)</strong>:
+            <ul class="list-disc list-inside ml-5 mt-1 space-y-0.5 text-xs">
+              <li>支店名 · 口座番号 · 記号番号 · 名義</li>
+            </ul>
+          </li>
+          <li>Mở app ngân hàng / ATM, chuyển <strong>đúng số tiền</strong> trên đơn.</li>
+          <li class="text-brand-red font-bold">⚠️ Ô <strong>振込人名義</strong> phải gõ đúng format: <code>[Mã đơn] [Tên KH]</code></li>
+        </ol>
+        <div class="warning-box mt-3">
+          <p class="text-sm text-gray-800"><strong>🚨 Cực kỳ quan trọng:</strong> nếu gõ sai 振込人名義, shop không biết là đơn nào → đơn sẽ không được xử lý, anh/chị phải liên hệ support để tra cứu mất nhiều thời gian.</p>
+        </div>
+        <div class="image-placeholder mt-4">
+          📸 Ảnh minh hoạ: Tab Chuyển khoản với 4 dòng thông tin tài khoản + dòng 振込人名義 màu đỏ<br>
+          <span class="text-xs">(Anh sẽ chụp ảnh khi review)</span>
+        </div>
+      </div>
+
+      <div class="info-blue">
+        <p class="font-semibold text-brand-dark mb-1">⏱️ Sau khi chuyển xong:</p>
+        <p class="text-sm text-gray-700">Tiền sẽ <strong>chưa</strong> tự động vào hệ thống của shop. Anh/chị phải tiếp tục <strong>Bước 3 + Bước 4</strong> để gửi biên lai cho shop xác nhận.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="step-3" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">3</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC BA</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Chụp Ảnh Xác Nhận Thanh Toán</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Sau khi chuyển tiền xong, app PayPay/Bank sẽ hiện màn hình xác nhận. Hãy chụp ảnh màn hình này.</p>
+        </div>
+      </div>
+
+      <div class="info-card mb-5">
+        <p class="font-bold text-brand-warm mb-2">📸 Ảnh phải thấy rõ 3 thông tin:</p>
+        <ul class="space-y-1.5 text-sm text-gray-700">
+          <li class="flex items-start gap-2"><span class="text-green-600 font-bold">✓</span><strong>Số tiền</strong> đã chuyển (phải khớp với đơn)</li>
+          <li class="flex items-start gap-2"><span class="text-green-600 font-bold">✓</span><strong>Tên người nhận</strong> (タカハラ ケイイチロウ hoặc Bếp Thuỷ)</li>
+          <li class="flex items-start gap-2"><span class="text-green-600 font-bold">✓</span><strong>Thời gian</strong> giao dịch (ngày + giờ)</li>
+        </ul>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div class="info-card">
+          <p class="font-bold text-brand-dark mb-2">📱 Trên iPhone</p>
+          <p class="text-sm text-gray-700">Bấm đồng thời <strong>Power + Volume Up</strong> để chụp màn hình.</p>
+        </div>
+        <div class="info-card">
+          <p class="font-bold text-brand-dark mb-2">🤖 Trên Android</p>
+          <p class="text-sm text-gray-700">Bấm đồng thời <strong>Power + Volume Down</strong> (hoặc theo hướng dẫn của máy).</p>
+        </div>
+      </div>
+
+      <div class="image-placeholder mb-5">
+        📸 Ảnh minh hoạ: 2 màn hình xác nhận — PayPay (đỏ) + Bank Receipt (xanh)<br>
+        <span class="text-xs">(Anh sẽ chụp ảnh khi review)</span>
+      </div>
+
+      <div class="warning-box">
+        <p class="font-bold text-brand-dark mb-1">⚠️ Đừng dùng ảnh giả mạo</p>
+        <p class="text-sm text-gray-700">Hệ thống Bếp Thuỷ tự động kiểm tra <strong>ảnh trùng lặp</strong> giữa các đơn. Gửi ảnh giả/không phải biên lai thật → tài khoản sẽ bị khoá vĩnh viễn.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section id="step-4" class="step-row scroll-mt-20">
+    <div class="step-card">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num">4</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-brand-red tracking-[3px] mb-1">BƯỚC BỐN</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Gửi Biên Lai Cho Shop</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Quay lại cửa sổ thanh toán, upload ảnh biên lai và gửi cho shop xác nhận.</p>
+        </div>
+      </div>
+
+      <div class="space-y-4 mb-5">
+        <div class="info-card">
+          <p class="font-bold text-brand-warm mb-2">Trên cửa sổ thanh toán:</p>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-2">
+            <li>Bấm nút lớn <strong class="text-blue-700">"📸 Gửi Biên Lai Chuyển Tiền"</strong> (màu xanh dương).</li>
+            <li>Chọn phương thức đã dùng: <strong>PayPay</strong> hoặc <strong>Chuyển khoản NH</strong>.</li>
+            <li>Bấm <strong>"Chọn ảnh"</strong> hoặc <strong>"Choose File"</strong> → chọn ảnh đã chụp ở Bước 3.</li>
+            <li>Ghi chú thêm nếu cần (vd. <code>"Chuyển lúc 14:30"</code>) — tùy chọn.</li>
+            <li>Bấm <strong class="text-green-600">"📤 Gửi Biên Lai"</strong> (màu xanh lá).</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="image-placeholder mb-5">
+        📸 Ảnh minh hoạ: Form upload với chọn phương thức + ảnh preview + nút gửi<br>
+        <span class="text-xs">(Anh sẽ chụp ảnh khi review)</span>
+      </div>
+
+      <div class="warning-box mb-4">
+        <p class="font-bold text-brand-dark mb-2">⚠️ Lỗi thường gặp</p>
+        <ul class="text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
+          <li><strong>"Ảnh quá lớn"</strong> → Tối đa <strong>10MB</strong>. Nếu lớn hơn, dùng app nén ảnh.</li>
+          <li><strong>"Ảnh đã được dùng"</strong> → Mỗi ảnh chỉ dùng 1 lần. Chụp lại ảnh mới.</li>
+          <li><strong>"Quá 3 lần gửi/đơn"</strong> → Không gửi được nữa. Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-red underline">support@thuyjapan.com</a>.</li>
+        </ul>
+      </div>
+
+      <div class="tip-box">
+        <p class="font-bold text-brand-dark mb-1">💡 Mẹo</p>
+        <p class="text-sm text-gray-700">Nếu gửi nhầm ảnh, anh/chị có thể bấm <strong>"📸 Gửi biên lai khác"</strong> trong tài khoản để gửi ảnh đúng (tối đa 3 lần/đơn).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section id="step-5" class="step-row scroll-mt-20">
+    <div class="step-card" style="background: linear-gradient(180deg, #FFFEFB 0%, #ECFDF5 100%);">
+      <div class="flex items-start gap-5 mb-6">
+        <div class="step-num" style="background: linear-gradient(135deg, #10B981, #047857);">5</div>
+        <div class="flex-1">
+          <p class="text-xs font-bold tracking-[3px] mb-1" style="color:#047857;">BƯỚC NĂM · CUỐI CÙNG</p>
+          <h2 class="serif text-3xl font-bold text-brand-dark leading-tight">Đợi Shop Xác Nhận</h2>
+          <p class="text-gray-600 text-sm mt-2 leading-relaxed">Sau khi gửi biên lai, đơn sẽ tự động chuyển trạng thái — anh/chị chỉ cần đợi shop kiểm tra.</p>
+        </div>
+      </div>
+
+      <div class="info-card mb-5" style="border-left: 4px solid #10B981;">
+        <p class="font-bold text-brand-warm mb-3">📊 Trạng thái đơn sẽ thay đổi như sau:</p>
+        <div class="space-y-2.5 text-sm">
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300 text-xs font-bold">⏳ Chờ TT</span>
+            <span class="text-gray-500">→</span>
+            <span class="text-gray-700">Trước khi gửi biên lai</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold">💰 Khách báo TT</span>
+            <span class="text-gray-500">→</span>
+            <span class="text-gray-700">Sau khi gửi biên lai (<strong>HIỆN TẠI</strong>)</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-full bg-green-100 text-green-800 border border-green-300 text-xs font-bold">✅ Đã XN</span>
+            <span class="text-gray-500">→</span>
+            <span class="text-gray-700">Shop xác nhận thanh toán (1-3 giờ làm việc)</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">🚚 Đã gửi</span>
+            <span class="text-gray-500">→</span>
+            <span class="text-gray-700">Shop đã đóng gói và gửi hàng</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="success-box mb-5">
+        <div class="text-5xl mb-3">🎉</div>
+        <h3 class="serif text-2xl font-bold text-green-700 mb-2">Hoàn thành!</h3>
+        <p class="text-sm text-gray-700">Anh/chị có thể đóng cửa sổ và đợi shop xử lý. Thông báo sẽ gửi qua email khi đơn được xác nhận / gửi hàng.</p>
+      </div>
+
+      <div class="tip-box mb-4">
+        <p class="font-bold text-brand-dark mb-1">⏱️ Thời gian xác nhận</p>
+        <p class="text-sm text-gray-700"><strong>1-3 giờ</strong> trong giờ làm việc (9h-21h JST). Đơn gửi vào ban đêm/chủ nhật sẽ xử lý vào sáng/ngày làm việc tiếp theo.</p>
+      </div>
+
+      <div class="action-box">
+        <p class="font-bold text-brand-dark mb-2">📞 Cần hỗ trợ?</p>
+        <p class="text-sm text-gray-700 mb-2">Nếu sau <strong>3 giờ</strong> đơn vẫn chưa được xác nhận, anh/chị có thể:</p>
+        <ul class="text-sm text-gray-700 space-y-1 ml-4 list-disc">
+          <li>Vào tab <strong>"💬 Tin Nhắn"</strong> trong tài khoản → nhắn tin trực tiếp cho shop.</li>
+          <li>Email <a href="mailto:support@thuyjapan.com" class="text-brand-red underline font-semibold">support@thuyjapan.com</a> kèm mã đơn.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- COMPLETION -->
+  <section class="text-center mt-16 mb-8">
+    <div class="ornament" style="font-size:18px;">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="text-6xl mb-4">🥢</div>
+    <h2 class="serif text-4xl font-bold text-brand-dark mb-3">Cảm ơn anh/chị!</h2>
+    <p class="text-gray-600 text-base mb-8 max-w-md mx-auto leading-relaxed">Anh/chị đã hoàn tất quy trình thanh toán. Bếp Thuỷ sẽ chuẩn bị hàng và gửi đi sớm nhất có thể.</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="https://www.thuyjapan.com/thanh-vien" class="btn-primary">👤 Xem Đơn Hàng</a>
+      <a href="https://www.thuyjapan.com/" class="btn-secondary">🛒 Đặt Đơn Mới</a>
+    </div>
+  </section>
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-brand-dark text-yellow-100 py-10 px-4 text-center">
+  <div class="max-w-3xl mx-auto">
+    <p class="serif text-xl font-bold text-yellow-200 mb-2">Bếp Thuỷ Japan</p>
+    <p class="text-xs text-yellow-100/70 tracking-widest uppercase mb-4">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản ✦</p>
+    <p class="text-sm">Cần hỗ trợ? Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-gold-light underline font-semibold">support@thuyjapan.com</a></p>
+  </div>
+</footer>
+
+<script>
+  const sections = ['step-1','step-2','step-3','step-4','step-5'];
+  const pills = document.querySelectorAll('.anchor-pill');
+  function updateNav() {
+    let active = sections[0];
+    for (const id of sections) {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top < 150) active = id;
+    }
+    pills.forEach(p => p.classList.toggle('active', p.getAttribute('href') === '#' + active));
+  }
+  window.addEventListener('scroll', updateNav);
+  updateNav();
+</script>
+
+</body>
+</html>

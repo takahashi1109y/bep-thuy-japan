@@ -2,7 +2,8 @@
   "rewrites": [
     { "source": "/thanh-vien", "destination": "/thanh-vien.html" },
     { "source": "/thuythang", "destination": "/thuythang.html" },
-    { "source": "/huong-dan-thanh-vien", "destination": "/huong-dan-thanh-vien.html" }
+    { "source": "/huong-dan-thanh-vien", "destination": "/huong-dan-thanh-vien.html" },
+    { "source": "/huong-dan-thanh-toan", "destination": "/huong-dan-thanh-toan.html" }
   ],
   "headers": [
     {
