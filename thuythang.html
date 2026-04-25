@@ -295,6 +295,7 @@
         <h3 style="margin:0 0 8px;font-size:16px;font-weight:800;">💬 Tin Nhắn Khách Hàng</h3>
         <p style="font-size:12px;color:#6B7280;margin:0;">Trả lời tin nhắn của khách trực tiếp tại đây.</p>
       </div>
+      <div id="messages-filter-banner" class="hidden" style="margin-bottom: 10px;"></div>
       <div id="messages-pagination-top" class="pagination" style="margin-top: 0; margin-bottom: 10px;"></div>
       <div id="msg-threads-list" class="card">
         <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
@@ -429,6 +430,7 @@ let customersPage = 1;
 let messageThreadsCache = [];
 let messageProfilesCache = {};
 let messagesPage = 1;
+let messagesFilterUserId = null;
 
 function paginate(arr, page, size) {
   const start = (page - 1) * size;
@@ -671,8 +673,15 @@ async function loadAdminMessages() {
 
 async function renderMessagesPage() {
   const box = document.getElementById('msg-threads-list');
-  const threads = messageThreadsCache;
   const profMap = messageProfilesCache;
+  let threads = messageThreadsCache;
+  if (messagesFilterUserId) threads = threads.filter(t => t.user_id === messagesFilterUserId);
+  updateMessagesFilterBanner();
+  if (threads.length === 0 && messagesFilterUserId) {
+    box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:30px;">Khách này chưa có tin nhắn nào.</p>';
+    ['messages-pagination-top','messages-pagination'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+    return;
+  }
   const slice = paginate(threads, messagesPage, PAGE_SIZE);
 
   const html = await Promise.all(slice.map(async t => {
@@ -730,6 +739,35 @@ async function replyToThread(threadId) {
     await loadAdminMessages();
   } catch(e) {
     showToast('❌ Lỗi: ' + (e.message||e), 'error');
+  }
+}
+
+function viewCustomerMessagesInTab(userId) {
+  messagesFilterUserId = userId;
+  messagesPage = 1;
+  closeCustomerModal();
+  switchTab('messages');
+}
+
+function clearMessagesFilter() {
+  messagesFilterUserId = null;
+  messagesPage = 1;
+  renderMessagesPage();
+}
+
+function updateMessagesFilterBanner() {
+  const banner = document.getElementById('messages-filter-banner');
+  if (!banner) return;
+  if (messagesFilterUserId) {
+    const profile = messageProfilesCache[messagesFilterUserId] || {};
+    banner.innerHTML = `<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:13px;">📌 Đang xem tin của <strong>${escapeHtml(profile.display_name || 'Khách')}</strong>${profile.email ? ' · ' + escapeHtml(profile.email) : ''}</span>
+      <button onclick="clearMessagesFilter()" class="btn btn-ghost" style="padding:4px 12px;font-size:12px;">✕ Xem tất cả</button>
+    </div>`;
+    banner.classList.remove('hidden');
+  } else {
+    banner.innerHTML = '';
+    banner.classList.add('hidden');
   }
 }
 
@@ -1229,6 +1267,7 @@ async function loadCustomers() {
       email: '',
       prefecture: p.prefecture || '',
       orderCount: 0,
+      cancelledCount: 0,
       totalSpent: 0,
       lastOrder: null,
       points: pointsMap[p.id] || 0,
@@ -1239,7 +1278,7 @@ async function loadCustomers() {
     const c = customerMap[o.user_id];
     if (!c) return;
     if (o.customer_email && !c.email) c.email = o.customer_email;
-    if (o.status === 'cancelled') return;
+    if (o.status === 'cancelled') { c.cancelledCount += 1; return; }
     c.orderCount += 1;
     c.totalSpent += Number(o.total) || 0;
     if (!c.lastOrder || new Date(o.created_at) > new Date(c.lastOrder)) c.lastOrder = o.created_at;
@@ -1309,8 +1348,8 @@ async function openCustomerModal(userId, focusMessage = false) {
     if (!p) { showToast('❌ Không tìm thấy khách hàng', 'error'); return; }
     c = {
       id: p.id, name: p.display_name || '', phone: p.phone || '', email: '',
-      prefecture: p.prefecture || '', orderCount: 0, totalSpent: 0,
-      lastOrder: null, points: 0, unread: 0
+      prefecture: p.prefecture || '', orderCount: 0, cancelledCount: 0,
+      totalSpent: 0, lastOrder: null, points: 0, unread: 0
     };
     allCustomers.push(c);
   }
@@ -1342,6 +1381,7 @@ async function openCustomerModal(userId, focusMessage = false) {
   // Refresh stats from fresh data (so cache-miss fallback still shows correct numbers)
   const validOrders = orders.filter(o => o.status !== 'cancelled');
   c.orderCount = validOrders.length;
+  c.cancelledCount = orders.filter(o => o.status === 'cancelled').length;
   c.totalSpent = validOrders.reduce((s, o) => s + Number(o.total || 0), 0);
   c.lastOrder = validOrders[0]?.created_at || c.lastOrder;
   c.unread = threads.filter(t => t.unread_by_shop).length;
@@ -1351,7 +1391,11 @@ async function openCustomerModal(userId, focusMessage = false) {
   }
 
   const statsHtml = `<div class="grid-stats" style="margin-bottom: 14px;">
-    <div class="stat-card"><div class="label">Tổng đơn</div><div class="value">${c.orderCount}</div></div>
+    <div class="stat-card">
+      <div class="label">Tổng đơn</div>
+      <div class="value">${c.orderCount}</div>
+      ${c.cancelledCount > 0 ? `<div class="sub" style="color:#EF4444;font-weight:600;">+ ${c.cancelledCount} đã hủy</div>` : ''}
+    </div>
     <div class="stat-card"><div class="label">Tổng chi</div><div class="value" style="color:#C8102E;font-size:20px;">¥${Number(c.totalSpent).toLocaleString()}</div></div>
     <div class="stat-card"><div class="label">Điểm</div><div class="value" style="color:#10B981;">${Number(c.points).toLocaleString()}</div></div>
     <div class="stat-card"><div class="label">Đơn gần nhất</div><div class="value" style="font-size:14px;">${c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('ja-JP') : '-'}</div></div>
@@ -1372,7 +1416,7 @@ async function openCustomerModal(userId, focusMessage = false) {
     const latest = threads[0];
     const when = new Date(latest.last_message_at || latest.created_at).toLocaleDateString('ja-JP');
     messagesHtml += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Có <strong>${threads.length}</strong> chủ đề · Gần nhất: ${escapeHtml(latest.subject || '-')} (${when})</div>
-      <button onclick="closeCustomerModal(); switchTab('messages');" class="btn btn-ghost" style="margin-bottom:8px;padding:6px 12px;font-size:12px;">📋 Xem đầy đủ ở tab Tin Nhắn</button>`;
+      <button onclick="viewCustomerMessagesInTab('${userId}')" class="btn btn-ghost" style="margin-bottom:8px;padding:6px 12px;font-size:12px;">📋 Xem đầy đủ ở tab Tin Nhắn</button>`;
   } else {
     messagesHtml += '<p style="font-size:12px;color:#9CA3AF;margin:0 0 8px;">Khách chưa có tin nhắn nào.</p>';
   }
@@ -1468,9 +1512,11 @@ async function loadAnalytics() {
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function linkifyOrderNos(text) {
-  // Escape first, then replace TJxxxx patterns with clickable links
-  return escapeHtml(text).replace(/#?(TJ\d{4,})/g, (match, orderNo) =>
-    `<a href="javascript:void(0)" onclick="openOrderModal('${orderNo}')" style="color:#C8102E;font-weight:700;text-decoration:underline;">#${orderNo}</a>`);
+  // Escape first, then link order refs. Matches #0034, #TJ0034, TJ0034.
+  return escapeHtml(text).replace(/#(\d{3,})\b|#?(TJ\d{3,})\b/g, (match, num, tj) => {
+    const orderNo = num || tj;
+    return `<a href="javascript:void(0)" onclick="openOrderModal('${orderNo}')" style="color:#C8102E;font-weight:700;text-decoration:underline;">#${orderNo}</a>`;
+  });
 }
 
 function showToast(msg, type = 'default') {
