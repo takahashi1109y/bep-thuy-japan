@@ -243,7 +243,7 @@
           </div>
         </div>
 
-        <div class="tbl-wrap" style="margin-bottom:14px;">
+        <div class="tbl-wrap" style="margin-bottom:8px;">
           <table class="tbl">
             <thead>
               <tr>
@@ -259,6 +259,7 @@
             </tbody>
           </table>
         </div>
+        <div id="stats-coverage-note" style="font-size:11px;color:#6B7280;margin-bottom:14px;padding:8px 10px;background:#F9FAFB;border-radius:6px;"></div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
           <label style="font-size:13px;font-weight:600;">Xem theo:</label>
@@ -1791,20 +1792,36 @@ function computeAgg(filterFn) {
   const shipping = filtered.reduce((s, o) => s + Number(o.shipping_fee || 0), 0);
   const subtotal = revenue - shipping;
   const margin = getProfitMarginRatio();
-  // Per-item cost: match by catalog (by [CODE] in name), else margin fallback
   let totalCost = 0;
+  let ordersWithItems = 0;
+  let ordersWithoutItems = 0;
+  let itemsMatched = 0;
+  let itemsUnmatched = 0;
   filtered.forEach(o => {
     const items = Array.isArray(o.items) ? o.items : [];
+    if (items.length === 0) {
+      // Đơn không có items detail (vd. backfill cũ) → ước cost từ subtotal theo margin
+      ordersWithoutItems += 1;
+      const orderSub = Number(o.total || 0) - Number(o.shipping_fee || 0);
+      totalCost += orderSub * (1 - margin);
+      return;
+    }
+    ordersWithItems += 1;
     items.forEach(i => {
       const qty = Number(i.qty || 0);
       const price = Number(i.price || 0);
       const product = findProductByItemName(i.name);
-      if (product && Number(product.cost) > 0) totalCost += Number(product.cost) * qty;
-      else totalCost += price * (1 - margin) * qty;
+      if (product && Number(product.cost) > 0) {
+        totalCost += Number(product.cost) * qty;
+        itemsMatched += 1;
+      } else {
+        totalCost += price * (1 - margin) * qty;
+        itemsUnmatched += 1;
+      }
     });
   });
   const profit = subtotal - totalCost;
-  return { count: filtered.length, revenue, shipping, subtotal, totalCost, profit };
+  return { count: filtered.length, revenue, shipping, subtotal, totalCost, profit, ordersWithItems, ordersWithoutItems, itemsMatched, itemsUnmatched };
 }
 
 function fmtY(n) { return '¥' + Math.round(Number(n) || 0).toLocaleString(); }
@@ -1851,6 +1868,26 @@ function renderStatsSummary() {
     return `<tr><td style="font-weight:600;">${label}</td>` +
       vals.map(v => `<td style="text-align:right;${valStyle}">${v}</td>`).join('') + '</tr>';
   }).join('');
+
+  // Coverage note
+  const note = document.getElementById('stats-coverage-note');
+  if (note) {
+    const a = s.all;
+    const totalItemsCount = a.itemsMatched + a.itemsUnmatched;
+    const lines = [];
+    if (a.ordersWithoutItems > 0) {
+      const pct = Math.round(a.ordersWithoutItems / a.count * 100);
+      lines.push(`⚠️ ${a.ordersWithoutItems}/${a.count} đơn (${pct}%) không có chi tiết items → giá vốn ước theo tỷ suất ${Math.round(getProfitMarginRatio() * 100)}%`);
+    }
+    if (a.itemsUnmatched > 0 && totalItemsCount > 0) {
+      lines.push(`⚠️ ${a.itemsUnmatched}/${totalItemsCount} item không khớp catalog [CODE] → fallback tỷ suất ${Math.round(getProfitMarginRatio() * 100)}%`);
+    }
+    if (lines.length === 0 && a.count > 0) {
+      lines.push(`✅ ${a.itemsMatched} item đều khớp catalog · giá vốn = cost thực`);
+    }
+    note.innerHTML = lines.join('<br>');
+    note.style.display = lines.length ? '' : 'none';
+  }
 }
 
 function getAllYears() {
