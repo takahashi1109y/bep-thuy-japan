@@ -277,11 +277,12 @@
                 <th style="text-align:right;">Số đơn</th>
                 <th style="text-align:right;">Doanh thu</th>
                 <th style="text-align:right;">Phí ship</th>
-                <th style="text-align:right;">Lợi nhuận ước</th>
+                <th style="text-align:right;">Giá vốn</th>
+                <th style="text-align:right;">Lợi nhuận ròng</th>
               </tr>
             </thead>
             <tbody id="stats-monthly-tbody">
-              <tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
             </tbody>
           </table>
         </div>
@@ -295,11 +296,12 @@
                 <th style="text-align:right;">Số đơn</th>
                 <th style="text-align:right;">Doanh thu</th>
                 <th style="text-align:right;">Phí ship</th>
-                <th style="text-align:right;">Lợi nhuận ước</th>
+                <th style="text-align:right;">Giá vốn</th>
+                <th style="text-align:right;">Lợi nhuận ròng</th>
               </tr>
             </thead>
             <tbody id="stats-yearly-tbody">
-              <tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">-</td></tr>
             </tbody>
           </table>
         </div>
@@ -1830,17 +1832,22 @@ function renderStatsSummary() {
   Object.entries(periods).forEach(([k, fn]) => s[k] = computeAgg(fn));
 
   const rows = [
-    ['Số đơn',              s.d30.count, s.m6.count, s.m12.count, s.all.count],
-    ['💰 Doanh thu',        fmtY(s.d30.revenue),  fmtY(s.m6.revenue),  fmtY(s.m12.revenue),  fmtY(s.all.revenue)],
-    ['🚚 Phí ship',         fmtY(s.d30.shipping), fmtY(s.m6.shipping), fmtY(s.m12.shipping), fmtY(s.all.shipping)],
-    ['📦 Doanh thu sản phẩm', fmtY(s.d30.subtotal), fmtY(s.m6.subtotal), fmtY(s.m12.subtotal), fmtY(s.all.subtotal)],
-    ['📈 Lợi nhuận ước',    fmtY(s.d30.profit),   fmtY(s.m6.profit),   fmtY(s.m12.profit),   fmtY(s.all.profit)]
+    ['Số đơn',                s.d30.count,           s.m6.count,           s.m12.count,           s.all.count],
+    ['💰 Doanh thu',          fmtY(s.d30.subtotal),  fmtY(s.m6.subtotal),  fmtY(s.m12.subtotal),  fmtY(s.all.subtotal)],
+    ['🚚 Phí ship (thu hộ)',  fmtY(s.d30.shipping),  fmtY(s.m6.shipping),  fmtY(s.m12.shipping),  fmtY(s.all.shipping)],
+    ['🧾 Chi phí giá vốn',    fmtY(s.d30.totalCost), fmtY(s.m6.totalCost), fmtY(s.m12.totalCost), fmtY(s.all.totalCost)],
+    ['📈 Lợi nhuận ròng',     fmtY(s.d30.profit),    fmtY(s.m6.profit),    fmtY(s.m12.profit),    fmtY(s.all.profit)]
   ];
 
   tbody.innerHTML = rows.map((r, i) => {
     const [label, ...vals] = r;
     const isProfit = i === 4;
-    const valStyle = isProfit ? 'font-weight:800;color:#10B981;' : 'font-weight:700;';
+    const isCost = i === 3;
+    const isShipping = i === 2;
+    let valStyle = 'font-weight:700;';
+    if (isProfit) valStyle = 'font-weight:800;color:#10B981;';
+    else if (isCost) valStyle = 'font-weight:700;color:#EF4444;';
+    else if (isShipping) valStyle = 'font-weight:700;color:#6B7280;';
     return `<tr><td style="font-weight:600;">${label}</td>` +
       vals.map(v => `<td style="text-align:right;${valStyle}">${v}</td>`).join('') + '</tr>';
   }).join('');
@@ -1883,15 +1890,16 @@ function renderMonthlyComparison(year) {
       rows.push(`<tr>
         <td style="font-weight:600;">Tháng ${m}/${year}</td>
         <td style="text-align:right;">${agg.count}</td>
-        <td style="text-align:right;">${fmtY(agg.revenue)}</td>
-        <td style="text-align:right;">${fmtY(agg.shipping)}</td>
+        <td style="text-align:right;">${fmtY(agg.subtotal)}</td>
+        <td style="text-align:right;color:#6B7280;">${fmtY(agg.shipping)}</td>
+        <td style="text-align:right;color:#EF4444;">${fmtY(agg.totalCost)}</td>
         <td style="text-align:right;font-weight:700;color:#10B981;">${fmtY(agg.profit)}</td>
       </tr>`);
     }
   }
   tbody.innerHTML = rows.length
     ? rows.join('')
-    : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">Không có dữ liệu cho năm này</td></tr>';
+    : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">Không có dữ liệu cho năm này</td></tr>';
 }
 
 function renderYearlyComparison() {
@@ -1903,14 +1911,15 @@ function renderYearlyComparison() {
     return `<tr>
       <td style="font-weight:600;">Năm ${y}</td>
       <td style="text-align:right;">${agg.count}</td>
-      <td style="text-align:right;">${fmtY(agg.revenue)}</td>
-      <td style="text-align:right;">${fmtY(agg.shipping)}</td>
+      <td style="text-align:right;">${fmtY(agg.subtotal)}</td>
+      <td style="text-align:right;color:#6B7280;">${fmtY(agg.shipping)}</td>
+      <td style="text-align:right;color:#EF4444;">${fmtY(agg.totalCost)}</td>
       <td style="text-align:right;font-weight:700;color:#10B981;">${fmtY(agg.profit)}</td>
     </tr>`;
   });
   tbody.innerHTML = rows.length
     ? rows.join('')
-    : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF;">Chưa có dữ liệu</td></tr>';
+    : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9CA3AF;">Chưa có dữ liệu</td></tr>';
 }
 
 function renderSelectedPeriod() {
@@ -1947,9 +1956,10 @@ function renderSelectedPeriod() {
     <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;">📌 ${label}</div>
     <div class="grid-stats" style="grid-template-columns:repeat(2, 1fr);gap:10px;">
       <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Số đơn</div><div style="font-size:20px;font-weight:800;">${a.count}</div></div>
-      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Doanh thu</div><div style="font-size:20px;font-weight:800;color:#C8102E;">${fmtY(a.revenue)}</div></div>
-      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Phí ship</div><div style="font-size:20px;font-weight:800;">${fmtY(a.shipping)}</div></div>
-      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Lợi nhuận ước</div><div style="font-size:20px;font-weight:800;color:#10B981;">${fmtY(a.profit)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Doanh thu</div><div style="font-size:20px;font-weight:800;color:#C8102E;">${fmtY(a.subtotal)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Phí ship (thu hộ)</div><div style="font-size:18px;font-weight:700;color:#6B7280;">${fmtY(a.shipping)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#6B7280;font-weight:600;">Giá vốn</div><div style="font-size:18px;font-weight:700;color:#EF4444;">${fmtY(a.totalCost)}</div></div>
+      <div style="background:white;border-radius:8px;padding:10px;grid-column:span 2;"><div style="font-size:11px;color:#6B7280;font-weight:600;">📈 Lợi nhuận ròng</div><div style="font-size:24px;font-weight:800;color:#10B981;">${fmtY(a.profit)}</div></div>
     </div>
   </div>`;
   resultBox.classList.remove('hidden');
