@@ -4,6 +4,8 @@
     { "source": "/thuythang", "destination": "/thuythang.html" },
     { "source": "/huong-dan-thanh-vien", "destination": "/huong-dan-thanh-vien.html" },
     { "source": "/huong-dan-thanh-toan", "destination": "/huong-dan-thanh-toan.html" },
+    { "source": "/huong-dan-bao-quan", "destination": "/huong-dan-bao-quan.html" },
+    { "source": "/bang-phi-ship", "destination": "/bang-phi-ship.html" },
     { "source": "/privacy", "destination": "/privacy.html" }
   ],
   "headers": [

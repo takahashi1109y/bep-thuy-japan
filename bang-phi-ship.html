@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bảng Phí Ship Yamato 2026 · Bếp Thuỷ Japan</title>
+<meta name="description" content="Bảng giá ship Yamato クール宅急便 và ship thường theo cân nặng + tỉnh thành Nhật Bản — Bếp Thuỷ Japan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: { colors: {
+      'brand-red':'#C8102E','brand-red-dark':'#8B0A1F','brand-dark':'#2C1A0E',
+      'brand-warm':'#5A3A24','brand-cream':'#FFF8F0','brand-gold':'#D4A017','brand-gold-light':'#F4CC54'
+    }, fontFamily: { sans:['Inter','sans-serif'], serif:['Playfair Display','serif'] } } }
+  };
+</script>
+<style>
+  body { font-family:'Inter',sans-serif; background:#FFF8F0; color:#2C1A0E; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,.serif { font-family:'Playfair Display',serif; }
+  .hero-bg {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212,160,23,0.18), transparent 50%),
+      radial-gradient(circle at 80% 100%, rgba(26,35,126,0.25), transparent 50%),
+      linear-gradient(135deg,#0F1A4D 0%,#1a237e 50%,#0F1A4D 100%);
+  }
+  .pill-tag {
+    background:linear-gradient(135deg,#D4A017,#F4CC54); color:#2C1A0E;
+    padding:6px 16px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:2px; display:inline-block;
+  }
+  .gold-line { width:60px; height:3px; background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017); margin:14px auto; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header class="hero-bg text-white py-14 px-4 text-center">
+  <div class="max-w-4xl mx-auto">
+    <div class="pill-tag mb-4">🚚 YAMATO クール宅急便</div>
+    <h1 class="serif text-4xl md:text-5xl font-bold text-yellow-100 mb-3">Bảng Giá Ship Yamato 2026</h1>
+    <div class="gold-line"></div>
+    <p class="text-yellow-100/80 text-base mt-3">Phí tính theo <strong>kg</strong>, không tính theo size hộp</p>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="max-w-5xl mx-auto px-4 py-10">
+
+  <!-- Tab switch -->
+  <div class="flex gap-3 mb-6 justify-center">
+    <button id="tab-lanh" onclick="switchShipTab('lanh')" class="px-6 py-2.5 rounded-full font-bold text-sm transition-all" style="background:linear-gradient(135deg,#1a237e,#283593);color:white">❄️ Ship Lạnh (クール)</button>
+    <button id="tab-thuong" onclick="switchShipTab('thuong')" class="px-6 py-2.5 rounded-full font-bold text-sm transition-all bg-gray-100 text-gray-500">📦 Ship Thường</button>
+  </div>
+
+  <!-- Ship Lạnh Table -->
+  <div id="table-lanh" class="overflow-x-auto rounded-2xl border border-blue-200 shadow-md">
+    <table class="w-full text-sm border-collapse min-w-[900px]">
+      <thead>
+        <tr style="background:linear-gradient(135deg,#1a237e,#283593);color:white">
+          <th class="py-3 px-3 text-left font-bold text-xs whitespace-nowrap rounded-tl-2xl">Trọng lượng</th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北海道<br><span class="font-normal opacity-70 text-yellow-200" style="font-size:10px">Hokkaido</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北東北<br><span class="font-normal opacity-70" style="font-size:10px">青森・岩手・秋田</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">南東北<br><span class="font-normal opacity-70" style="font-size:10px">宮城・山形・福島</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">関東<br><span class="font-normal opacity-70" style="font-size:10px">東京・神奈川・埼玉・千葉・茨城・栃木・群馬・山梨</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">信越<br><span class="font-normal opacity-70" style="font-size:10px">新潟・長野</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北陸<br><span class="font-normal opacity-70" style="font-size:10px">富山・石川・福井</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">中部<br><span class="font-normal opacity-70" style="font-size:10px">愛知・岐阜・静岡・三重</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">関西<br><span class="font-normal opacity-70" style="font-size:10px">大阪・京都・兵庫・滋賀・奈良・和歌山</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">中国<br><span class="font-normal opacity-70" style="font-size:10px">広島・岡山・山口・鳥取・島根</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">四国<br><span class="font-normal opacity-70" style="font-size:10px">香川・徳島・愛媛・高知</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">九州<br><span class="font-normal opacity-70" style="font-size:10px">福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs rounded-tr-2xl">沖縄<br><span class="font-normal opacity-70" style="font-size:10px">Okinawa</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="bg-blue-50 border-b border-blue-100">
+          <td class="py-3 px-3 font-bold text-blue-900 whitespace-nowrap">0.5 – 2 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,740</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,000</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">950</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">950</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">950</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">950</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">950</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,050</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,100</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,100</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,780</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">1,730</td>
+        </tr>
+        <tr class="bg-white border-b border-blue-100">
+          <td class="py-3 px-3 font-bold text-blue-900 whitespace-nowrap">2.5 – 5 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,100</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,240</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,190</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,190</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,190</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,190</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,190</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,240</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,350</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,350</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,100</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">2,430</td>
+        </tr>
+        <tr class="bg-blue-50 border-b border-blue-100">
+          <td class="py-3 px-3 font-bold text-blue-900 whitespace-nowrap">5.5 – 10 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,550</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,650</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,600</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,600</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,600</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,600</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,600</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,650</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,710</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,710</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,550</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">3,210</td>
+        </tr>
+        <tr class="bg-white">
+          <td class="py-3 px-3 font-bold text-blue-900 whitespace-nowrap rounded-bl-2xl">10.5 – 15 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">3,120</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,070</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,960</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,960</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,960</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,960</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,960</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,070</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,130</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,130</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">3,150</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600 rounded-br-2xl">4,110</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Ship Thường Table -->
+  <div id="table-thuong" class="hidden overflow-x-auto rounded-2xl border border-orange-200 shadow-md">
+    <table class="w-full text-sm border-collapse min-w-[900px]">
+      <thead>
+        <tr style="background:linear-gradient(135deg,#e65100,#bf360c);color:white">
+          <th class="py-3 px-3 text-left font-bold text-xs whitespace-nowrap rounded-tl-2xl">Trọng lượng</th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北海道<br><span class="font-normal opacity-70 text-yellow-200" style="font-size:10px">Hokkaido</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北東北<br><span class="font-normal opacity-70" style="font-size:10px">青森・岩手・秋田</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">南東北<br><span class="font-normal opacity-70" style="font-size:10px">宮城・山形・福島</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">関東<br><span class="font-normal opacity-70" style="font-size:10px">東京・神奈川・埼玉・千葉・茨城・栃木・群馬・山梨</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">信越<br><span class="font-normal opacity-70" style="font-size:10px">新潟・長野</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">北陸<br><span class="font-normal opacity-70" style="font-size:10px">富山・石川・福井</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">中部<br><span class="font-normal opacity-70" style="font-size:10px">愛知・岐阜・静岡・三重</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">関西<br><span class="font-normal opacity-70" style="font-size:10px">大阪・京都・兵庫・滋賀・奈良・和歌山</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">中国<br><span class="font-normal opacity-70" style="font-size:10px">広島・岡山・山口・鳥取・島根</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">四国<br><span class="font-normal opacity-70" style="font-size:10px">香川・徳島・愛媛・高知</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs">九州<br><span class="font-normal opacity-70" style="font-size:10px">福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島</span></th>
+          <th class="py-2 px-2 text-center font-bold text-xs rounded-tr-2xl">沖縄<br><span class="font-normal opacity-70 text-yellow-200" style="font-size:10px">* Nóng: ship lạnh</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="bg-orange-50 border-b border-orange-100">
+          <td class="py-3 px-3 font-bold text-orange-900 whitespace-nowrap">0.5 – 2 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,490</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">745</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">635</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">635</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">635</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">635</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">635</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">750</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">800</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">800</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,480</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">1,730</td>
+        </tr>
+        <tr class="bg-white border-b border-orange-100">
+          <td class="py-3 px-3 font-bold text-orange-900 whitespace-nowrap">2.5 – 5 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,800</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">940</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">890</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">890</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">890</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">890</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">890</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">940</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,050</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,050</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,800</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">2,430</td>
+        </tr>
+        <tr class="bg-orange-50 border-b border-orange-100">
+          <td class="py-3 px-3 font-bold text-orange-900 whitespace-nowrap">5.5 – 10 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,200</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,150</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,200</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,150</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600">3,210</td>
+        </tr>
+        <tr class="bg-white">
+          <td class="py-3 px-3 font-bold text-orange-900 whitespace-nowrap rounded-bl-2xl">10.5 – 15 kg</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,470</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,420</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,310</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,420</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,480</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">1,480</td>
+          <td class="py-3 px-2 text-center font-semibold text-gray-700">2,500</td>
+          <td class="py-3 px-2 text-center font-bold text-red-600 rounded-br-2xl">4,110</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Notes -->
+  <div class="mt-6 space-y-3">
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-xl p-4">
+      <p class="text-yellow-800 font-bold text-sm">⚠️ ĐẶC BIỆT: Bếp sẽ không chịu trách nhiệm về lỗi giao hàng chậm của hãng vận chuyển.</p>
+    </div>
+    <div class="bg-blue-50 rounded-xl p-4 text-sm text-blue-900 space-y-1">
+      <p>❄️ Thời tiết lạnh dưới 10°C — Chả ship thường 4–5 ngày nhận OK. Mọc sống, pate 3 ngày nhận OK. Nem lụi 2 ngày nhận OK.</p>
+      <p>📦 Trừ khu vực 中国・四国・九州・沖縄・北海道: <strong>1–2 ngày</strong> khách nhận</p>
+      <p>📦 Khu vực 中国・四国・九州・沖縄・北海道: <strong>2–3 ngày</strong> khách nhận</p>
+      <p class="text-red-700 font-semibold">🧊 Nên dùng Ship Lạnh Yamato cho nem lụi, mọc sống, pate để đảm bảo an toàn thực phẩm.</p>
+    </div>
+  </div>
+
+  <div class="text-center mt-8">
+    <a href="/" class="inline-block px-6 py-3 rounded-2xl bg-brand-red text-white font-bold text-sm shadow hover:bg-brand-red-dark transition">← Quay về trang chủ</a>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-brand-dark text-yellow-100 py-10 px-4 text-center">
+  <div class="max-w-3xl mx-auto">
+    <p class="serif text-xl font-bold text-yellow-200 mb-2">Bếp Thuỷ Japan</p>
+    <p class="text-xs text-yellow-100/70 tracking-widest uppercase mb-4">✦ Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản ✦</p>
+    <p class="text-sm">Cần hỗ trợ? Liên hệ <a href="mailto:support@thuyjapan.com" class="text-brand-gold-light underline font-semibold">support@thuyjapan.com</a></p>
+  </div>
+</footer>
+
+<script>
+function switchShipTab(type) {
+  const isLanh = type === 'lanh';
+  document.getElementById('table-lanh').classList.toggle('hidden', !isLanh);
+  document.getElementById('table-thuong').classList.toggle('hidden', isLanh);
+  const btnLanh = document.getElementById('tab-lanh');
+  const btnThuong = document.getElementById('tab-thuong');
+  if (isLanh) {
+    btnLanh.style.background = 'linear-gradient(135deg,#1a237e,#283593)'; btnLanh.style.color = 'white';
+    btnThuong.style.background = '#f3f4f6'; btnThuong.style.color = '#6b7280';
+  } else {
+    btnThuong.style.background = 'linear-gradient(135deg,#e65100,#bf360c)'; btnThuong.style.color = 'white';
+    btnLanh.style.background = '#f3f4f6'; btnLanh.style.color = '#6b7280';
+  }
+}
+</script>
+
+<script src="/assets/pull-to-refresh.js" defer></script>
+<script src="/assets/back-button.js" defer></script>
+</body>
+</html>
