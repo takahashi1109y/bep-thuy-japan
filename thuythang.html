@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 <!-- hCaptcha invisible (anti-bot) -->
 <script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
 <style>
@@ -361,6 +362,11 @@
 
       <div id="orders-date-filter-chip" class="hidden" style="margin-bottom: 12px;"></div>
 
+      <div class="card" style="margin-bottom: 12px; padding: 10px;">
+        <button onclick="openExportModal()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:8px 14px;font-size:13px;">📊 Xuất Excel theo ngày</button>
+        <span style="font-size:11px;color:#6B7280;margin-left:8px;">Tải file .xlsx khớp format bảng tay</span>
+      </div>
+
       <div class="card" style="margin-bottom: 16px;">
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
           <input id="orders-search" type="text" placeholder="🔍 Tìm theo mã đơn, tên, email, SDT..." class="input" oninput="filterOrders()">
@@ -537,6 +543,54 @@
     </div>
     <div id="pp-list" style="max-height: 70vh; overflow-y: auto;">
       <div style="text-align:center;padding:30px;color:#9CA3AF;">Đang tải...</div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT EXCEL MODAL -->
+<div id="export-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal" style="max-width: 460px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Xuất Excel</div>
+        <h3 style="margin:4px 0 0;font-size:20px;color:#1C1C1E;">📊 Tải đơn hàng theo ngày</h3>
+      </div>
+      <button onclick="closeExportModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Từ ngày</label>
+        <input type="date" id="export-from" class="input">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Đến ngày</label>
+        <input type="date" id="export-to" class="input">
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Trạng thái</label>
+      <select id="export-status" class="select">
+        <option value="all">📊 Tất cả đơn (trừ huỷ)</option>
+        <option value="paid">✅ Chỉ đơn đã thanh toán</option>
+        <option value="unpaid">⏳ Chờ thanh toán</option>
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;">
+      <button onclick="setExportRange('today')" class="btn btn-ghost" style="font-size:12px;padding:6px;">Hôm nay</button>
+      <button onclick="setExportRange('week')" class="btn btn-ghost" style="font-size:12px;padding:6px;">7 ngày</button>
+      <button onclick="setExportRange('month')" class="btn btn-ghost" style="font-size:12px;padding:6px;">Tháng này</button>
+    </div>
+
+    <div id="export-preview" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px;font-size:12px;color:#374151;margin-bottom:14px;">
+      Chọn ngày để xem trước...
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeExportModal()" class="btn btn-ghost">Hủy</button>
+      <button onclick="doExportExcel()" id="export-btn" class="btn btn-primary">📥 Tải file .xlsx</button>
     </div>
   </div>
 </div>
@@ -2424,6 +2478,202 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+
+// ============ EXPORT EXCEL ============
+// Generate xlsx in user's manual-tracking format:
+// STT | Tên | GT | GKT | C | CKT | CLUA TIEU | CLUA | M | MKT | NEM | Pte | Ship | TIỀN | + extra cols
+const EXPORT_COLS = [
+  { code: 'GT',        header: 'GIÒ tiêu (GT)\n1 kg\n(¥1850)' },
+  { code: 'GKT',       header: 'GIÒ KT (GKT)\n1 kg\n(¥1850)' },
+  { code: 'C',         header: 'CHẢ quế (C)\n1 kg\n(¥1850)' },
+  { code: 'CKT',       header: 'CHẢ quế KT (CKT)\n1 kg\n(¥1850)' },
+  { code: 'CLUA TIEU', header: 'CHẢ LỤA TIÊU (CLUA TIEU)\n1 kg\n(¥1850)' },
+  { code: 'CLUA',      header: 'CHẢ LỤA ko tiêu (CLUA)\n1 kg\n(¥1850)' },
+  { code: 'M',         header: 'MỌC tiêu (M)\n1 kg\n(¥1750)' },
+  { code: 'MKT',       header: 'MỌC KT (MKT)\n1 kg\n(¥1750)' },
+  { code: 'NEM',       header: 'Nem Lụi (NEM)\n1 túi\n(¥1100)' },
+  { code: 'Pte',       header: 'Pate (Pte)\n1 hộp 0.5kg\n(¥1350)' }
+];
+
+function openExportModal() {
+  // Default: this month (1st → today JST)
+  const now = new Date();
+  const jstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+  const today = jstNow.toISOString().slice(0, 10);
+  const firstOfMonth = today.slice(0, 7) + '-01';
+  document.getElementById('export-from').value = firstOfMonth;
+  document.getElementById('export-to').value = today;
+  document.getElementById('export-status').value = 'all';
+  updateExportPreview();
+  document.getElementById('export-from').onchange = updateExportPreview;
+  document.getElementById('export-to').onchange = updateExportPreview;
+  document.getElementById('export-status').onchange = updateExportPreview;
+  document.getElementById('export-modal').classList.remove('hidden');
+}
+
+function closeExportModal() {
+  document.getElementById('export-modal').classList.add('hidden');
+}
+
+function setExportRange(range) {
+  const now = new Date(Date.now() + 9 * 3600 * 1000);
+  const today = now.toISOString().slice(0, 10);
+  let from = today;
+  if (range === 'week') {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 6);
+    from = d.toISOString().slice(0, 10);
+  } else if (range === 'month') {
+    from = today.slice(0, 7) + '-01';
+  }
+  document.getElementById('export-from').value = from;
+  document.getElementById('export-to').value = today;
+  updateExportPreview();
+}
+
+function updateExportPreview() {
+  const from = document.getElementById('export-from').value;
+  const to = document.getElementById('export-to').value;
+  const status = document.getElementById('export-status').value;
+  if (!from || !to) {
+    document.getElementById('export-preview').textContent = '⚠️ Chọn cả 2 ngày';
+    return;
+  }
+  const orders = filterExportOrders(from, to, status);
+  const totalRevenue = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+  document.getElementById('export-preview').innerHTML =
+    '📦 <strong>' + orders.length + ' đơn</strong> trong khoảng <strong>' + from + ' → ' + to + '</strong><br>' +
+    '💰 Tổng tiền: <strong>¥' + totalRevenue.toLocaleString() + '</strong>';
+}
+
+// JST date as ISO YYYY-MM-DD (for input[type=date] comparison)
+function isoJSTDate(ts) {
+  if (!ts) return '';
+  return new Date(new Date(ts).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function filterExportOrders(from, to, status) {
+  return allOrders.filter(o => {
+    const d = isoJSTDate(o.created_at);
+    if (d < from || d > to) return false;
+    if (status === 'paid' && o.status !== 'confirmed' && o.status !== 'shipped' && o.status !== 'delivered') return false;
+    if (status === 'unpaid' && o.status !== 'pending' && o.status !== 'customer_paid') return false;
+    if (status === 'all' && o.status === 'cancelled') return false;
+    return true;
+  }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
+// Extract product code from item.name (catalog format: "[CODE] Tên")
+function extractItemCode(itemName) {
+  if (!itemName) return null;
+  const m = itemName.match(/^\[([^\]]+)\]/);
+  return m ? m[1].trim() : null;
+}
+
+// For each order, return a map { CODE: quantity } following user's manual format.
+// Rule: kg-based products → wt (kg). Box/bag-based (NEM, Pte) → wt / 0.5 (units).
+function aggregateOrderItems(order) {
+  const totals = {};
+  EXPORT_COLS.forEach(c => { totals[c.code] = 0; });
+  const items = Array.isArray(order.items) ? order.items : [];
+  items.forEach(i => {
+    const code = extractItemCode(i.name);
+    if (!code || !(code in totals)) return;
+    const wt = Number(i.wt || 0);
+    if (code === 'NEM' || code === 'Pte') {
+      // Box/bag: display number of units (1 unit = 0.5kg)
+      totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
+    } else {
+      // Kg-based: display total kg
+      totals[code] += wt;
+    }
+  });
+  // Round to 2 decimals to avoid 1.9999... noise
+  Object.keys(totals).forEach(k => { totals[k] = Math.round(totals[k] * 100) / 100; });
+  return totals;
+}
+
+async function doExportExcel() {
+  const from = document.getElementById('export-from').value;
+  const to = document.getElementById('export-to').value;
+  const status = document.getElementById('export-status').value;
+  if (!from || !to) { alert('Chọn cả 2 ngày'); return; }
+  if (typeof XLSX === 'undefined') { alert('SheetJS chưa load — refresh trang'); return; }
+
+  const btn = document.getElementById('export-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang tạo file...';
+
+  try {
+    const orders = filterExportOrders(from, to, status);
+    if (orders.length === 0) {
+      alert('Không có đơn nào trong khoảng này.');
+      btn.disabled = false; btn.textContent = '📥 Tải file .xlsx';
+      return;
+    }
+
+    // Build rows
+    const headerRow = ['STT', 'TÊN', ...EXPORT_COLS.map(c => c.header), 'Ship lạnh\nyamato\n(¥)', 'TIỀN\n(¥)', 'Mã đơn', 'SĐT', 'Địa chỉ', 'Trạng thái', 'Ngày đặt'];
+    const data = [headerRow];
+
+    orders.forEach((o, idx) => {
+      const totals = aggregateOrderItems(o);
+      const row = [
+        idx + 1,
+        o.customer_name || '',
+        ...EXPORT_COLS.map(c => totals[c.code] || ''),
+        Number(o.shipping_fee || 0) || '',
+        Number(o.total || 0) || '',
+        '#' + (o.order_no || ''),
+        o.customer_phone || '',
+        '〒' + (o.ship_postal || '') + ' ' + (o.ship_prefecture || '') + ' ' + (o.ship_address || ''),
+        statusBadge(o.status).replace(/<[^>]+>/g, '').trim(),
+        fmtJSTDate(o.created_at)
+      ];
+      data.push(row);
+    });
+
+    // Totals row
+    const totalsRow = ['', 'TỔNG'];
+    EXPORT_COLS.forEach((c, ci) => {
+      const colLetter = String.fromCharCode(67 + ci); // C, D, E, ...
+      totalsRow.push({ f: 'SUM(' + colLetter + '2:' + colLetter + (orders.length + 1) + ')' });
+    });
+    const shipColLetter = String.fromCharCode(67 + EXPORT_COLS.length); // M
+    const totalColLetter = String.fromCharCode(67 + EXPORT_COLS.length + 1); // N
+    totalsRow.push({ f: 'SUM(' + shipColLetter + '2:' + shipColLetter + (orders.length + 1) + ')' });
+    totalsRow.push({ f: 'SUM(' + totalColLetter + '2:' + totalColLetter + (orders.length + 1) + ')' });
+    data.push(totalsRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 5 },  { wch: 22 }, // STT, Tên
+      ...EXPORT_COLS.map(() => ({ wch: 11 })), // 10 product cols
+      { wch: 10 }, { wch: 10 }, // Ship, Tiền
+      { wch: 10 }, { wch: 14 }, { wch: 38 }, { wch: 14 }, { wch: 12 } // extra
+    ];
+    // Wrap text in header row
+    ws['!rows'] = [{ hpt: 60 }];
+
+    // Build workbook
+    const wb = XLSX.utils.book_new();
+    const sheetName = ('Đơn ' + from + ' đến ' + to).slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    // Filename
+    const fname = 'Đơn ' + from.slice(5).replace('-', '-') + ' đến ' + to.slice(5).replace('-', '-') + '.xlsx';
+    XLSX.writeFile(wb, fname);
+
+    showToast('✅ Đã tải ' + orders.length + ' đơn', 'success');
+    closeExportModal();
+  } catch (e) {
+    console.error('Export err:', e);
+    alert('❌ Lỗi: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '📥 Tải file .xlsx';
+  }
 }
 </script>
 
