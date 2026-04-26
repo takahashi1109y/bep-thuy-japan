@@ -135,6 +135,26 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'payment_received' });
     }
 
+    // Bulk email campaign from admin "Gửi Tin" tab
+    if (data.type === 'campaign_email') {
+      var sent = sendCampaignEmail_(data.subject, data.body, data.recipients || []);
+      return buildResponse({ success: true, type: 'campaign_email', sent: sent.ok, failed: sent.fail });
+    }
+    if (data.type === 'campaign_test') {
+      sendCampaignEmail_(data.subject || '[TEST] Campaign', data.body, [{ email: data.test_email, name: 'Test' }]);
+      return buildResponse({ success: true, type: 'campaign_test' });
+    }
+
+    // Auto-email when admin confirms payment / marks shipped
+    if (data.type === 'order_confirmed') {
+      try { sendOrderConfirmedEmail_(data); } catch(e) { Logger.log('Confirmed email err: ' + e); }
+      return buildResponse({ success: true, type: 'order_confirmed' });
+    }
+    if (data.type === 'order_shipped') {
+      try { sendOrderShippedEmail_(data); } catch(e) { Logger.log('Shipped email err: ' + e); }
+      return buildResponse({ success: true, type: 'order_shipped' });
+    }
+
     // AI verify on demand (admin clicks "🔄 Xác thực bằng AI" button)
     if (data.type === 'verify_receipt') {
       if (!data.confirmation_id || !data.image_url || !data.expected_amount) {
@@ -972,6 +992,123 @@ function parseLegacyConcatenated_(s) {
     else return null;
   }
   return out.length > 0 ? out : null;
+}
+
+// ============================================================
+// CAMPAIGN EMAIL (bulk send)
+// ============================================================
+function sendCampaignEmail_(subject, bodyText, recipients) {
+  var ok = 0, fail = 0;
+  var bodyHtml = renderCampaignBodyHtml_(bodyText);
+  var sender = 'Bếp Thuỷ Japan <support@thuyjapan.com>';
+  for (var i = 0; i < recipients.length; i++) {
+    var r = recipients[i];
+    if (!r.email) { fail++; continue; }
+    try {
+      MailApp.sendEmail({
+        to: r.email,
+        replyTo: 'support@thuyjapan.com',
+        name: 'Bếp Thuỷ Japan',
+        subject: subject,
+        htmlBody: bodyHtml.replace(/\{\{name\}\}/g, escapeHtml_(r.name || ''))
+                          .replace(/\{\{email\}\}/g, escapeHtml_(r.email))
+      });
+      ok++;
+      // Rate-limit: small pause every 20 to avoid Gmail flagging
+      if (ok % 20 === 0) Utilities.sleep(1000);
+    } catch (e) {
+      fail++;
+      Logger.log('Campaign send fail to ' + r.email + ': ' + e);
+    }
+  }
+  Logger.log('Campaign sent: ok=' + ok + ' fail=' + fail);
+  return { ok: ok, fail: fail };
+}
+
+function renderCampaignBodyHtml_(text) {
+  // Wrap plain text in branded email shell. \n → <br>. Preserve simple HTML tags.
+  var safe = String(text || '').replace(/\r\n/g, '\n');
+  // If user already used HTML tags (<p>, <br>, <strong>, etc.), keep as-is
+  var hasHtml = /<[a-z]+[\s>]/i.test(safe);
+  var content = hasHtml ? safe : safe.replace(/\n/g, '<br>');
+  return '<div style="font-family:-apple-system,Inter,Helvetica,sans-serif;background:#FFF8F0;padding:20px;color:#2C1A0E;">' +
+    '<div style="max-width:600px;margin:0 auto;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(44,26,14,0.08);">' +
+      '<div style="background:linear-gradient(135deg,#2C1A0E,#4A2C1A);color:white;padding:24px;text-align:center;">' +
+        '<h2 style="margin:0;font-family:Georgia,serif;color:#F4CC54;font-size:24px;">Bếp Thuỷ Japan</h2>' +
+        '<p style="margin:6px 0 0;font-size:11px;color:#FFF1D6;letter-spacing:2px;">✦ ĐẶC SẢN PHỐ CỔ HÀ NỘI ✦</p>' +
+      '</div>' +
+      '<div style="padding:28px 24px;font-size:15px;line-height:1.7;color:#2C1A0E;">' + content + '</div>' +
+      '<div style="background:#FEF3C7;padding:16px;text-align:center;font-size:12px;color:#78350F;">' +
+        '🌐 <a href="https://www.thuyjapan.com" style="color:#C8102E;text-decoration:none;font-weight:600;">thuyjapan.com</a> · ' +
+        '📞 <a href="tel:+818051156688" style="color:#C8102E;text-decoration:none;">080-5115-6688</a> · ' +
+        '✉️ <a href="mailto:support@thuyjapan.com" style="color:#C8102E;text-decoration:none;">support@thuyjapan.com</a>' +
+      '</div>' +
+    '</div></div>';
+}
+
+function escapeHtml_(s) {
+  return String(s || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+
+// ============================================================
+// AUTO EMAILS ON ORDER STATE CHANGE
+// ============================================================
+function sendOrderConfirmedEmail_(data) {
+  if (!data.email) { Logger.log('No customer email — skip'); return; }
+  var html = '<div style="font-family:-apple-system,Inter,sans-serif;padding:20px;background:#FFF8F0;color:#2C1A0E;">' +
+    '<div style="max-width:560px;margin:0 auto;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">' +
+      '<div style="background:linear-gradient(135deg,#10B981,#059669);color:white;padding:24px;text-align:center;">' +
+        '<h2 style="margin:0;color:white;font-family:Georgia,serif;">✅ Đơn hàng đã xác nhận</h2>' +
+        '<p style="margin:6px 0 0;font-size:13px;opacity:0.9;">Bếp Thuỷ Japan đã nhận thanh toán</p>' +
+      '</div>' +
+      '<div style="padding:24px;line-height:1.7;">' +
+        '<p>Chào <strong>' + escapeHtml_(data.name || '') + '</strong>,</p>' +
+        '<p>Bếp đã nhận được thanh toán cho đơn <strong style="color:#C8102E;">#' + escapeHtml_(data.orderNo) + '</strong> — số tiền <strong>¥' + Number(data.total || 0).toLocaleString() + '</strong>.</p>' +
+        '<p>Chúng em đang chuẩn bị hàng và sẽ gửi đi trong vòng <strong>24-48 giờ</strong>. Khi gửi xong, anh/chị sẽ nhận thêm 1 email có mã vận đơn để theo dõi.</p>' +
+        '<p style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:10px 14px;border-radius:6px;margin:16px 0;font-size:13px;">💡 Anh/chị có thể xem chi tiết đơn tại <a href="https://www.thuyjapan.com/thanh-vien" style="color:#C8102E;font-weight:600;">trang Thành Viên</a>.</p>' +
+        '<p style="margin-top:20px;color:#6B7280;font-size:13px;">Cảm ơn anh/chị đã ủng hộ Bếp Thuỷ Japan! 🍜</p>' +
+      '</div>' +
+    '</div></div>';
+  MailApp.sendEmail({
+    to: data.email,
+    replyTo: 'support@thuyjapan.com',
+    name: 'Bếp Thuỷ Japan',
+    subject: '✅ Đơn #' + data.orderNo + ' đã xác nhận thanh toán — Bếp Thuỷ Japan',
+    htmlBody: html
+  });
+  Logger.log('Order confirmed email sent to ' + data.email);
+}
+
+function sendOrderShippedEmail_(data) {
+  if (!data.email) { Logger.log('No customer email — skip'); return; }
+  var trackingHtml = data.trackingNo
+    ? '<p>📦 Mã vận đơn: <strong style="font-family:monospace;background:#F3F4F6;padding:4px 10px;border-radius:6px;">' + escapeHtml_(data.trackingNo) + '</strong></p>'
+    : '';
+  var carrierHtml = data.carrier
+    ? '<p>🚚 Đơn vị: <strong>' + escapeHtml_(data.carrier) + '</strong></p>' : '';
+  var html = '<div style="font-family:-apple-system,Inter,sans-serif;padding:20px;background:#FFF8F0;color:#2C1A0E;">' +
+    '<div style="max-width:560px;margin:0 auto;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">' +
+      '<div style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:white;padding:24px;text-align:center;">' +
+        '<h2 style="margin:0;color:white;font-family:Georgia,serif;">🚚 Đơn hàng đã gửi đi!</h2>' +
+        '<p style="margin:6px 0 0;font-size:13px;opacity:0.9;">Bếp Thuỷ Japan đã giao cho đơn vị vận chuyển</p>' +
+      '</div>' +
+      '<div style="padding:24px;line-height:1.7;">' +
+        '<p>Chào <strong>' + escapeHtml_(data.name || '') + '</strong>,</p>' +
+        '<p>Đơn <strong style="color:#C8102E;">#' + escapeHtml_(data.orderNo) + '</strong> đã được gửi đi rồi nhé!</p>' +
+        carrierHtml + trackingHtml +
+        '<p>Dự kiến nhận hàng: <strong>1-3 ngày</strong> tùy khu vực. Hàng đông lạnh, anh/chị nhớ kiểm tra tủ lạnh / cấp đông ngay sau khi nhận để giữ tươi.</p>' +
+        '<p style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:10px 14px;border-radius:6px;margin:16px 0;font-size:13px;">📋 Cách bảo quản chi tiết: <a href="https://www.thuyjapan.com/huong-dan-bao-quan" style="color:#C8102E;font-weight:600;">xem hướng dẫn</a></p>' +
+        '<p style="margin-top:20px;color:#6B7280;font-size:13px;">Cảm ơn anh/chị đã ủng hộ Bếp Thuỷ! Chúc anh/chị bữa ăn ngon miệng. 🍜</p>' +
+      '</div>' +
+    '</div></div>';
+  MailApp.sendEmail({
+    to: data.email,
+    replyTo: 'support@thuyjapan.com',
+    name: 'Bếp Thuỷ Japan',
+    subject: '🚚 Đơn #' + data.orderNo + ' đã gửi đi — Bếp Thuỷ Japan',
+    htmlBody: html
+  });
+  Logger.log('Order shipped email sent to ' + data.email);
 }
 
 // Optional: Telegram bot notification

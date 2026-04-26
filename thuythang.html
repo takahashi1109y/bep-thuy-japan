@@ -171,6 +171,7 @@
       <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng <span id="tt-pending-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
+      <button class="tab" data-tab="campaign" onclick="switchTab('campaign')">📢 Gửi Tin</button>
     </div>
   </div>
 
@@ -546,6 +547,69 @@
         <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
       </div>
       <div id="messages-pagination" class="pagination"></div>
+    </div>
+
+    <!-- CAMPAIGN TAB -->
+    <div id="tab-campaign" class="hidden">
+      <div class="card" style="margin-bottom: 16px;">
+        <h3 style="margin:0 0 6px;font-size:16px;font-weight:800;">📢 Gửi Email / Tin Nhắn Hàng Loạt</h3>
+        <p style="font-size:12px;color:#6B7280;margin:0;">Gửi cảm ơn, khuyến mãi, thông báo... đến nhiều khách cùng lúc. Email gửi qua Gmail của Apps Script (giới hạn 100/ngày).</p>
+      </div>
+
+      <!-- Mode toggle -->
+      <div class="card" style="margin-bottom:12px;padding:10px;">
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-camp="email"   onclick="setCampaignMode('email')">📧 Email</button>
+          <button class="sub-tab"        data-camp="message" onclick="setCampaignMode('message')">💬 Tin nhắn trong app</button>
+          <button class="sub-tab"        data-camp="push"    onclick="setCampaignMode('push')" disabled style="opacity:0.45;cursor:not-allowed;" title="Cần Firebase + app live">🔔 Push (sắp có)</button>
+        </div>
+      </div>
+
+      <!-- Recipient picker -->
+      <div class="card" style="margin-bottom:12px;">
+        <h4 style="margin:0 0 10px;font-size:14px;font-weight:700;">👥 Người nhận</h4>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="all_members"   checked onchange="updateCampaignPreview()"> Tất cả thành viên đã đăng ký <span id="seg-count-all_members" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="all_with_email"  onchange="updateCampaignPreview()"> Tất cả có email (gồm guest đã đặt đơn) <span id="seg-count-all_with_email" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="vip"           onchange="updateCampaignPreview()"> 👑 VIP (≥10 đơn) <span id="seg-count-vip" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="loyal"         onchange="updateCampaignPreview()"> ⭐ Thân thiết (≥3 đơn) <span id="seg-count-loyal" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="inactive_30"   onchange="updateCampaignPreview()"> 😴 Không quay lại 30+ ngày <span id="seg-count-inactive_30" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="recent_7"     onchange="updateCampaignPreview()"> 🆕 Mới đặt 7 ngày qua <span id="seg-count-recent_7" style="color:#9CA3AF;">(–)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="camp-segment" value="custom"        onchange="updateCampaignPreview()"> ✏️ Tự nhập email (1 dòng = 1 email)</label>
+        </div>
+        <textarea id="camp-custom-emails" class="hidden input" rows="4" placeholder="email1@gmail.com&#10;email2@gmail.com" style="margin-top:8px;font-size:13px;"></textarea>
+      </div>
+
+      <!-- Compose -->
+      <div class="card" style="margin-bottom:12px;" id="camp-compose-card">
+        <h4 style="margin:0 0 10px;font-size:14px;font-weight:700;">✍️ Nội dung</h4>
+        <div id="camp-subject-row" style="margin-bottom:10px;">
+          <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Tiêu đề email *</label>
+          <input id="camp-subject" type="text" class="input" placeholder="Ví dụ: Cảm ơn anh/chị! Mã giảm 10% cho đơn tiếp theo">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Nội dung *</label>
+          <textarea id="camp-body" class="input" rows="10" placeholder="Anh/chị thân mến,&#10;&#10;Cảm ơn đã ủng hộ Bếp Thuỷ Japan trong suốt thời gian qua.&#10;&#10;Mã giảm giá 10% cho đơn tiếp theo: THANKS10&#10;&#10;Trân trọng,&#10;Bếp Thuỷ Japan" style="font-size:13px;line-height:1.5;"></textarea>
+          <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">💡 Hỗ trợ HTML cơ bản. Xuống dòng = &lt;br&gt; tự động.</p>
+        </div>
+      </div>
+
+      <!-- Preview + Actions -->
+      <div class="card" style="margin-bottom:12px;">
+        <div id="camp-preview" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:12px;font-size:13px;color:#374151;margin-bottom:12px;">
+          📊 Chưa chọn người nhận hoặc nội dung
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button onclick="testCampaignSend()" class="btn btn-ghost">🧪 Gửi thử (chỉ tới em admin)</button>
+          <button onclick="sendCampaign()" id="camp-send-btn" class="btn btn-primary">📤 Gửi Tới Tất Cả</button>
+        </div>
+      </div>
+
+      <!-- Send log -->
+      <div id="camp-log" class="hidden card" style="margin-bottom:12px;background:#F0FDF4;border:1px solid #10B981;">
+        <h4 style="margin:0 0 8px;font-size:13px;color:#065F46;">📋 Kết quả gửi</h4>
+        <div id="camp-log-content" style="font-size:12px;color:#065F46;font-family:monospace;"></div>
+      </div>
     </div>
 
   </div>
@@ -925,13 +989,14 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','messages'].forEach(t => {
+  ['dashboard','orders','customers','messages','campaign'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
   if (name === 'orders' && allOrders.length === 0) loadOrders();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
+  if (name === 'campaign') initCampaignTab();
   try { localStorage.setItem('admin_tab', name); } catch(e) {}
 }
 
@@ -939,7 +1004,7 @@ function switchTab(name) {
 function restoreAdminTabs() {
   try {
     const savedTab = localStorage.getItem('admin_tab');
-    if (savedTab && ['dashboard','orders','customers','messages'].includes(savedTab) && savedTab !== 'dashboard') {
+    if (savedTab && ['dashboard','orders','customers','messages','campaign'].includes(savedTab) && savedTab !== 'dashboard') {
       switchTab(savedTab);
     }
     const savedSub = localStorage.getItem('admin_orders_subtab');
@@ -1611,7 +1676,27 @@ async function doShipSubmit() {
       p_shipping_method: method
     });
     if (error || !data?.ok) fail++;
-    else { ok++; pointsTotal += data.points_awarded || 0; }
+    else {
+      ok++; pointsTotal += data.points_awarded || 0;
+      // Fire shipped email (non-blocking)
+      try {
+        const o = allOrders.find(x => x.order_no === orderNo);
+        if (o && o.customer_email) {
+          fetch(APPS_SCRIPT_URL_CAMP, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              type: 'order_shipped',
+              orderNo: orderNo,
+              email: o.customer_email,
+              name: o.customer_name || '',
+              trackingNo: tracking,
+              carrier: carrier
+            })
+          }).catch(e => console.warn('Shipped email err:', e));
+        }
+      } catch(e) {}
+    }
   }
   btn.disabled = false; btn.textContent = '🚚 Xác Nhận Đã Gửi';
   const msg = `🚚 Đã gửi ${ok} đơn` + (pointsTotal ? ` · +${pointsTotal} điểm` : '') + (fail ? ` · Lỗi ${fail}` : '');
@@ -1907,6 +1992,23 @@ async function doConfirmPayment(orderNo, closeModal = false) {
   const { data, error } = await sb.rpc('confirm_order_payment', { p_order_no: orderNo });
   if (error || !data?.ok) { showToast('Lỗi: ' + (error?.message || data?.error || 'không xác định'), 'error'); return; }
   showToast('✅ Đã xác nhận đơn #' + orderNo, 'success');
+  // Fire customer email (non-blocking)
+  try {
+    const o = allOrders.find(x => x.order_no === orderNo);
+    if (o && o.customer_email) {
+      fetch(APPS_SCRIPT_URL_CAMP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          type: 'order_confirmed',
+          orderNo: orderNo,
+          email: o.customer_email,
+          name: o.customer_name || '',
+          total: o.total || 0
+        })
+      }).catch(e => console.warn('Confirm email err:', e));
+    }
+  } catch(e) {}
   if (closeModal) closeOrderModal();
   await loadDashboard();
   if (!document.getElementById('tab-orders').classList.contains('hidden')) loadOrders();
@@ -2966,6 +3068,202 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+
+// ============ CAMPAIGN: BULK EMAIL / MESSAGE ============
+let _campaignMode = 'email';
+
+function initCampaignTab() {
+  // Show/hide custom email textarea on segment change
+  document.querySelectorAll('input[name="camp-segment"]').forEach(r => {
+    r.onchange = function() {
+      const isCustom = document.querySelector('input[name="camp-segment"]:checked')?.value === 'custom';
+      document.getElementById('camp-custom-emails').classList.toggle('hidden', !isCustom);
+      updateCampaignPreview();
+    };
+  });
+  document.getElementById('camp-custom-emails').oninput = updateCampaignPreview;
+  document.getElementById('camp-subject').oninput = updateCampaignPreview;
+  document.getElementById('camp-body').oninput = updateCampaignPreview;
+  // Preload counts after customers loaded
+  if (allCustomers.length > 0) updateSegmentCounts();
+  else loadCustomers().then(updateSegmentCounts);
+}
+
+function setCampaignMode(mode) {
+  _campaignMode = mode;
+  document.querySelectorAll('.sub-tab[data-camp]').forEach(b => b.classList.toggle('active', b.dataset.camp === mode));
+  // Hide subject for in-app messages (only email needs it)
+  document.getElementById('camp-subject-row').classList.toggle('hidden', mode !== 'email');
+  document.getElementById('camp-send-btn').textContent = mode === 'email' ? '📤 Gửi Email Tới Tất Cả' : '💬 Gửi Tin Nhắn Tới Tất Cả';
+  updateCampaignPreview();
+}
+
+function getCampaignSegment() {
+  const seg = document.querySelector('input[name="camp-segment"]:checked')?.value || 'all_members';
+  // Build recipients from allCustomers + statsOrders (for guests)
+  const now = Date.now();
+  let recipients = []; // [{userId|null, email, name}]
+  if (seg === 'custom') {
+    const text = document.getElementById('camp-custom-emails').value || '';
+    text.split(/[\n,;]/).map(e => e.trim()).filter(Boolean).forEach(email => {
+      recipients.push({ userId: null, email, name: email.split('@')[0] });
+    });
+    return { seg, recipients };
+  }
+  allCustomers.forEach(c => {
+    if (!c.email && seg !== 'all_members') return;
+    if (seg === 'vip'         && c.orderCount < 10) return;
+    if (seg === 'loyal'       && c.orderCount < 3)  return;
+    if (seg === 'inactive_30' && (!c.lastOrder || (now - new Date(c.lastOrder).getTime()) < 30 * 86400000)) return;
+    if (seg === 'recent_7'    && (!c.lastOrder || (now - new Date(c.lastOrder).getTime()) > 7  * 86400000)) return;
+    if (seg === 'all_members') {
+      recipients.push({ userId: c.id, email: c.email || '', name: c.name || '' });
+    } else if (c.email) {
+      recipients.push({ userId: c.id, email: c.email, name: c.name || '' });
+    }
+  });
+  // For 'all_with_email' include guests too (guests don't have c.id but have email in orders)
+  if (seg === 'all_with_email') {
+    const seen = new Set(recipients.map(r => r.email.toLowerCase()));
+    (allOrders || []).forEach(o => {
+      const e = (o.customer_email || '').toLowerCase();
+      if (!e || seen.has(e)) return;
+      seen.add(e);
+      recipients.push({ userId: null, email: o.customer_email, name: o.customer_name || '' });
+    });
+  }
+  return { seg, recipients };
+}
+
+function updateSegmentCounts() {
+  ['all_members','all_with_email','vip','loyal','inactive_30','recent_7'].forEach(s => {
+    const orig = document.querySelector('input[name="camp-segment"]:checked')?.value;
+    const radio = document.querySelector('input[name="camp-segment"][value="' + s + '"]');
+    if (radio) radio.checked = true;
+    const { recipients } = getCampaignSegment();
+    document.getElementById('seg-count-' + s).textContent = '(' + recipients.length + ' người)';
+    if (orig) document.querySelector('input[name="camp-segment"][value="' + orig + '"]').checked = true;
+  });
+  updateCampaignPreview();
+}
+
+function updateCampaignPreview() {
+  const { recipients } = getCampaignSegment();
+  const validEmails = _campaignMode === 'email' ? recipients.filter(r => r.email).length : recipients.filter(r => r.userId).length;
+  const subj = (document.getElementById('camp-subject').value || '').trim();
+  const body = (document.getElementById('camp-body').value || '').trim();
+  const errs = [];
+  if (recipients.length === 0) errs.push('• Chưa có người nhận');
+  if (_campaignMode === 'email' && !subj) errs.push('• Thiếu tiêu đề email');
+  if (!body) errs.push('• Thiếu nội dung');
+  if (_campaignMode === 'email' && validEmails === 0) errs.push('• Không có ai trong segment có email');
+  if (_campaignMode === 'message' && validEmails === 0) errs.push('• Không có thành viên đã đăng ký trong segment (tin nhắn chỉ gửi được cho user_id)');
+
+  const box = document.getElementById('camp-preview');
+  if (errs.length > 0) {
+    box.innerHTML = '<div style="color:#92400E;">⚠️ ' + errs.join('<br>') + '</div>';
+    document.getElementById('camp-send-btn').disabled = true;
+  } else {
+    const ch = body.length;
+    box.innerHTML = '<div style="color:#065F46;">✅ Sẵn sàng gửi <strong>' + (_campaignMode === 'email' ? 'email' : 'tin nhắn') + '</strong> tới <strong>' + validEmails + '</strong> người. ' +
+                    'Nội dung ' + ch + ' ký tự.<br>' +
+                    '<span style="font-size:11px;color:#6B7280;">Email Apps Script gửi ~1-2 phút cho 100 email. Quota Gmail: 100/ngày (free).</span></div>';
+    document.getElementById('camp-send-btn').disabled = false;
+  }
+}
+
+const APPS_SCRIPT_URL_CAMP = 'https://script.google.com/macros/s/AKfycbz38j2-cr8sWIib0qokfYyaPnjz7BemNIZjr-P9T4aIIW_R2vOpMfOUDeOFs_FnFYJA2g/exec';
+
+async function testCampaignSend() {
+  const subj = (document.getElementById('camp-subject').value || '').trim();
+  const body = (document.getElementById('camp-body').value || '').trim();
+  if (_campaignMode === 'email' && !subj) { alert('Thiếu tiêu đề'); return; }
+  if (!body) { alert('Thiếu nội dung'); return; }
+  const adminEmail = currentAdmin?.email;
+  if (!adminEmail) { alert('Không xác định được email admin'); return; }
+  if (!confirm('Gửi email thử tới ' + adminEmail + '?')) return;
+  const btn = document.getElementById('camp-send-btn');
+  showToast('🧪 Đang gửi thử...', 'success');
+  await fetch(APPS_SCRIPT_URL_CAMP, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      type: 'campaign_test',
+      mode: _campaignMode,
+      subject: subj,
+      body: body,
+      test_email: adminEmail
+    })
+  });
+  setTimeout(() => showToast('✅ Đã gửi thử tới ' + adminEmail + ' (~1 phút)', 'success'), 1500);
+}
+
+async function sendCampaign() {
+  const { seg, recipients } = getCampaignSegment();
+  const subj = (document.getElementById('camp-subject').value || '').trim();
+  const body = (document.getElementById('camp-body').value || '').trim();
+  const filtered = _campaignMode === 'email'
+    ? recipients.filter(r => r.email)
+    : recipients.filter(r => r.userId);
+  if (filtered.length === 0) { alert('Không có người nhận hợp lệ'); return; }
+  if (!confirm('Gửi ' + (_campaignMode === 'email' ? 'email' : 'tin nhắn') + ' tới ' + filtered.length + ' người?\n\nKhông thể hủy giữa chừng.')) return;
+
+  const btn = document.getElementById('camp-send-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang gửi...';
+
+  // For in-app messages: insert thread + message for each user
+  if (_campaignMode === 'message') {
+    let ok = 0, fail = 0;
+    const subject = subj || 'Bếp Thuỷ Japan';
+    for (const r of filtered) {
+      try {
+        // Get or create thread
+        const { data: threads } = await sb.from('message_threads')
+          .select('id').eq('user_id', r.userId).order('last_message_at', { ascending: false }).limit(1);
+        let threadId;
+        if (threads && threads.length > 0) {
+          threadId = threads[0].id;
+        } else {
+          const { data: newThread, error } = await sb.from('message_threads')
+            .insert({ user_id: r.userId, subject: subject })
+            .select('id').single();
+          if (error) throw error;
+          threadId = newThread.id;
+        }
+        const { error: msgErr } = await sb.from('messages')
+          .insert({ thread_id: threadId, sender: 'shop', body: body });
+        if (msgErr) throw msgErr;
+        await sb.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
+        ok++;
+      } catch (e) { fail++; console.warn('Bulk msg fail for', r.userId, e); }
+    }
+    btn.disabled = false; btn.textContent = '💬 Gửi Tin Nhắn Tới Tất Cả';
+    showToast('✅ Gửi tin nhắn: ' + ok + ' OK, ' + fail + ' lỗi', fail > 0 ? 'error' : 'success');
+    document.getElementById('camp-log').classList.remove('hidden');
+    document.getElementById('camp-log-content').textContent = 'Tin nhắn: ' + ok + ' thành công, ' + fail + ' thất bại trong tổng ' + filtered.length;
+    return;
+  }
+
+  // Email: bulk send via Apps Script (rate-limited there)
+  const payload = {
+    type: 'campaign_email',
+    subject: subj,
+    body: body,
+    recipients: filtered.map(r => ({ email: r.email, name: r.name }))
+  };
+  await fetch(APPS_SCRIPT_URL_CAMP, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  btn.disabled = false; btn.textContent = '📤 Gửi Email Tới Tất Cả';
+  showToast('✅ Apps Script đang gửi ' + filtered.length + ' email (chạy ngầm 1-3 phút)', 'success');
+  document.getElementById('camp-log').classList.remove('hidden');
+  document.getElementById('camp-log-content').textContent =
+    'Đã gửi yêu cầu gửi ' + filtered.length + ' email cho Apps Script.\n' +
+    'Check Apps Script → Executions để xem log chi tiết.\n' +
+    'Quota Gmail free: 100/ngày. Quota Workspace: 1500/ngày.';
 }
 
 // ============ EXPORT EXCEL ============
