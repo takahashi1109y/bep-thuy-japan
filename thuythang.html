@@ -338,6 +338,17 @@
 
     <!-- ORDERS TAB -->
     <div id="tab-orders" class="hidden">
+      <!-- Pending payment confirmations alert -->
+      <div id="pp-alert" class="hidden" style="margin-bottom: 12px; background: linear-gradient(135deg, #FEF3C7, #FDE68A); border: 2px solid #F59E0B; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(245,158,11,0.2);">
+        <div style="flex: 1; min-width: 240px;">
+          <div style="font-size: 15px; font-weight: 800; color: #78350F;">🔔 Có <span id="pp-alert-count">0</span> đơn khách báo chuyển tiền</div>
+          <div style="font-size: 12px; color: #92400E; margin-top: 2px;">Click "Xem danh sách" để xác nhận thanh toán nhanh — không cần tìm thủ công</div>
+        </div>
+        <button onclick="openPendingPaymentsModal()" class="btn" style="background: #C8102E; color: white; font-weight: 700; padding: 10px 18px;">
+          📋 Xem danh sách →
+        </button>
+      </div>
+
       <!-- Sub-tabs: status groups -->
       <div class="card" style="margin-bottom: 12px; padding: 10px;">
         <div class="sub-tabs">
@@ -513,6 +524,23 @@
   </div>
 </div>
 
+<!-- PENDING PAYMENTS MODAL -->
+<div id="pending-payments-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closePendingPaymentsModal()">
+  <div class="modal" style="max-width: 920px;">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+      <div>
+        <div style="font-size: 12px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Khách Báo Chuyển Tiền</div>
+        <h3 style="margin: 4px 0 0; font-size: 22px; color: #C8102E;">🔔 <span id="pp-count">0</span> đơn cần xác nhận</h3>
+        <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">Click mã đơn để mở chi tiết và xác nhận thanh toán</div>
+      </div>
+      <button onclick="closePendingPaymentsModal()" class="btn btn-ghost" style="padding: 6px 10px;">✕</button>
+    </div>
+    <div id="pp-list" style="max-height: 70vh; overflow-y: auto;">
+      <div style="text-align:center;padding:30px;color:#9CA3AF;">Đang tải...</div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="hidden toast">Đã lưu</div>
 
@@ -674,6 +702,14 @@ async function checkPendingPayments() {
     const n = count || 0;
     if (n > 0) { badge.textContent = n; badge.classList.remove('hidden'); }
     else badge.classList.add('hidden');
+
+    // Toggle the orders-tab alert banner + count
+    const alertBox = document.getElementById('pp-alert');
+    const alertCount = document.getElementById('pp-alert-count');
+    if (alertBox && alertCount) {
+      if (n > 0) { alertCount.textContent = n; alertBox.classList.remove('hidden'); }
+      else alertBox.classList.add('hidden');
+    }
 
     // Alert if count increased (new payment came in)
     if (_lastPendingPaymentsCount >= 0 && n > _lastPendingPaymentsCount) {
@@ -1424,6 +1460,84 @@ async function openOrderModal(orderNo) {
 }
 
 function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+
+// ============ PENDING PAYMENTS MODAL ============
+async function openPendingPaymentsModal() {
+  const modal = document.getElementById('pending-payments-modal');
+  const listEl = document.getElementById('pp-list');
+  const countEl = document.getElementById('pp-count');
+  modal.classList.remove('hidden');
+  listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#9CA3AF;">Đang tải...</div>';
+
+  try {
+    // Fetch all orders with status = customer_paid
+    const { data: orders, error } = await sb.from('orders')
+      .select('order_no, customer_name, customer_phone, customer_email, total, created_at, user_id')
+      .eq('status', 'customer_paid')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    countEl.textContent = (orders || []).length;
+
+    if (!orders || orders.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#10B981;font-weight:600;">✅ Không có đơn nào đang chờ xác nhận</div>';
+      return;
+    }
+
+    // Fetch latest payment_confirmation for each order
+    const orderNos = orders.map(o => o.order_no);
+    const { data: confs } = await sb.from('payment_confirmations')
+      .select('order_no, method, claimed_amount, created_at, status, note')
+      .in('order_no', orderNos)
+      .order('created_at', { ascending: false });
+    const confByOrder = {};
+    (confs || []).forEach(c => { if (!confByOrder[c.order_no]) confByOrder[c.order_no] = c; });
+
+    const rowsHtml = orders.map(o => {
+      const c = confByOrder[o.order_no];
+      const submitted = c ? fmtJST(c.created_at, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : fmtJST(o.created_at, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const methodTxt = c ? (c.method === 'paypay' ? '💳 PayPay' : '🏦 Chuyển khoản NH') : '<span style="color:#9CA3AF;">— chưa upload —</span>';
+      const claimedAmount = c ? Number(c.claimed_amount) : null;
+      const mismatch = claimedAmount !== null && Math.abs(claimedAmount - o.total) > 1;
+      const mismatchBadge = mismatch
+        ? '<span style="background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px;">⚠️ Lệch số tiền</span>'
+        : '';
+      const note = c && c.note ? '<div style="font-size:11px;color:#6B7280;margin-top:4px;">📝 ' + escapeHtml(c.note) + '</div>' : '';
+
+      return '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-left:4px solid #F59E0B;border-radius:10px;padding:12px;margin-bottom:8px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">' +
+          '<div style="flex:1;min-width:200px;">' +
+            '<a href="javascript:void(0)" onclick="closePendingPaymentsModal();openOrderModal(\'' + o.order_no + '\');" style="font-size:16px;font-weight:800;color:#C8102E;text-decoration:underline;">#' + o.order_no + '</a>' +
+            mismatchBadge +
+            '<div style="font-size:13px;font-weight:600;color:#1C1C1E;margin-top:4px;">' + escapeHtml(o.customer_name || '-') + '</div>' +
+            '<div style="font-size:11px;color:#6B7280;">📞 ' + escapeHtml(o.customer_phone || '-') + ' · ⏱ ' + submitted + '</div>' +
+            note +
+          '</div>' +
+          '<div style="text-align:right;min-width:140px;">' +
+            '<div style="font-size:11px;color:#6B7280;">Đơn hàng</div>' +
+            '<div style="font-size:16px;font-weight:800;color:#1C1C1E;">¥' + Number(o.total).toLocaleString() + '</div>' +
+            '<div style="font-size:11px;color:#6B7280;margin-top:6px;">Khách báo</div>' +
+            '<div style="font-size:13px;font-weight:700;color:' + (mismatch ? '#EF4444' : '#10B981') + ';">' +
+              (claimedAmount !== null ? '¥' + claimedAmount.toLocaleString() : '—') +
+            '</div>' +
+            '<div style="font-size:11px;color:#6B7280;margin-top:4px;">' + methodTxt + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end;">' +
+          '<button onclick="closePendingPaymentsModal();openOrderModal(\'' + o.order_no + '\');" class="btn btn-primary" style="padding:6px 14px;font-size:12px;">👁 Xem chi tiết & xác nhận</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    listEl.innerHTML = rowsHtml;
+  } catch (e) {
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#EF4444;">❌ Lỗi tải danh sách: ' + escapeHtml(e.message || String(e)) + '</div>';
+  }
+}
+
+function closePendingPaymentsModal() {
+  document.getElementById('pending-payments-modal').classList.add('hidden');
+}
 
 // ============ PAYMENT PROOF VERIFY ============
 async function doVerifyPayment(confId, action) {
