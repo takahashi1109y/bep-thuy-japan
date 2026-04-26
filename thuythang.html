@@ -1158,7 +1158,9 @@ function renderOrdersTable() {
       <td><a href="javascript:void(0)" onclick="openOrderModal('${o.order_no}')" style="font-weight: 800; color: #C8102E;">#${o.order_no}</a></td>
       <td>
         <div style="font-size:10px;color:#6B7280;font-weight:600;font-family:monospace;letter-spacing:0.5px;">${escapeHtml(getCustomerCode(o.user_id, o.customer_email))}</div>
-        <div style="font-weight: 600;">${escapeHtml(o.customer_name || '-')}</div>
+        <div style="font-weight: 600;">${o.user_id
+          ? `<a href="javascript:void(0)" onclick="openCustomerModal('${o.user_id}')" style="color:#C8102E;text-decoration:underline;" title="Xem lịch sử & nhắn tin">${escapeHtml(o.customer_name || '-')}</a>`
+          : escapeHtml(o.customer_name || '-')}</div>
         <div style="font-size: 11px; color: #6B7280;">${escapeHtml(o.customer_phone || '')}</div>
       </td>
       <td style="font-size: 12px;">${date}</td>
