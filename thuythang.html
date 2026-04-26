@@ -2313,7 +2313,7 @@ async function loadProductCatalog() {
 function parseLegacyItemsString(s) {
   if (!s) return null;
   // Codes ordered longest-first for greedy 2-word match (e.g. "CLUA TIEU")
-  const CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'NEM', 'Pte', 'GT', 'CLUA', 'C', 'M'];
+  const CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'Nem', 'Pte', 'GT', 'CLUA', 'C', 'M'];
   const tokens = String(s).trim().split(/\s+/);
   const out = [];
   let i = 0;
@@ -2333,7 +2333,7 @@ function parseLegacyItemsString(s) {
   // Compute name + price for each from catalog
   return out.map(it => {
     const product = (productCatalog || []).find(p => (p.name || '').startsWith('[' + it.code + ']'));
-    const isBox  = it.code === 'Pte' || it.code === 'NEM';
+    const isBox  = it.code === 'Pte' || it.code === 'Nem';
     const unitPrice = product ? Number(product.unit_price) || 0 : 0;
     // For kg-based items: 1 unit = 0.5kg → units = qty / 0.5
     // For box items:     1 unit = 1 hộp/túi → units = qty
@@ -2484,7 +2484,7 @@ const PRODUCTION_ROWS = [
   { code: 'CLUA',      name: 'Chả lụa không tiêu, không quế', unit: 'kg' },
   { code: 'M',         name: 'Mọc có tiêu',                 unit: 'kg' },
   { code: 'MKT',       name: 'Mọc không tiêu',              unit: 'kg' },
-  { code: 'NEM',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
+  { code: 'Nem',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
   { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
 ];
 
@@ -2980,7 +2980,7 @@ const EXPORT_COLS = [
   { code: 'CLUA',      header: 'CHẢ LỤA ko tiêu (CLUA)\n1 kg\n(¥1850)' },
   { code: 'M',         header: 'MỌC tiêu (M)\n1 kg\n(¥1750)' },
   { code: 'MKT',       header: 'MỌC KT (MKT)\n1 kg\n(¥1750)' },
-  { code: 'NEM',       header: 'Nem Lụi (NEM)\n1 túi\n(¥1100)' },
+  { code: 'Nem',       header: 'Nem Lụi (NEM)\n1 túi\n(¥1100)' },
   { code: 'Pte',       header: 'Pate (Pte)\n1 hộp 0.5kg\n(¥1350)' }
 ];
 
@@ -3077,7 +3077,7 @@ function extractItemCode(itemName) {
   if (/cha que|chả quế/.test(n) || /^cha\b/.test(n)) return isKT ? 'CKT' : 'C';
   if (/^gio|giò|gio /.test(n)) return isKT ? 'GKT' : 'GT';
   if (/moc|mọc/.test(n)) return isKT ? 'MKT' : 'M';
-  if (/nem/.test(n)) return 'NEM';
+  if (/nem/.test(n)) return 'Nem';
   if (/pate|pâté/.test(n)) return 'Pte';
   return null;
 }
@@ -3106,7 +3106,7 @@ function aggregateOrderItems(order) {
     const code = extractItemCode(i.name);
     if (!code || !(code in totals)) return;
     const wt = Number(i.wt || 0);
-    if (code === 'NEM' || code === 'Pte') {
+    if (code === 'Nem' || code === 'Pte') {
       totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
     } else {
       totals[code] += wt;

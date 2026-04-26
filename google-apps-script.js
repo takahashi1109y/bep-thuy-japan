@@ -807,7 +807,7 @@ var PRODUCTION_PRODUCTS = [
   { code: 'CLUA',      name: 'Chả lụa không tiêu, không quế', unit: 'kg' },
   { code: 'M',         name: 'Mọc có tiêu',                 unit: 'kg' },
   { code: 'MKT',       name: 'Mọc không tiêu',              unit: 'kg' },
-  { code: 'NEM',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
+  { code: 'Nem',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
   { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
 ];
 
@@ -910,7 +910,7 @@ function aggregateOrderItemsForReport_(itemsJson) {
     if (parsed) {
       parsed.forEach(function(p){
         if (totals[p.code] === undefined) return;
-        if (p.code === 'NEM' || p.code === 'Pte') totals[p.code] += p.qty;
+        if (p.code === 'Nem' || p.code === 'Pte') totals[p.code] += p.qty;
         else totals[p.code] += p.qty;  // legacy qty already in kg
       });
       return totals;
@@ -925,7 +925,7 @@ function aggregateOrderItemsForReport_(itemsJson) {
     if (!code) return;
     if (totals[code] === undefined) return;
     var wt = Number(i.wt || 0);
-    if (code === 'NEM' || code === 'Pte') totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
+    if (code === 'Nem' || code === 'Pte') totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
     else                                   totals[code] += wt;
   });
   return totals;
@@ -933,7 +933,7 @@ function aggregateOrderItemsForReport_(itemsJson) {
 
 // Parse "1 GT 0.5 MKT 1 Pte" → [{code:'GT',qty:1}, {code:'MKT',qty:0.5}, {code:'Pte',qty:1}]
 function parseLegacyConcatenated_(s) {
-  var CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'NEM', 'Pte', 'GT', 'CLUA', 'C', 'M'];
+  var CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'Nem', 'Pte', 'GT', 'CLUA', 'C', 'M'];
   var tokens = String(s).trim().split(/\s+/);
   var out = []; var i = 0;
   while (i < tokens.length) {
