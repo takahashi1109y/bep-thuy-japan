@@ -1464,7 +1464,17 @@ function switchTab(type) {
     document.body.style.overflow='';
     if(successVisible){ resetAndClose(); return; }
   }
-  function showStep(id){ ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; }); }
+  function showStep(id){
+    ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; });
+    // Guest upsell visibility — always recompute when order-success shown
+    if (id === 'order-success') {
+      const banner = document.getElementById('guest-upsell');
+      if (banner) {
+        if (!sbUser) banner.classList.remove('hidden');
+        else banner.classList.add('hidden');
+      }
+    }
+  }
   function backToCart(){ showStep('cart-items-section'); }
 
   function goToCheckout(){
