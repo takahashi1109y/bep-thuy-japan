@@ -951,7 +951,37 @@ async function init() {
       try { sessionStorage.setItem('pending_welcome_claim', '1'); } catch(e) {}
     }
     showSection('auth');
+    // Guest upsell prefill: ?prefill=1 + sessionStorage có data → switch sang Đăng Ký + fill sẵn
+    if (urlParams.get('prefill') === '1') {
+      tryPrefillRegister();
+      history.replaceState({}, '', '/thanh-vien');
+    }
   }
+}
+
+function tryPrefillRegister() {
+  try {
+    const raw = sessionStorage.getItem('register_prefill');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    switchAuthTab('register');
+    const map = {
+      'reg-email': data.email,
+      'reg-name': data.name,
+      'reg-phone': data.phone,
+      'reg-prefecture': data.prefecture,
+      'reg-postal': data.postal,
+      'reg-address': data.address
+    };
+    Object.entries(map).forEach(([id, val]) => {
+      if (!val) return;
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+    sessionStorage.removeItem('register_prefill');
+    // Focus password field — user just needs to set password
+    setTimeout(() => { document.getElementById('reg-password')?.focus(); }, 200);
+  } catch (e) { console.warn('prefill err:', e); }
 }
 
 async function tryClaimWelcomeBonus() {

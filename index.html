@@ -1083,6 +1083,24 @@ function switchTab(type) {
       <p class="text-gray-500 text-sm">Vui lòng thanh toán để hoàn tất đơn</p>
     </div>
 
+    <!-- Guest upsell — show only for non-logged-in customers -->
+    <div id="guest-upsell" class="hidden bg-green-50 border-2 border-green-300 rounded-2xl p-5 mb-5">
+      <div class="text-center mb-3">
+        <div class="text-3xl mb-1">🎁</div>
+        <h4 class="font-bold text-green-800 text-base" style="font-family:'Playfair Display',serif">Đăng ký nhận quà — chỉ 30 giây</h4>
+        <p class="text-green-700 text-xs mt-1">Email và thông tin của anh/chị đã có sẵn — chỉ cần đặt mật khẩu</p>
+      </div>
+      <ul class="space-y-1.5 text-sm text-green-800 mb-4 ml-1">
+        <li>✓ Tặng <strong>100 điểm thưởng</strong> (= ¥100 giảm đơn sau)</li>
+        <li>✓ <strong>Tự động lưu lịch sử đơn</strong> — không phải gõ lại địa chỉ</li>
+        <li>✓ <strong>Giảm 10% sinh nhật</strong> + ưu đãi khách thân thiết</li>
+        <li>✓ <strong>Theo dõi đơn hàng</strong> trực tiếp trong tài khoản</li>
+      </ul>
+      <a id="guest-upsell-link" href="/thanh-vien?prefill=1" class="block w-full text-center py-3 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-700">
+        📝 Đăng Ký Miễn Phí Ngay →
+      </a>
+    </div>
+
     <!-- Banner CẢNH BÁO chưa thanh toán -->
     <div class="bg-yellow-100 border-2 border-yellow-400 rounded-2xl p-4 mb-5">
       <p class="text-yellow-800 font-bold text-sm text-center">⚠️ ĐƠN CHƯA ĐƯỢC THANH TOÁN</p>
@@ -1701,6 +1719,26 @@ function switchTab(type) {
     generatePayPayQR(total);
     // Mặc định hiện PayPay
     switchPayment('paypay');
+
+    // Guest upsell: nếu khách chưa đăng nhập → save prefill data + show banner
+    const upsellBanner = document.getElementById('guest-upsell');
+    if (!sbUser && upsellBanner) {
+      try {
+        const prefill = {
+          email: email || '',
+          name: name || '',
+          phone: phone || '',
+          prefecture: shipPref || '',
+          postal: shipPostal || '',
+          address: shipAddress || ''
+        };
+        sessionStorage.setItem('register_prefill', JSON.stringify(prefill));
+        upsellBanner.classList.remove('hidden');
+      } catch (e) { console.warn('upsell prefill err:', e); }
+    } else if (upsellBanner) {
+      upsellBanner.classList.add('hidden');
+    }
+
     showStep('order-success');
     document.getElementById('cart-panel').scrollTop = 0;
   }
