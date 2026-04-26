@@ -363,7 +363,28 @@
         </div>
       </div>
 
-      <div id="orders-date-filter-chip" class="hidden" style="margin-bottom: 12px;"></div>
+      <!-- Date filter panel -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">📅 Lọc theo ngày</div>
+          <button onclick="clearDateRangeFilter()" id="orders-clear-date" class="btn btn-ghost hidden" style="font-size:11px;padding:4px 10px;">✕ Xóa lọc</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+          <button onclick="setDateRangePreset('today')"     class="btn btn-ghost date-preset-btn" data-preset="today"    style="font-size:12px;padding:6px 12px;">Hôm nay</button>
+          <button onclick="setDateRangePreset('yesterday')" class="btn btn-ghost date-preset-btn" data-preset="yesterday" style="font-size:12px;padding:6px 12px;">Hôm qua</button>
+          <button onclick="setDateRangePreset('last7')"     class="btn btn-ghost date-preset-btn" data-preset="last7"    style="font-size:12px;padding:6px 12px;">7 ngày</button>
+          <button onclick="setDateRangePreset('last30')"    class="btn btn-ghost date-preset-btn" data-preset="last30"   style="font-size:12px;padding:6px 12px;">30 ngày</button>
+          <button onclick="setDateRangePreset('thismonth')" class="btn btn-ghost date-preset-btn" data-preset="thismonth"style="font-size:12px;padding:6px 12px;">Tháng này</button>
+          <button onclick="setDateRangePreset('lastmonth')" class="btn btn-ghost date-preset-btn" data-preset="lastmonth"style="font-size:12px;padding:6px 12px;">Tháng trước</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;">
+          <input type="date" id="orders-date-from" class="input" style="font-size:13px;padding:6px 10px;" onchange="applyCustomDateRange()">
+          <span style="color:#9CA3AF;">~</span>
+          <input type="date" id="orders-date-to" class="input" style="font-size:13px;padding:6px 10px;" onchange="applyCustomDateRange()">
+          <button onclick="applyCustomDateRange()" class="btn btn-primary" style="font-size:12px;padding:6px 14px;">Áp dụng</button>
+        </div>
+        <div id="orders-date-summary" style="font-size:11px;color:#6B7280;margin-top:8px;"></div>
+      </div>
 
       <div class="card" style="margin-bottom: 12px; padding: 10px;">
         <button onclick="openExportModal()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:8px 14px;font-size:13px;">📊 Xuất Excel theo ngày</button>
@@ -1168,15 +1189,24 @@ function filterOrders() {
   let list = allOrders;
   const group = ORDERS_STATUS_GROUPS[ordersSubTab];
   if (group) list = list.filter(o => group.includes(o.status));
-  if (ordersDateFilter === 'today') {
-    const today = fmtJSTDate(new Date().toISOString());
-    list = list.filter(o => fmtJSTDate(o.created_at) === today);
-  } else if (ordersDateFilter && ordersDateFilter.startsWith('last')) {
-    const days = parseInt(ordersDateFilter.slice(4));
-    if (days > 0) {
-      const cutoff = Date.now() - days * 86400000;
-      list = list.filter(o => new Date(o.created_at).getTime() >= cutoff);
+  // Date filter: legacy presets (string) OR custom range {from, to}
+  if (typeof ordersDateFilter === 'string') {
+    if (ordersDateFilter === 'today') {
+      const today = isoJSTDate(new Date().toISOString());
+      list = list.filter(o => isoJSTDate(o.created_at) === today);
+    } else if (ordersDateFilter.startsWith('last')) {
+      const days = parseInt(ordersDateFilter.slice(4));
+      if (days > 0) {
+        const cutoff = Date.now() - days * 86400000;
+        list = list.filter(o => new Date(o.created_at).getTime() >= cutoff);
+      }
     }
+  } else if (ordersDateFilter && ordersDateFilter.from && ordersDateFilter.to) {
+    const from = ordersDateFilter.from, to = ordersDateFilter.to;
+    list = list.filter(o => {
+      const d = isoJSTDate(o.created_at);
+      return d >= from && d <= to;
+    });
   }
   if (q) list = list.filter(o =>
     (o.order_no || '').toLowerCase().includes(q) ||
@@ -1192,37 +1222,94 @@ function filterOrders() {
 }
 
 function updateOrdersDateFilterChip() {
-  const chip = document.getElementById('orders-date-filter-chip');
-  if (!chip) return;
-  let label = '';
-  if (ordersDateFilter === 'today') label = `📅 Đơn hôm nay (${fmtJSTDate(new Date().toISOString())})`;
-  else if (ordersDateFilter && ordersDateFilter.startsWith('last')) {
-    const days = parseInt(ordersDateFilter.slice(4));
-    if (days > 0) label = `📅 ${days} ngày gần nhất`;
+  // Sync the new date filter panel inputs + summary line + clear button
+  const fromInput = document.getElementById('orders-date-from');
+  const toInput   = document.getElementById('orders-date-to');
+  const summary   = document.getElementById('orders-date-summary');
+  const clearBtn  = document.getElementById('orders-clear-date');
+  // Highlight active preset button
+  document.querySelectorAll('.date-preset-btn').forEach(b => {
+    const isActive = (typeof ordersDateFilter === 'string' && b.dataset.preset === ordersDateFilter)
+                  || (ordersDateFilter && typeof ordersDateFilter === 'object' && b.dataset.preset === ordersDateFilter._preset);
+    b.style.background = isActive ? '#C8102E' : '';
+    b.style.color      = isActive ? 'white' : '';
+  });
+  if (!summary) return;
+  // Resolve concrete from/to for display
+  let from = '', to = '';
+  if (typeof ordersDateFilter === 'string') {
+    const r = resolveDatePreset(ordersDateFilter);
+    if (r) { from = r.from; to = r.to; }
+  } else if (ordersDateFilter && ordersDateFilter.from) {
+    from = ordersDateFilter.from; to = ordersDateFilter.to;
   }
-  if (label) {
-    chip.innerHTML = `<div style="background:#DBEAFE;border:1px solid #60A5FA;border-radius:10px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:13px;font-weight:600;color:#1E40AF;">${label}</span>
-      <button onclick="clearOrdersDateFilter()" class="btn btn-ghost" style="padding:4px 12px;font-size:12px;">✕ Bỏ lọc</button>
-    </div>`;
-    chip.classList.remove('hidden');
+  if (fromInput) fromInput.value = from;
+  if (toInput)   toInput.value   = to;
+  if (from && to) {
+    summary.innerHTML = '✅ Đang lọc: <strong>' + from + ' → ' + to + '</strong>';
+    if (clearBtn) clearBtn.classList.remove('hidden');
   } else {
-    chip.innerHTML = '';
-    chip.classList.add('hidden');
+    summary.textContent = 'Không lọc — đang xem tất cả ngày.';
+    if (clearBtn) clearBtn.classList.add('hidden');
   }
 }
 
-function clearOrdersDateFilter() {
+// Convert a preset name into concrete {from, to} (ISO YYYY-MM-DD strings)
+function resolveDatePreset(preset) {
+  const todayStr = isoJSTDate(new Date().toISOString());
+  const today = new Date(todayStr + 'T00:00:00Z');
+  const addDays = (d, n) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  switch (preset) {
+    case 'today':     return { from: todayStr, to: todayStr };
+    case 'yesterday': { const y = addDays(today, -1); return { from: y, to: y }; }
+    case 'last7':     return { from: addDays(today, -6),  to: todayStr };
+    case 'last30':    return { from: addDays(today, -29), to: todayStr };
+    case 'last90':    return { from: addDays(today, -89), to: todayStr };
+    case 'thismonth': return { from: todayStr.slice(0,7) + '-01', to: todayStr };
+    case 'lastmonth': {
+      const t = new Date(todayStr + 'T00:00:00Z');
+      const firstOfThis = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
+      const lastOfPrev  = new Date(firstOfThis.getTime() - 86400000);
+      const firstOfPrev = new Date(Date.UTC(lastOfPrev.getUTCFullYear(), lastOfPrev.getUTCMonth(), 1));
+      return { from: firstOfPrev.toISOString().slice(0,10), to: lastOfPrev.toISOString().slice(0,10) };
+    }
+    default: return null;
+  }
+}
+
+function setDateRangePreset(preset) {
+  const r = resolveDatePreset(preset);
+  if (!r) return;
+  ordersDateFilter = { from: r.from, to: r.to, _preset: preset };
+  filterOrders();
+}
+
+function applyCustomDateRange() {
+  const from = document.getElementById('orders-date-from').value;
+  const to   = document.getElementById('orders-date-to').value;
+  if (!from && !to) { clearDateRangeFilter(); return; }
+  if (!from || !to) { showToast('Chọn cả 2 ngày', 'error'); return; }
+  if (from > to) { showToast('Ngày bắt đầu phải trước ngày kết thúc', 'error'); return; }
+  ordersDateFilter = { from, to };
+  filterOrders();
+}
+
+function clearDateRangeFilter() {
   ordersDateFilter = null;
   filterOrders();
 }
+
+// Backward compat
+function clearOrdersDateFilter() { clearDateRangeFilter(); }
 
 function navToOrdersToday() {
   navToOrdersDate('today');
 }
 
 function navToOrdersDate(filter) {
-  ordersDateFilter = filter;
+  // Convert preset string into concrete {from, to} so the new date panel reflects it
+  const r = resolveDatePreset(filter);
+  ordersDateFilter = r ? { from: r.from, to: r.to, _preset: filter } : filter;
   ordersSubTab = 'all';
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'all'));
   clearSelection();
