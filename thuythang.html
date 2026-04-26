@@ -1160,7 +1160,9 @@ function renderOrdersTable() {
         <div style="font-size:10px;color:#6B7280;font-weight:600;font-family:monospace;letter-spacing:0.5px;">${escapeHtml(getCustomerCode(o.user_id, o.customer_email))}</div>
         <div style="font-weight: 600;">${o.user_id
           ? `<a href="javascript:void(0)" onclick="openCustomerModal('${o.user_id}')" style="color:#C8102E;text-decoration:underline;" title="Xem lịch sử & nhắn tin">${escapeHtml(o.customer_name || '-')}</a>`
-          : escapeHtml(o.customer_name || '-')}</div>
+          : (o.customer_email
+              ? `<a href="javascript:void(0)" onclick="openGuestModal('${escapeHtml(o.customer_email).replace(/'/g, "\\'")}')" style="color:#C8102E;text-decoration:underline;" title="Xem lịch sử guest theo email">${escapeHtml(o.customer_name || '-')}</a>`
+              : escapeHtml(o.customer_name || '-'))}</div>
         <div style="font-size: 11px; color: #6B7280;">${escapeHtml(o.customer_phone || '')}</div>
       </td>
       <td style="font-size: 12px;">${date}</td>
@@ -1841,6 +1843,93 @@ async function openCustomerModal(userId, focusMessage = false) {
 
 function closeCustomerModal() {
   document.getElementById('customer-modal').classList.add('hidden');
+}
+
+// ============ GUEST MODAL (no user_id — match by email) ============
+async function openGuestModal(email) {
+  if (!email) { showToast('❌ Khách guest không có email — không thể tra lịch sử', 'error'); return; }
+  const code = guestCodeByEmail[email.toLowerCase().trim()] || 'Guest-?';
+
+  document.getElementById('customer-modal-name').innerHTML =
+    `<span style="font-size:12px;color:#6B7280;font-family:monospace;font-weight:600;display:block;">${escapeHtml(code)}</span>` +
+    escapeHtml(email);
+  document.getElementById('customer-modal-tag').innerHTML =
+    '<span class="badge badge-pending">👤 Guest (chưa đăng ký)</span>';
+  document.getElementById('customer-modal-content').innerHTML = '<p style="text-align:center;padding:30px;color:#9CA3AF;">Đang tải...</p>';
+  document.getElementById('customer-modal').classList.remove('hidden');
+
+  const { data: orders, error } = await sb.from('orders')
+    .select('*')
+    .ilike('customer_email', email)
+    .is('user_id', null)
+    .order('created_at', { ascending: false });
+  if (error) {
+    document.getElementById('customer-modal-content').innerHTML =
+      '<p style="color:#EF4444;padding:20px;">Lỗi tải đơn: ' + escapeHtml(error.message) + '</p>';
+    return;
+  }
+  const list = orders || [];
+
+  // Cache for openOrderModal lookup
+  const map = {};
+  allOrders.forEach(o => { map[o.order_no] = o; });
+  list.forEach(o => { map[o.order_no] = o; });
+  allOrders = Object.values(map);
+
+  const validOrders = list.filter(o => o.status !== 'cancelled');
+  const cancelledCount = list.filter(o => o.status === 'cancelled').length;
+  const totalSpent = validOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+  const lastOrder = validOrders[0]?.created_at;
+  const latest = list[0] || {};
+
+  const statsHtml = `<div class="grid-stats" style="margin-bottom: 14px;">
+    <div class="stat-card">
+      <div class="label">Tổng đơn</div>
+      <div class="value">${validOrders.length}</div>
+      ${cancelledCount > 0 ? `<div class="sub" style="color:#EF4444;font-weight:600;">+ ${cancelledCount} đã hủy</div>` : ''}
+    </div>
+    <div class="stat-card"><div class="label">Tổng chi</div><div class="value" style="color:#C8102E;font-size:20px;">¥${Number(totalSpent).toLocaleString()}</div></div>
+    <div class="stat-card"><div class="label">Đơn gần nhất</div><div class="value" style="font-size:14px;">${fmtJSTDate(lastOrder)}</div></div>
+    <div class="stat-card"><div class="label">Trạng thái</div><div class="value" style="font-size:14px;color:#F59E0B;">Chưa đăng ký</div></div>
+  </div>`;
+
+  const contactHtml = `<div class="card" style="margin-bottom: 12px;">
+    <h4 style="margin: 0 0 8px; font-size: 14px;">👤 Liên hệ (từ đơn gần nhất)</h4>
+    <div style="font-size: 13px; line-height: 1.8;">
+      <div><strong>${escapeHtml(latest.customer_name || '-')}</strong></div>
+      <div>📞 ${escapeHtml(latest.customer_phone || '-')}</div>
+      <div>✉️ ${escapeHtml(email)}</div>
+      ${latest.ship_prefecture ? `<div>📍 ${escapeHtml(latest.ship_prefecture)}</div>` : ''}
+    </div>
+  </div>`;
+
+  const inviteHtml = `<div class="card" style="margin-bottom: 12px; background: #FFFBEB; border: 1px solid #FCD34D;">
+    <h4 style="margin: 0 0 6px; font-size: 13px; color: #92400E;">💡 Khuyến nghị</h4>
+    <p style="font-size: 12px; color: #78350F; margin: 0;">Khách guest không thể nhận tin nhắn trên web. Hãy mời khách đăng ký bằng đúng email <strong>${escapeHtml(email)}</strong> để tự động khôi phục lịch sử ${list.length} đơn này + nhận 100 điểm welcome.</p>
+  </div>`;
+
+  let ordersHtml = `<div class="card">
+    <h4 style="margin: 0 0 10px; font-size: 14px;">📦 Lịch sử đơn hàng (${list.length})</h4>`;
+  if (list.length === 0) {
+    ordersHtml += '<p style="font-size:12px;color:#9CA3AF;margin:0;">Chưa có đơn nào.</p>';
+  } else {
+    ordersHtml += list.map(o => {
+      const date = fmtJSTDate(o.created_at);
+      return `<div style="padding:10px 0;border-bottom:1px solid #F3F4F6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <a href="javascript:void(0)" onclick="closeCustomerModal();openOrderModal('${o.order_no}');" style="font-weight:800;color:#C8102E;">#${o.order_no}</a>
+          <div style="font-size:11px;color:#6B7280;">${date}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;font-size:13px;">¥${Number(o.total).toLocaleString()}</div>
+          ${statusBadge(o.status)}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  ordersHtml += '</div>';
+
+  document.getElementById('customer-modal-content').innerHTML = statsHtml + contactHtml + inviteHtml + ordersHtml;
 }
 
 async function sendMessageToCustomer(userId) {
