@@ -1828,14 +1828,21 @@ function computeAgg(filterFn) {
     }
     ordersWithItems += 1;
     items.forEach(i => {
-      const qty = Number(i.qty || 0);
+      const wt = Number(i.wt || 0);
       const price = Number(i.price || 0);
       const product = findProductByItemName(i.name);
+      // Số "đơn vị" thực sự khách mua: 1 = 0.5kg / 1 hộp.
+      // Customer cart luôn lưu qty=1, dùng wt/0.5 làm đơn vị; fallback price/unit_price.
+      let units = wt > 0 ? wt / 0.5
+        : (product && Number(product.unit_price) > 0 ? price / Number(product.unit_price)
+        : Number(i.qty || 1));
+      if (!Number.isFinite(units) || units <= 0) units = 1;
       if (product && Number(product.cost) > 0) {
-        totalCost += Number(product.cost) * qty;
+        totalCost += Number(product.cost) * units;
         itemsMatched += 1;
       } else {
-        totalCost += price * (1 - margin) * qty;
+        // Fallback: ước cost từ revenue line (đã chứa wt scaling), không cần × units
+        totalCost += price * (1 - margin);
         itemsUnmatched += 1;
       }
     });
