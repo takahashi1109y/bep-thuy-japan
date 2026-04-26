@@ -739,6 +739,8 @@ async function checkAdminAndLoad(user) {
   showSection('admin-ui');
   // Load dashboard + customers parallel để có customer code map sẵn cho Orders tab
   await Promise.all([loadDashboard(), loadCustomers()]);
+  // Restore last active tab + sub-tab from localStorage (so reload doesn't jump to dashboard)
+  restoreAdminTabs();
   checkUnreadMessages();
   checkPendingPayments();
   // Poll for new messages + new payment confirmations every 30s
@@ -836,6 +838,23 @@ function switchTab(name) {
   if (name === 'orders' && allOrders.length === 0) loadOrders();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
+  try { localStorage.setItem('admin_tab', name); } catch(e) {}
+}
+
+// Restore last active tab + sub-tab after admin UI loads
+function restoreAdminTabs() {
+  try {
+    const savedTab = localStorage.getItem('admin_tab');
+    if (savedTab && ['dashboard','orders','customers','messages'].includes(savedTab) && savedTab !== 'dashboard') {
+      switchTab(savedTab);
+    }
+    const savedSub = localStorage.getItem('admin_orders_subtab');
+    if (savedSub && ORDERS_STATUS_GROUPS[savedSub]) {
+      ordersSubTab = savedSub;
+      document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === savedSub));
+      if (allOrders.length > 0) filterOrders();
+    }
+  } catch(e) { console.warn('restoreAdminTabs err:', e); }
 }
 
 // ═══════════════════ MESSAGES (Admin side) ═══════════════════
@@ -1223,6 +1242,7 @@ function setOrdersSubTab(tab) {
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   clearSelection();
   filterOrders();
+  try { localStorage.setItem('admin_orders_subtab', tab); } catch(e) {}
 }
 
 function updateSubTabCounts() {
