@@ -1040,7 +1040,51 @@ async function loadOrders() {
   const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(500);
   if (error) { tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; color: #EF4444;">Lỗi: ${error.message}</td></tr>`; return; }
   allOrders = data || [];
+  // Ensure guest codes exist before rendering — fetch globally to keep numbering stable
+  await ensureGuestCodes();
   filterOrders();
+}
+
+// Compute Guest-XXXXXX codes from ALL orders (not just the 500 most recent)
+// Preserves existing assignments + appends new emails by first-order date.
+let _guestCodesLoaded = false;
+async function ensureGuestCodes(force = false) {
+  if (_guestCodesLoaded && !force) return;
+  try {
+    const { data, error } = await sb.from('orders')
+      .select('customer_email, created_at')
+      .is('user_id', null);
+    if (error) throw error;
+    assignGuestCodesFrom(data || []);
+    _guestCodesLoaded = true;
+  } catch (e) { console.warn('ensureGuestCodes failed:', e); }
+}
+
+function assignGuestCodesFrom(orders) {
+  // Earliest order date per email
+  const earliest = {};
+  orders.forEach(o => {
+    const e = (o.customer_email || '').toLowerCase().trim();
+    if (!e) return;
+    if (!earliest[e] || new Date(o.created_at) < new Date(earliest[e])) earliest[e] = o.created_at;
+  });
+  // Stable sort by earliest date — preserves chronological numbering
+  const sorted = Object.entries(earliest).sort((a, b) => new Date(a[1]) - new Date(b[1]));
+  // Find max existing code number to continue numbering for unmapped emails
+  let maxCode = 0;
+  Object.values(guestCodeByEmail).forEach(c => {
+    const n = parseInt((c || '').replace('Guest-', ''), 10);
+    if (!isNaN(n) && n > maxCode) maxCode = n;
+  });
+  let nextNum = 1;
+  sorted.forEach(([email]) => {
+    if (guestCodeByEmail[email]) return; // preserve existing
+    // Find next free number not already used
+    while (Object.values(guestCodeByEmail).includes('Guest-' + String(nextNum).padStart(6, '0'))) nextNum++;
+    if (nextNum <= maxCode) nextNum = maxCode + 1;
+    guestCodeByEmail[email] = 'Guest-' + String(nextNum).padStart(6, '0');
+    nextNum++;
+  });
 }
 
 function filterOrders() {
@@ -1610,21 +1654,9 @@ async function loadCustomers() {
   const unreadMap = {};
   threads.forEach(t => { if (t.unread_by_shop) unreadMap[t.user_id] = (unreadMap[t.user_id] || 0) + 1; });
 
-  // Compute Guest codes: gom email từ đơn user_id=NULL, sort theo first order date
-  const guestEmails = {};
-  orders.forEach(o => {
-    if (o.user_id) return;
-    const e = (o.customer_email || '').toLowerCase().trim();
-    if (!e) return;
-    if (!guestEmails[e] || new Date(o.created_at) < new Date(guestEmails[e])) {
-      guestEmails[e] = o.created_at;
-    }
-  });
-  const sortedEmails = Object.entries(guestEmails).sort((a, b) => new Date(a[1]) - new Date(b[1]));
-  guestCodeByEmail = {};
-  sortedEmails.forEach(([email], i) => {
-    guestCodeByEmail[email] = 'Guest-' + String(i + 1).padStart(6, '0');
-  });
+  // Compute Guest codes from all orders (preserves existing mapping for stability)
+  assignGuestCodesFrom(orders.filter(o => !o.user_id));
+  _guestCodesLoaded = true;
 
   const customerMap = {};
   profiles.forEach(p => {
