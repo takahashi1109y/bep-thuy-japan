@@ -238,22 +238,22 @@
             <button onclick="setChartRange(90)" class="btn btn-ghost chart-range-btn" data-days="90" style="font-size:11px;padding:5px 10px;">90 ngày</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr;gap:14px;" id="charts-grid">
-          <div style="border:1px solid #E5E7EB;border-radius:12px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-              <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💰 Doanh thu</div>
-              <div id="chart-revenue-total" style="font-size:18px;font-weight:800;color:#C8102E;">¥0</div>
+        <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:10px;" id="charts-grid">
+          <div style="border:1px solid #E5E7EB;border-radius:10px;padding:10px;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:4px;">
+              <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">💰 Doanh thu</div>
+              <div id="chart-revenue-total" style="font-size:14px;font-weight:800;color:#C8102E;white-space:nowrap;">¥0</div>
             </div>
-            <div style="font-size:10px;color:#9CA3AF;margin-bottom:8px;" id="chart-revenue-period">Bản hôm nay</div>
-            <canvas id="chart-revenue" style="max-height:180px;"></canvas>
+            <div style="font-size:10px;color:#9CA3AF;margin-bottom:6px;" id="chart-revenue-period">7 ngày</div>
+            <canvas id="chart-revenue" style="max-height:130px;"></canvas>
           </div>
-          <div style="border:1px solid #E5E7EB;border-radius:12px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-              <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">📦 Số đơn hàng</div>
-              <div id="chart-orders-total" style="font-size:18px;font-weight:800;color:#10B981;">0 đơn</div>
+          <div style="border:1px solid #E5E7EB;border-radius:10px;padding:10px;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:4px;">
+              <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">📦 Số đơn</div>
+              <div id="chart-orders-total" style="font-size:14px;font-weight:800;color:#10B981;white-space:nowrap;">0 đơn</div>
             </div>
-            <div style="font-size:10px;color:#9CA3AF;margin-bottom:8px;" id="chart-orders-period">Bản hôm nay</div>
-            <canvas id="chart-orders" style="max-height:180px;"></canvas>
+            <div style="font-size:10px;color:#9CA3AF;margin-bottom:6px;" id="chart-orders-period">7 ngày</div>
+            <canvas id="chart-orders" style="max-height:130px;"></canvas>
           </div>
         </div>
       </div>
