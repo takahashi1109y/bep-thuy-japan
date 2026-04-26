@@ -81,17 +81,22 @@ function checkRateLimit_(key) {
 // ---- Validation helpers ----
 function validatePayload_(data) {
   if (!data || typeof data !== 'object') return 'Payload invalid';
+  // Admin/system types bypass payload validation
+  var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
+                     'order_confirmed', 'order_shipped'];
+  if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
+
   if (data.type === 'member') {
     if (!data.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) return 'Email invalid';
     if (!data.name || data.name.length < 1 || data.name.length > 100) return 'Name invalid';
     if (data.phone && data.phone.length > 30) return 'Phone too long';
   } else {
-    // Don hang
+    // Customer order
     if (typeof data.total !== 'number' || data.total < 0 || data.total > 10000000) return 'Total invalid';
     if (data.pointsUsed && (typeof data.pointsUsed !== 'number' || data.pointsUsed < 0 || data.pointsUsed > 100000)) return 'pointsUsed invalid';
     if (data.userId && !/^[0-9a-f-]{36}$/i.test(data.userId)) return 'userId invalid';
   }
-  return null; // OK
+  return null;
 }
 
 // ---- Xu ly POST request tu trang web ----
