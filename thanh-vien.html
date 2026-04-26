@@ -65,28 +65,21 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 <section id="auth-section" class="hidden py-10 px-4">
 
-  <!-- Benefits -->
-  <div class="max-w-4xl mx-auto mb-10">
-    <div class="text-center mb-8">
-      <p class="text-brand-red text-sm tracking-widest uppercase font-semibold mb-2">Quyền Lợi</p>
-      <h2 class="text-2xl md:text-3xl font-bold text-brand-dark">Thành Viên Được Gì?</h2>
-      <div class="gold-line"></div>
-    </div>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-        <div class="text-4xl mb-3">🔔</div>
-        <h3 class="font-bold text-brand-dark text-lg mb-2">Thông Báo Sớm</h3>
-        <p class="text-gray-500 text-sm">Nhận tin trước khi mở đợt đặt hàng.</p>
+  <!-- Benefits — compact horizontal row -->
+  <div class="max-w-md mx-auto mb-5">
+    <p class="text-brand-red text-xs tracking-widest uppercase font-semibold mb-2 text-center">✨ Quyền Lợi Thành Viên</p>
+    <div class="grid gap-2" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+      <div class="bg-white rounded-xl p-3 shadow-sm border border-orange-100 text-center">
+        <div class="text-2xl mb-1">🔔</div>
+        <p class="font-bold text-brand-dark text-xs leading-tight">Báo<br>tin sớm</p>
       </div>
-      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-        <div class="text-4xl mb-3">⭐</div>
-        <h3 class="font-bold text-brand-dark text-lg mb-2">Tích Điểm Thưởng</h3>
-        <p class="text-gray-500 text-sm">Cứ ¥100 = 1 điểm. Đổi điểm lấy mã giảm giá.</p>
+      <div class="bg-white rounded-xl p-3 shadow-sm border border-orange-100 text-center">
+        <div class="text-2xl mb-1">⭐</div>
+        <p class="font-bold text-brand-dark text-xs leading-tight">Tích<br>điểm 1%</p>
       </div>
-      <div class="benefit-card bg-white rounded-2xl p-6 shadow-md border border-orange-100 text-center">
-        <div class="text-4xl mb-3">🏷️</div>
-        <h3 class="font-bold text-brand-dark text-lg mb-2">Giá Sỉ Ưu Đãi</h3>
-        <p class="text-gray-500 text-sm">Đơn từ 16kg được báo giá sỉ đặc biệt.</p>
+      <div class="bg-white rounded-xl p-3 shadow-sm border border-orange-100 text-center">
+        <div class="text-2xl mb-1">🏷️</div>
+        <p class="font-bold text-brand-dark text-xs leading-tight">Giá sỉ<br>≥16kg</p>
       </div>
     </div>
   </div>
@@ -118,35 +111,28 @@
 
     <!-- Register Form -->
     <div id="form-register" class="hidden p-6">
-     <div id="reg-form-wrap" class="space-y-4">
+     <div id="reg-form-wrap" class="space-y-3">
 
-      <!-- Quick guide: 4 simple steps to get 100 points -->
-      <div class="rounded-2xl p-4 mb-2" style="background:linear-gradient(135deg,#FFF8E7,#FFF8F0);border:1px solid #F4CC54;">
-        <p class="font-bold text-brand-dark text-sm mb-2 flex items-center gap-2"><span>🎁</span>4 bước nhỏ — Nhận 100 điểm thưởng</p>
-        <ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700">
-          <li><strong>Điền form</strong> bên dưới (chỉ 5 ô bắt buộc)</li>
-          <li>Bấm nút <strong>"Đăng Ký Thành Viên"</strong> ở cuối form</li>
-          <li>Mở email Bếp Thuỷ gửi đến → bấm <strong>"Xác Nhận Email"</strong></li>
-          <li>Mở email <strong>"100 điểm chào mừng"</strong> → bấm <strong>"Kích Hoạt"</strong></li>
-        </ol>
-        <a href="/huong-dan-thanh-vien" target="_blank" class="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-brand-red hover:underline">
-          📘 Hướng dẫn chi tiết phần email →
-        </a>
+      <!-- Compact reward banner -->
+      <div class="rounded-xl p-3 text-center" style="background:linear-gradient(135deg,#FFF8E7,#FFF8F0);border:1px solid #F4CC54;">
+        <p class="font-bold text-brand-dark text-sm">🎁 Đăng ký nhận ngay <span class="text-brand-red">100 điểm thưởng</span></p>
+        <a href="/huong-dan-thanh-vien" target="_blank" class="text-xs font-semibold text-brand-red hover:underline">📘 Xem hướng dẫn chi tiết →</a>
       </div>
 
       <div>
         <label class="field-label">Email <span class="text-brand-red">*</span></label>
         <input id="reg-email" type="email" placeholder="email@gmail.com" class="field-input">
       </div>
-      <div>
-        <label class="field-label">Mật Khẩu <span class="text-brand-red">*</span> <span class="text-gray-400 font-normal text-xs">(tối thiểu 6 ký tự)</span></label>
-        <input id="reg-password" type="password" placeholder="••••••••" class="field-input">
+      <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+        <div>
+          <label class="field-label">Mật Khẩu <span class="text-brand-red">*</span></label>
+          <input id="reg-password" type="password" placeholder="≥6 ký tự" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Xác Nhận <span class="text-brand-red">*</span></label>
+          <input id="reg-password2" type="password" placeholder="••••••••" class="field-input">
+        </div>
       </div>
-      <div>
-        <label class="field-label">Xác Nhận Mật Khẩu <span class="text-brand-red">*</span></label>
-        <input id="reg-password2" type="password" placeholder="••••••••" class="field-input">
-      </div>
-      <hr class="border-gray-100">
       <div>
         <label class="field-label">Họ và Tên <span class="text-brand-red">*</span></label>
         <input id="reg-name" type="text" placeholder="Nguyễn Thị Thuỷ" class="field-input">
@@ -155,7 +141,14 @@
         <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
         <input id="reg-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
       </div>
-      <div class="grid grid-cols-2 gap-3">
+
+      <!-- Optional fields hidden by default; expand on click -->
+      <details class="rounded-xl border border-gray-200 overflow-hidden">
+        <summary class="px-3 py-2 cursor-pointer text-sm font-semibold text-brand-dark bg-gray-50 hover:bg-gray-100 select-none">
+          ➕ Thêm thông tin (tuỳ chọn) — sinh nhật, địa chỉ
+        </summary>
+        <div class="p-3 space-y-3 border-t border-gray-200">
+      <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
         <div>
           <label class="field-label">Giới Tính</label>
           <select id="reg-gender" class="field-input bg-white">
@@ -195,6 +188,9 @@
         <textarea id="reg-address" rows="2" placeholder="Ví dụ: 〇〇市〇〇町1-2-3 アパート名 101号室" class="field-input"></textarea>
         <p class="text-xs text-gray-400 mt-1">Địa chỉ này sẽ tự động điền vào form đặt hàng.</p>
       </div>
+        </div>
+      </details>
+
       <div id="reg-error" class="hidden text-red-600 text-sm bg-red-50 rounded-xl p-3"></div>
       <!-- hCaptcha invisible widget container (rendered via JS) -->
       <div id="hcaptcha-container"></div>
@@ -436,7 +432,7 @@
           <label class="field-label">Số Điện Thoại</label>
           <input id="prof-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
           <div>
             <label class="field-label">Giới Tính</label>
             <select id="prof-gender" class="field-input bg-white">
@@ -589,7 +585,7 @@
       <button onclick="switchPmView('pay')" class="text-sm text-gray-600 hover:text-brand-red mb-3">← Quay lại thanh toán</button>
 
       <label class="field-label text-xs">Phương Thức Đã Dùng</label>
-      <div class="grid grid-cols-2 gap-2 mb-4">
+      <div class="grid gap-2 mb-4" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
         <label class="flex items-center gap-2 border-2 rounded-xl p-3 cursor-pointer border-gray-200 has-[:checked]:border-brand-red has-[:checked]:bg-red-50">
           <input type="radio" name="pm-method" value="paypay" checked>
           <span class="text-sm font-semibold">💳 PayPay</span>
