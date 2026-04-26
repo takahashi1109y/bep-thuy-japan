@@ -789,6 +789,155 @@ function _writeAIResult_(confirmationId, result) {
   );
 }
 
+// ============================================================
+// DAILY PRODUCTION REPORT EMAIL
+// ============================================================
+// Sends an email summarizing today's order quantities by product.
+// Setup: add a daily time-driven trigger (Apps Script Triggers menu)
+//        for sendDailyProductionReport at 23:00 JST.
+// To customize recipient, edit PRODUCTION_REPORT_EMAIL below.
+
+var PRODUCTION_REPORT_EMAIL = 'support@thuyjapan.com';
+var PRODUCTION_PRODUCTS = [
+  { code: 'GT',        name: 'Giò có tiêu',                 unit: 'kg' },
+  { code: 'GKT',       name: 'Giò không tiêu',              unit: 'kg' },
+  { code: 'C',         name: 'Chả quế có tiêu',             unit: 'kg' },
+  { code: 'CKT',       name: 'Chả quế không tiêu',          unit: 'kg' },
+  { code: 'CLUA TIEU', name: 'Chả lụa có tiêu',             unit: 'kg' },
+  { code: 'CLUA',      name: 'Chả lụa không tiêu, không quế', unit: 'kg' },
+  { code: 'M',         name: 'Mọc có tiêu',                 unit: 'kg' },
+  { code: 'MKT',       name: 'Mọc không tiêu',              unit: 'kg' },
+  { code: 'NEM',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
+  { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
+];
+
+function sendDailyProductionReport() {
+  var sbUrl = _prop('SUPABASE_URL', '');
+  var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
+  if (!sbUrl || !sbKey) { Logger.log('Supabase creds missing'); return; }
+
+  // JST today range
+  var now = new Date();
+  var jst = new Date(now.getTime() + 9 * 3600 * 1000);
+  var todayStr = jst.toISOString().slice(0, 10);
+  var fromIso  = todayStr + 'T00:00:00+09:00';
+  var toIso    = todayStr + 'T23:59:59+09:00';
+
+  // Query non-cancelled orders for today
+  var url = sbUrl + '/rest/v1/orders?select=order_no,items,status,total,customer_name,created_at'
+          + '&status=neq.cancelled'
+          + '&created_at=gte.' + encodeURIComponent(fromIso)
+          + '&created_at=lte.' + encodeURIComponent(toIso)
+          + '&order=created_at.asc';
+  var resp = UrlFetchApp.fetch(url, {
+    headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey },
+    muteHttpExceptions: true
+  });
+  if (resp.getResponseCode() !== 200) {
+    Logger.log('Production report fetch failed: ' + resp.getContentText().slice(0, 300));
+    return;
+  }
+  var orders = JSON.parse(resp.getContentText()) || [];
+
+  // Aggregate per product
+  var totals = {}; PRODUCTION_PRODUCTS.forEach(function(p){ totals[p.code] = 0; });
+  var totalRevenue = 0, totalOrders = orders.length;
+  orders.forEach(function(o) {
+    totalRevenue += Number(o.total || 0);
+    var items = aggregateOrderItemsForReport_(o.items);
+    Object.keys(items).forEach(function(k){ if (totals[k] !== undefined) totals[k] += items[k]; });
+  });
+
+  // Build HTML email
+  var rowsHtml = PRODUCTION_PRODUCTS.map(function(p, i){
+    var v = totals[p.code] || 0;
+    var color = v > 0 ? '#C8102E' : '#9CA3AF';
+    return '<tr>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:center;color:#6B7280;">' + (i + 1) + '</td>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;">' + p.name + '</td>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:right;font-weight:800;color:' + color + ';">' + (v > 0 ? v.toLocaleString() : '–') + '</td>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;color:#6B7280;">' + p.unit + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var html =
+    '<div style="font-family:-apple-system,Inter,sans-serif;background:#FFF8F0;padding:20px;color:#2C1A0E;">' +
+      '<div style="background:linear-gradient(135deg,#2C1A0E,#4A2C1A);color:white;padding:24px;border-radius:14px;text-align:center;margin-bottom:18px;">' +
+        '<h2 style="margin:0;font-family:Georgia,serif;color:#F4CC54;">🏭 Báo Cáo Sản Xuất</h2>' +
+        '<p style="margin:8px 0 0;font-size:14px;color:#FFF1D6;">Ngày: ' + todayStr + ' (JST)</p>' +
+        '<p style="margin:4px 0 0;font-size:12px;color:#F4CC54;">📦 ' + totalOrders + ' đơn · 💰 ¥' + totalRevenue.toLocaleString() + '</p>' +
+      '</div>' +
+      '<table style="width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;">' +
+        '<thead><tr style="background:#FEF3C7;">' +
+          '<th style="padding:10px;text-align:center;font-size:12px;color:#78350F;width:50px;">STT</th>' +
+          '<th style="padding:10px;text-align:left;font-size:12px;color:#78350F;">Tên Sản Phẩm</th>' +
+          '<th style="padding:10px;text-align:right;font-size:12px;color:#78350F;">Tổng SL</th>' +
+          '<th style="padding:10px;text-align:left;font-size:12px;color:#78350F;width:60px;">Đơn vị</th>' +
+        '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
+      '</table>' +
+      '<p style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center;">Tự động tổng hợp từ đơn hàng (đã trừ đơn huỷ). Bếp Thuỷ Japan · ' + new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Tokyo' }) + '</p>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: PRODUCTION_REPORT_EMAIL,
+    subject: '🏭 Báo cáo sản xuất ' + todayStr + ' — ' + totalOrders + ' đơn (¥' + totalRevenue.toLocaleString() + ')',
+    htmlBody: html
+  });
+  Logger.log('Production report sent to ' + PRODUCTION_REPORT_EMAIL + ' for ' + todayStr);
+}
+
+// Aggregate items in one order — handles both modern and legacy concatenated formats
+function aggregateOrderItemsForReport_(itemsJson) {
+  var totals = {};
+  PRODUCTION_PRODUCTS.forEach(function(p){ totals[p.code] = 0; });
+  var items = Array.isArray(itemsJson) ? itemsJson : [];
+  if (items.length === 0) return totals;
+
+  // Detect legacy single-line concatenated format: "1 GT 0.5 MKT 1 Pte"
+  if (items.length === 1 && (Number(items[0].price) || 0) === 0 && /\s\w/.test(items[0].name || '')) {
+    var parsed = parseLegacyConcatenated_(items[0].name);
+    if (parsed) {
+      parsed.forEach(function(p){
+        if (totals[p.code] === undefined) return;
+        if (p.code === 'NEM' || p.code === 'Pte') totals[p.code] += p.qty;
+        else totals[p.code] += p.qty;  // legacy qty already in kg
+      });
+      return totals;
+    }
+  }
+
+  // Modern format
+  items.forEach(function(i){
+    var name = i.name || '';
+    var m = name.match(/^\[([^\]]+)\]/);
+    var code = m ? m[1].trim() : null;
+    if (!code) return;
+    if (totals[code] === undefined) return;
+    var wt = Number(i.wt || 0);
+    if (code === 'NEM' || code === 'Pte') totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
+    else                                   totals[code] += wt;
+  });
+  return totals;
+}
+
+// Parse "1 GT 0.5 MKT 1 Pte" → [{code:'GT',qty:1}, {code:'MKT',qty:0.5}, {code:'Pte',qty:1}]
+function parseLegacyConcatenated_(s) {
+  var CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'NEM', 'Pte', 'GT', 'CLUA', 'C', 'M'];
+  var tokens = String(s).trim().split(/\s+/);
+  var out = []; var i = 0;
+  while (i < tokens.length) {
+    var n = parseFloat(tokens[i]);
+    if (isNaN(n)) return null;
+    i++;
+    if (i >= tokens.length) return null;
+    var two = i + 1 < tokens.length ? (tokens[i] + ' ' + tokens[i + 1]) : null;
+    if (two && CODES.indexOf(two) >= 0) { out.push({ qty: n, code: two }); i += 2; }
+    else if (CODES.indexOf(tokens[i]) >= 0) { out.push({ qty: n, code: tokens[i] }); i += 1; }
+    else return null;
+  }
+  return out.length > 0 ? out : null;
+}
+
 // Optional: Telegram bot notification
 function sendTelegramNotification_(data) {
   var botToken = _prop('TELEGRAM_BOT_TOKEN', '');

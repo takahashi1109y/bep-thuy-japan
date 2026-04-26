@@ -258,6 +258,45 @@
         </div>
       </div>
 
+      <!-- Production Statistics -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <h3 style="margin:0;font-size:16px;">🏭 Thống Kê Sản Xuất</h3>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button onclick="setProdRange('today')"     class="btn btn-ghost prod-range-btn" data-range="today"    style="font-size:11px;padding:5px 10px;">Hôm nay</button>
+            <button onclick="setProdRange('tomorrow')"  class="btn btn-ghost prod-range-btn" data-range="tomorrow" style="font-size:11px;padding:5px 10px;">Ngày mai</button>
+            <button onclick="setProdRange('thisweek')"  class="btn btn-ghost prod-range-btn" data-range="thisweek" style="font-size:11px;padding:5px 10px;">Tuần này</button>
+            <button onclick="setProdRange('custom')"    class="btn btn-ghost prod-range-btn" data-range="custom"   style="font-size:11px;padding:5px 10px;">Tùy chỉnh</button>
+          </div>
+        </div>
+        <div id="prod-custom-row" class="hidden" style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:10px;">
+          <input type="date" id="prod-from" class="input" style="font-size:13px;padding:6px 10px;">
+          <span style="color:#9CA3AF;">~</span>
+          <input type="date" id="prod-to" class="input" style="font-size:13px;padding:6px 10px;">
+          <button onclick="applyProdCustom()" class="btn btn-primary" style="font-size:12px;padding:6px 14px;">OK</button>
+        </div>
+        <div id="prod-summary" style="font-size:11px;color:#6B7280;margin-bottom:10px;">Hôm nay</div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:40px;">STT</th>
+                <th>Tên Sản Phẩm</th>
+                <th style="text-align:right;">Tổng SL</th>
+                <th style="width:60px;">Đơn vị</th>
+              </tr>
+            </thead>
+            <tbody id="prod-stats-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:20px;color:#9CA3AF;">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:11px;color:#9CA3AF;">Tự động trừ đơn đã huỷ. Cập nhật theo dữ liệu mới nhất.</div>
+          <button onclick="exportProdStats()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:6px 14px;font-size:12px;">📊 Xuất Excel</button>
+        </div>
+      </div>
+
       <div style="margin-bottom: 16px;">
         <button onclick="switchTab('orders')" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 14px;">
           📦 Xem tất cả đơn hàng →
@@ -2431,6 +2470,129 @@ function renderAllStats() {
   renderYearlyComparison();
   renderSelectedPeriod();
   renderDailyCharts();
+  renderProductionStats();
+}
+
+// ============ PRODUCTION STATS ============
+// 10 products in display order, matching user's manual sheet template
+const PRODUCTION_ROWS = [
+  { code: 'GT',        name: 'Giò có tiêu',                 unit: 'kg' },
+  { code: 'GKT',       name: 'Giò không tiêu',              unit: 'kg' },
+  { code: 'C',         name: 'Chả quế có tiêu',             unit: 'kg' },
+  { code: 'CKT',       name: 'Chả quế không tiêu',          unit: 'kg' },
+  { code: 'CLUA TIEU', name: 'Chả lụa có tiêu',             unit: 'kg' },
+  { code: 'CLUA',      name: 'Chả lụa không tiêu, không quế', unit: 'kg' },
+  { code: 'M',         name: 'Mọc có tiêu',                 unit: 'kg' },
+  { code: 'MKT',       name: 'Mọc không tiêu',              unit: 'kg' },
+  { code: 'NEM',       name: 'Nem lụi cuốn sả Huế',         unit: 'túi' },
+  { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
+];
+
+let prodRange = 'today';
+let prodCustomFrom = null, prodCustomTo = null;
+
+function resolveProdRange() {
+  const todayStr = isoJSTDate(new Date().toISOString());
+  const today = new Date(todayStr + 'T00:00:00Z');
+  const addDays = (n) => { const x = new Date(today); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  if (prodRange === 'today')    return { from: todayStr, to: todayStr, label: 'Hôm nay (' + todayStr + ')' };
+  if (prodRange === 'tomorrow') { const t = addDays(1); return { from: t, to: t, label: 'Ngày mai (' + t + ')' }; }
+  if (prodRange === 'thisweek') {
+    const t = new Date(todayStr + 'T00:00:00Z');
+    const dow = t.getUTCDay();        // Sunday=0
+    const mondayOffset = (dow === 0 ? -6 : 1 - dow);
+    const monday = addDays(mondayOffset);
+    return { from: monday, to: todayStr, label: 'Tuần này (' + monday + ' → ' + todayStr + ')' };
+  }
+  if (prodRange === 'custom' && prodCustomFrom && prodCustomTo) {
+    return { from: prodCustomFrom, to: prodCustomTo, label: 'Tùy chỉnh (' + prodCustomFrom + ' → ' + prodCustomTo + ')' };
+  }
+  return { from: todayStr, to: todayStr, label: 'Hôm nay (' + todayStr + ')' };
+}
+
+function setProdRange(range) {
+  prodRange = range;
+  document.querySelectorAll('.prod-range-btn').forEach(b => {
+    const active = b.dataset.range === range;
+    b.style.background = active ? '#C8102E' : '';
+    b.style.color      = active ? 'white'   : '';
+  });
+  document.getElementById('prod-custom-row').classList.toggle('hidden', range !== 'custom');
+  if (range !== 'custom') renderProductionStats();
+}
+
+function applyProdCustom() {
+  const from = document.getElementById('prod-from').value;
+  const to   = document.getElementById('prod-to').value;
+  if (!from || !to) { showToast('Chọn cả 2 ngày', 'error'); return; }
+  if (from > to)    { showToast('Ngày bắt đầu phải trước ngày kết thúc', 'error'); return; }
+  prodCustomFrom = from; prodCustomTo = to;
+  renderProductionStats();
+}
+
+// Aggregate quantities by product code from orders (excluding cancelled).
+// Same parser as Excel export: handles both modern + legacy concatenated items.
+function computeProductionTotals(from, to) {
+  const totals = {};
+  PRODUCTION_ROWS.forEach(p => { totals[p.code] = 0; });
+
+  const src = (Array.isArray(statsOrders) && statsOrders.length) ? statsOrders : (allOrders || []);
+  src.forEach(o => {
+    if (o.status === 'cancelled') return;        // 🔑 trừ đơn đã huỷ tự động
+    const d = isoJSTDate(o.created_at);
+    if (d < from || d > to) return;
+    const agg = aggregateOrderItems(o);
+    Object.keys(totals).forEach(k => { totals[k] += agg[k] || 0; });
+  });
+  Object.keys(totals).forEach(k => { totals[k] = Math.round(totals[k] * 100) / 100; });
+  return totals;
+}
+
+function renderProductionStats() {
+  const range = resolveProdRange();
+  document.getElementById('prod-summary').textContent = '📅 ' + range.label;
+  // Highlight active button
+  document.querySelectorAll('.prod-range-btn').forEach(b => {
+    const active = b.dataset.range === prodRange;
+    b.style.background = active ? '#C8102E' : '';
+    b.style.color      = active ? 'white'   : '';
+  });
+  const totals = computeProductionTotals(range.from, range.to);
+  const tbody = document.getElementById('prod-stats-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = PRODUCTION_ROWS.map((p, i) => {
+    const v = totals[p.code] || 0;
+    const isZero = v === 0;
+    return '<tr>' +
+      '<td style="text-align:center;color:#6B7280;">' + (i + 1) + '</td>' +
+      '<td>' + escapeHtml(p.name) + '</td>' +
+      '<td style="text-align:right;font-weight:800;color:' + (isZero ? '#9CA3AF' : '#C8102E') + ';font-size:15px;">' + (isZero ? '–' : v.toLocaleString()) + '</td>' +
+      '<td style="color:#6B7280;">' + p.unit + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function exportProdStats() {
+  if (typeof XLSX === 'undefined') { alert('SheetJS chưa load'); return; }
+  const range = resolveProdRange();
+  const totals = computeProductionTotals(range.from, range.to);
+  const data = [
+    ['BẢNG THỐNG KÊ SẢN XUẤT — Bếp Thuỷ Japan'],
+    ['Cập nhật: ' + new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Tokyo' })],
+    ['Khoảng: ' + range.label],
+    [],
+    ['STT', 'Tên Sản Phẩm', 'Tổng SL', 'Đơn vị']
+  ];
+  PRODUCTION_ROWS.forEach((p, i) => {
+    data.push([i + 1, p.name, totals[p.code] || '', p.unit]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 8 }];
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sản Xuất');
+  XLSX.writeFile(wb, 'San-Xuat-' + range.from + (range.from !== range.to ? '_' + range.to : '') + '.xlsx');
+  showToast('✅ Đã tải bảng sản xuất', 'success');
 }
 
 // ============ DAILY CHARTS (Chart.js) ============
