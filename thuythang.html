@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 <!-- hCaptcha invisible (anti-bot) -->
 <script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
 <style>
@@ -224,6 +225,36 @@
           <div class="label">Tổng khách</div>
           <div class="value" id="ana-customers">-</div>
           <div class="sub" style="color:#C8102E;text-decoration:underline;">khách đã đăng ký →</div>
+        </div>
+      </div>
+
+      <!-- Charts: Revenue + Orders by day -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <h3 style="margin:0;font-size:16px;">📈 Biểu đồ theo ngày</h3>
+          <div style="display:flex;gap:4px;">
+            <button onclick="setChartRange(7)"  class="btn btn-ghost chart-range-btn" data-days="7"  style="font-size:11px;padding:5px 10px;">7 ngày</button>
+            <button onclick="setChartRange(30)" class="btn btn-ghost chart-range-btn" data-days="30" style="font-size:11px;padding:5px 10px;">30 ngày</button>
+            <button onclick="setChartRange(90)" class="btn btn-ghost chart-range-btn" data-days="90" style="font-size:11px;padding:5px 10px;">90 ngày</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:14px;" id="charts-grid">
+          <div style="border:1px solid #E5E7EB;border-radius:12px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+              <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💰 Doanh thu</div>
+              <div id="chart-revenue-total" style="font-size:18px;font-weight:800;color:#C8102E;">¥0</div>
+            </div>
+            <div style="font-size:10px;color:#9CA3AF;margin-bottom:8px;" id="chart-revenue-period">Bản hôm nay</div>
+            <canvas id="chart-revenue" style="max-height:180px;"></canvas>
+          </div>
+          <div style="border:1px solid #E5E7EB;border-radius:12px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+              <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">📦 Số đơn hàng</div>
+              <div id="chart-orders-total" style="font-size:18px;font-weight:800;color:#10B981;">0 đơn</div>
+            </div>
+            <div style="font-size:10px;color:#9CA3AF;margin-bottom:8px;" id="chart-orders-period">Bản hôm nay</div>
+            <canvas id="chart-orders" style="max-height:180px;"></canvas>
+          </div>
         </div>
       </div>
 
@@ -2348,6 +2379,134 @@ function renderAllStats() {
   renderMonthlyComparison(yearVal || new Date().getFullYear());
   renderYearlyComparison();
   renderSelectedPeriod();
+  renderDailyCharts();
+}
+
+// ============ DAILY CHARTS (Chart.js) ============
+let chartDays = 7;
+let _chartRevenueInst = null;
+let _chartOrdersInst  = null;
+
+function setChartRange(n) {
+  chartDays = n;
+  document.querySelectorAll('.chart-range-btn').forEach(b => {
+    const active = parseInt(b.dataset.days) === n;
+    b.style.background = active ? '#C8102E' : '';
+    b.style.color      = active ? 'white'   : '';
+  });
+  renderDailyCharts();
+}
+
+// Compute revenue + order count per day for the last N days
+function computeDailyAggregates(days) {
+  const buckets = []; // [{date, revenue, count}]
+  const now = new Date();
+  const todayStr = isoJSTDate(now.toISOString());
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(todayStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - i);
+    buckets.push({ date: d.toISOString().slice(0, 10), revenue: 0, count: 0 });
+  }
+  const map = {};
+  buckets.forEach(b => { map[b.date] = b; });
+
+  (allOrders || []).forEach(o => {
+    if (o.status === 'cancelled') return;
+    const d = isoJSTDate(o.created_at);
+    if (!map[d]) return;
+    map[d].count += 1;
+    map[d].revenue += Number(o.total || 0);
+  });
+  return buckets;
+}
+
+function renderDailyCharts() {
+  if (typeof Chart === 'undefined') {
+    // Chart.js not loaded yet; retry shortly
+    setTimeout(renderDailyCharts, 500);
+    return;
+  }
+  // Highlight active range button on first call
+  if (!document.querySelector('.chart-range-btn[style*="C8102E"]')) {
+    document.querySelectorAll('.chart-range-btn').forEach(b => {
+      if (parseInt(b.dataset.days) === chartDays) {
+        b.style.background = '#C8102E'; b.style.color = 'white';
+      }
+    });
+  }
+
+  const data = computeDailyAggregates(chartDays);
+  const labels = data.map(d => {
+    const dt = new Date(d.date + 'T00:00:00Z');
+    return chartDays <= 14
+      ? (dt.getUTCMonth()+1) + '/' + dt.getUTCDate()
+      : (dt.getUTCMonth()+1) + '/' + dt.getUTCDate();
+  });
+  const revenues = data.map(d => d.revenue);
+  const counts   = data.map(d => d.count);
+
+  // Update KPI text
+  const totalRev = revenues.reduce((s, v) => s + v, 0);
+  const totalCount = counts.reduce((s, v) => s + v, 0);
+  const periodText = chartDays + ' ngày gần nhất';
+  document.getElementById('chart-revenue-total').textContent = fmtY(totalRev);
+  document.getElementById('chart-revenue-period').textContent = periodText;
+  document.getElementById('chart-orders-total').textContent = totalCount + ' đơn';
+  document.getElementById('chart-orders-period').textContent = periodText;
+
+  // Destroy old chart instances before re-render
+  if (_chartRevenueInst) { _chartRevenueInst.destroy(); _chartRevenueInst = null; }
+  if (_chartOrdersInst)  { _chartOrdersInst.destroy();  _chartOrdersInst  = null; }
+
+  const baseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: function(ctx) {
+            const v = ctx.parsed.y;
+            return ctx.dataset.label + ': ' + (ctx.dataset._isYen ? '¥' + v.toLocaleString() : v + ' đơn');
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 10 }, callback: function(v) { return v >= 1000 ? (v/1000) + 'k' : v; } } }
+    },
+    elements: {
+      line:  { tension: 0.3, borderWidth: 2 },
+      point: { radius: 4, hoverRadius: 6 }
+    }
+  };
+
+  // Revenue chart (red theme)
+  const revCtx = document.getElementById('chart-revenue').getContext('2d');
+  _chartRevenueInst = new Chart(revCtx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Doanh thu', data: revenues,
+      borderColor: '#C8102E', backgroundColor: 'rgba(200,16,46,0.1)',
+      pointBackgroundColor: '#C8102E', pointBorderColor: 'white', pointBorderWidth: 2,
+      fill: true, _isYen: true
+    }] },
+    options: baseOptions
+  });
+
+  // Orders chart (green theme)
+  const ordCtx = document.getElementById('chart-orders').getContext('2d');
+  _chartOrdersInst = new Chart(ordCtx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Số đơn', data: counts,
+      borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)',
+      pointBackgroundColor: '#10B981', pointBorderColor: 'white', pointBorderWidth: 2,
+      fill: true, _isYen: false
+    }] },
+    options: { ...baseOptions, scales: { ...baseOptions.scales, y: { ...baseOptions.scales.y, ticks: { ...baseOptions.scales.y.ticks, stepSize: 1, callback: function(v) { return v; } } } } }
+  });
 }
 
 function renderStatsSummary() {
