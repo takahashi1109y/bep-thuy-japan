@@ -897,38 +897,63 @@ function testProductionReportRange() {
   sendDailyProductionReport(FROM, TO);
 }
 
-// Aggregate items in one order — handles both modern and legacy concatenated formats
+// Aggregate items in one order — handles modern + legacy concatenated formats.
+// Defensive: stricter legacy detection, case-insensitive code match, keyword fallback.
 function aggregateOrderItemsForReport_(itemsJson) {
   var totals = {};
   PRODUCTION_PRODUCTS.forEach(function(p){ totals[p.code] = 0; });
   var items = Array.isArray(itemsJson) ? itemsJson : [];
   if (items.length === 0) return totals;
 
-  // Detect legacy single-line concatenated format: "1 GT 0.5 MKT 1 Pte"
-  if (items.length === 1 && (Number(items[0].price) || 0) === 0 && /\s\w/.test(items[0].name || '')) {
+  // Stricter legacy detection: name must NOT start with [
+  if (items.length === 1
+      && (Number(items[0].price) || 0) === 0
+      && !/^\s*\[/.test(items[0].name || '')
+      && /\s\w/.test(items[0].name || '')) {
     var parsed = parseLegacyConcatenated_(items[0].name);
     if (parsed) {
       parsed.forEach(function(p){
-        if (totals[p.code] === undefined) return;
-        if (p.code === 'Nem' || p.code === 'Pte') totals[p.code] += p.qty;
-        else totals[p.code] += p.qty;  // legacy qty already in kg
+        var canon = canonicalizeCode_(p.code, totals);
+        if (canon !== null) totals[canon] += p.qty;
       });
       return totals;
     }
   }
 
-  // Modern format
   items.forEach(function(i){
     var name = i.name || '';
     var m = name.match(/^\[([^\]]+)\]/);
-    var code = m ? m[1].trim() : null;
-    if (!code) return;
-    if (totals[code] === undefined) return;
+    var rawCode = m ? m[1].trim() : extractCodeFromVietnamese_(name);
+    if (!rawCode) return;
+    var code = canonicalizeCode_(rawCode, totals);
+    if (code === null) return;
     var wt = Number(i.wt || 0);
     if (code === 'Nem' || code === 'Pte') totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
     else                                   totals[code] += wt;
   });
   return totals;
+}
+
+function canonicalizeCode_(code, totals) {
+  if (totals[code] !== undefined) return code;
+  var up = String(code).toUpperCase();
+  var keys = Object.keys(totals);
+  for (var i = 0; i < keys.length; i++) if (keys[i].toUpperCase() === up) return keys[i];
+  return null;
+}
+
+function extractCodeFromVietnamese_(s) {
+  if (!s) return null;
+  var n = s.toLowerCase().replace(/đ/g, 'd');
+  var isKT = /\b(kt|khong tieu|không tiêu|kg tieu|kg tiêu|ko tieu|ko tiêu|ko t-ko q|kotieu)\b/.test(n);
+  var hasTieuExplicit = /tieu|tiêu/.test(n) && !isKT;
+  if (/cha lua|chả lụa|clua/.test(n)) return hasTieuExplicit ? 'CLUA TIEU' : 'CLUA';
+  if (/cha que|chả quế/.test(n) || /^cha\b/.test(n)) return isKT ? 'CKT' : 'C';
+  if (/^gio|giò|gio /.test(n)) return isKT ? 'GKT' : 'GT';
+  if (/moc|mọc/.test(n)) return isKT ? 'MKT' : 'M';
+  if (/nem/.test(n)) return 'Nem';
+  if (/pate|pâté/.test(n)) return 'Pte';
+  return null;
 }
 
 // Parse "1 GT 0.5 MKT 1 Pte" → [{code:'GT',qty:1}, {code:'MKT',qty:0.5}, {code:'Pte',qty:1}]

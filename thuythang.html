@@ -3089,13 +3089,16 @@ function aggregateOrderItems(order) {
   EXPORT_COLS.forEach(c => { totals[c.code] = 0; });
   let items = Array.isArray(order.items) ? order.items : [];
 
-  // Legacy concatenated single-item ("1 GT 0.5 MKT 1 Pte") → parse to multi-item
-  if (items.length === 1 && (Number(items[0].price) || 0) === 0 && /\s\w/.test(items[0].name || '')) {
+  // Legacy concatenated single-item ("1 GT 0.5 MKT 1 Pte") → parse to multi-item.
+  // Stricter detection: name must NOT start with '[' (modern prefix marker).
+  if (items.length === 1
+      && (Number(items[0].price) || 0) === 0
+      && !/^\s*\[/.test(items[0].name || '')
+      && /\s\w/.test(items[0].name || '')) {
     const parsed = parseLegacyItemsString(items[0].name);
     if (parsed && parsed.length > 0) {
       items = parsed.map(p => ({
         name: p.name,
-        // Convert "1 kg" / "0.5 hộp" back to wt + qty
         wt: /kg/.test(p.size) ? parseFloat(p.size) : parseFloat(p.size) * 0.5,
         qty: 1
       }));
@@ -3103,8 +3106,14 @@ function aggregateOrderItems(order) {
   }
 
   items.forEach(i => {
-    const code = extractItemCode(i.name);
-    if (!code || !(code in totals)) return;
+    let code = extractItemCode(i.name);
+    if (!code) return;
+    // Case-insensitive fallback to canonical code
+    if (!(code in totals)) {
+      const matched = Object.keys(totals).find(k => k.toUpperCase() === code.toUpperCase());
+      if (!matched) return;
+      code = matched;
+    }
     const wt = Number(i.wt || 0);
     if (code === 'Nem' || code === 'Pte') {
       totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
