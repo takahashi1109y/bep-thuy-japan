@@ -1594,8 +1594,18 @@ async function openOrderModal(orderNo) {
   }
   document.getElementById('modal-order-no').textContent = '#' + o.order_no;
   const items = Array.isArray(o.items) ? o.items : [];
-  const itemsHtml = items.length
-    ? items.map(i => `<div class="item-line"><span>${escapeHtml(i.name)}${i.size?' ('+escapeHtml(i.size)+')':''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`).join('')
+
+  // Detect legacy concatenated items (e.g. "1 GT 0.5 MKT 1 Pte" stored as a single
+  // line by the old Google Sheets backfill, with no per-item price). Parse + price
+  // each component using productCatalog so admins see proper breakdown.
+  let renderedItems = items;
+  if (items.length === 1 && (Number(items[0].price) || 0) === 0 && /\s\w/.test(items[0].name || '')) {
+    const parsed = parseLegacyItemsString(items[0].name);
+    if (parsed && parsed.length > 0) renderedItems = parsed;
+  }
+
+  const itemsHtml = renderedItems.length
+    ? renderedItems.map(i => `<div class="item-line"><span>${escapeHtml(i.name)}${i.size?' ('+escapeHtml(i.size)+')':''} × ${i.qty}</span><span>¥${Number((i.price || 0) * (i.qty || 1)).toLocaleString()}</span></div>`).join('')
     : '<p style="color: #9CA3AF; font-size: 13px;">Không có thông tin sản phẩm</p>';
   const date = fmtJST(o.created_at);
 
@@ -2258,6 +2268,47 @@ async function loadProductCatalog() {
 }
 
 // Match an order item to a catalog product by name (catalog name = "[CODE] Tên")
+// Parse legacy concatenated items like "1 GT 0.5 MKT 1 Pte" → array of items
+// with name + qty + price (computed from productCatalog).
+// Returns null if format is unrecognized so caller can fall back to raw display.
+function parseLegacyItemsString(s) {
+  if (!s) return null;
+  // Codes ordered longest-first for greedy 2-word match (e.g. "CLUA TIEU")
+  const CODES = ['CLUA TIEU', 'GKT', 'CKT', 'MKT', 'NEM', 'Pte', 'GT', 'CLUA', 'C', 'M'];
+  const tokens = String(s).trim().split(/\s+/);
+  const out = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const n = parseFloat(tokens[i]);
+    if (isNaN(n)) return null;
+    i++;
+    if (i >= tokens.length) return null;
+    const two = i + 1 < tokens.length ? (tokens[i] + ' ' + tokens[i + 1]) : null;
+    let code = null;
+    if (two && CODES.includes(two)) { code = two; i += 2; }
+    else if (CODES.includes(tokens[i])) { code = tokens[i]; i += 1; }
+    else return null;
+    out.push({ qty: n, code });
+  }
+  if (!out.length) return null;
+  // Compute name + price for each from catalog
+  return out.map(it => {
+    const product = (productCatalog || []).find(p => (p.name || '').startsWith('[' + it.code + ']'));
+    const isBox  = it.code === 'Pte' || it.code === 'NEM';
+    const unitPrice = product ? Number(product.unit_price) || 0 : 0;
+    // For kg-based items: 1 unit = 0.5kg → units = qty / 0.5
+    // For box items:     1 unit = 1 hộp/túi → units = qty
+    const units = isBox ? it.qty : it.qty / 0.5;
+    const linePrice = Math.round(unitPrice * units);
+    return {
+      name: product ? product.name : ('[' + it.code + ']'),
+      size: isBox ? (it.qty + ' hộp') : (it.qty + ' kg'),
+      qty: 1,
+      price: linePrice
+    };
+  });
+}
+
 function findProductByItemName(itemName) {
   if (!itemName) return null;
   const exact = productCatalog.find(p => p.name === itemName);
@@ -2874,20 +2925,31 @@ function extractItemCode(itemName) {
 function aggregateOrderItems(order) {
   const totals = {};
   EXPORT_COLS.forEach(c => { totals[c.code] = 0; });
-  const items = Array.isArray(order.items) ? order.items : [];
+  let items = Array.isArray(order.items) ? order.items : [];
+
+  // Legacy concatenated single-item ("1 GT 0.5 MKT 1 Pte") → parse to multi-item
+  if (items.length === 1 && (Number(items[0].price) || 0) === 0 && /\s\w/.test(items[0].name || '')) {
+    const parsed = parseLegacyItemsString(items[0].name);
+    if (parsed && parsed.length > 0) {
+      items = parsed.map(p => ({
+        name: p.name,
+        // Convert "1 kg" / "0.5 hộp" back to wt + qty
+        wt: /kg/.test(p.size) ? parseFloat(p.size) : parseFloat(p.size) * 0.5,
+        qty: 1
+      }));
+    }
+  }
+
   items.forEach(i => {
     const code = extractItemCode(i.name);
     if (!code || !(code in totals)) return;
     const wt = Number(i.wt || 0);
     if (code === 'NEM' || code === 'Pte') {
-      // Box/bag: display number of units (1 unit = 0.5kg)
       totals[code] += wt > 0 ? wt / 0.5 : Number(i.qty || 0);
     } else {
-      // Kg-based: display total kg
       totals[code] += wt;
     }
   });
-  // Round to 2 decimals to avoid 1.9999... noise
   Object.keys(totals).forEach(k => { totals[k] = Math.round(totals[k] * 100) / 100; });
   return totals;
 }
