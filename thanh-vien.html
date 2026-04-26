@@ -1081,6 +1081,34 @@ function hideError(boxId) {
   document.getElementById(boxId).classList.add('hidden');
 }
 
+async function resendConfirmEmail(email) {
+  const btn = document.getElementById('resend-confirm-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Đang gửi...';
+  try {
+    const captchaToken = await getCaptchaToken();
+    const { error } = await sb.auth.resend({
+      type: 'signup',
+      email: email,
+      options: { captchaToken: captchaToken }
+    });
+    if (error) {
+      btn.disabled = false;
+      btn.textContent = '📤 Gửi lại email xác thực';
+      alert('❌ Không gửi được: ' + error.message + '\n\nVui lòng liên hệ support@thuyjapan.com');
+      return;
+    }
+    btn.textContent = '✅ Đã gửi! Kiểm tra email';
+    btn.style.background = '#10B981';
+    setTimeout(() => { btn.disabled = false; }, 60000); // unlock after 60s for retry
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '📤 Gửi lại email xác thực';
+    alert('❌ Lỗi: ' + (e.message || e));
+  }
+}
+
 async function doLogin() {
   hideError('login-error');
   const email = document.getElementById('login-email').value.trim();
@@ -1107,8 +1135,22 @@ async function doLogin() {
   });
 
   if (error) {
-    showError('login-error', error.message === 'Invalid login credentials'
-      ? 'Email hoặc mật khẩu không đúng.' : error.message);
+    const msg = error.message || '';
+    if (msg === 'Invalid login credentials') {
+      showError('login-error', 'Email hoặc mật khẩu không đúng.');
+    } else if (msg === 'Email not confirmed' || /confirm/i.test(msg)) {
+      const box = document.getElementById('login-error');
+      box.innerHTML =
+        '<div style="font-weight:600;margin-bottom:6px;">📧 Email chưa được xác thực</div>' +
+        '<div style="font-size:13px;line-height:1.5;margin-bottom:8px;">Anh/chị cần click link xác thực trong email Bếp Thuỷ đã gửi (kiểm tra cả thư mục <strong>Spam/Junk</strong>).</div>' +
+        '<button type="button" onclick="resendConfirmEmail(\'' + email.replace(/'/g, "\\'") + '\')" ' +
+          'class="bg-brand-red text-white text-sm font-semibold rounded-lg px-3 py-2 w-full hover:bg-brand-red-dark transition" ' +
+          'id="resend-confirm-btn">📤 Gửi lại email xác thực</button>' +
+        '<div style="font-size:11px;color:#9CA3AF;margin-top:8px;text-align:center;">Vẫn không nhận được? Liên hệ <a href="mailto:support@thuyjapan.com" class="underline text-brand-red">support@thuyjapan.com</a></div>';
+      box.classList.remove('hidden');
+    } else {
+      showError('login-error', msg);
+    }
     btn.disabled = false; btn.textContent = 'Đăng Nhập';
     return;
   }
