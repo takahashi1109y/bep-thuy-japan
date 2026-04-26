@@ -655,7 +655,8 @@ async function checkAdminAndLoad(user) {
   currentAdmin = user;
   document.getElementById('admin-email-display').textContent = adminRow.display_name || user.email;
   showSection('admin-ui');
-  await loadDashboard();
+  // Load dashboard + customers parallel để có customer code map sẵn cho Orders tab
+  await Promise.all([loadDashboard(), loadCustomers()]);
   checkUnreadMessages();
   checkPendingPayments();
   // Poll for new messages + new payment confirmations every 30s
