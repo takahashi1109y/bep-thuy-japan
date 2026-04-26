@@ -1263,8 +1263,16 @@ async function submitForgotPassword() {
   const btn = document.getElementById('forgot-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang gửi...';
 
+  const captchaToken = await getCaptchaToken();
+  if (!captchaToken) {
+    showError('forgot-error', 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.');
+    btn.disabled = false; btn.textContent = 'Gửi Link Đặt Lại Mật Khẩu';
+    return;
+  }
+
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/thanh-vien'
+    redirectTo: window.location.origin + '/thanh-vien',
+    captchaToken: captchaToken
   });
 
   if (error) {
