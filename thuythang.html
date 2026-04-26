@@ -2410,7 +2410,12 @@ function computeDailyAggregates(days) {
   const map = {};
   buckets.forEach(b => { map[b.date] = b; });
 
-  (allOrders || []).forEach(o => {
+  // Prefer statsOrders (loaded with dashboard, already excludes cancelled).
+  // Fallback to allOrders if user has navigated through Orders tab.
+  const src = (Array.isArray(statsOrders) && statsOrders.length)
+            ? statsOrders
+            : (allOrders || []);
+  src.forEach(o => {
     if (o.status === 'cancelled') return;
     const d = isoJSTDate(o.created_at);
     if (!map[d]) return;
