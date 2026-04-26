@@ -150,13 +150,13 @@
   <!-- Header -->
   <div class="header">
     <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="javascript:void(0)" onclick="switchTab('dashboard')" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; cursor: pointer;" title="Về trang Tổng Quan">
         <span style="font-size: 22px;">🏪</span>
         <div>
           <div style="font-weight: 800; font-size: 16px; line-height: 1.1;">Bếp Thuỷ — Quản Lý</div>
           <div style="font-size: 11px; opacity: 0.7;" id="admin-email-display">-</div>
         </div>
-      </div>
+      </a>
       <button onclick="adminLogout()" class="btn btn-ghost" style="background: rgba(255,255,255,0.15); color: white;">
         <span>⏻</span> <span style="display: none;" class="sm-show">Thoát</span>
       </button>
@@ -310,13 +310,16 @@
       </div>
 
       <!-- Product catalog (fixed 10 products) -->
-      <div class="card" style="margin-bottom: 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-          <h3 style="margin:0;font-size:16px;">🧾 Giá vốn sản phẩm</h3>
+      <details class="card" style="margin-bottom: 16px;">
+        <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;list-style:none;font-weight:700;font-size:16px;color:#1C1C1E;user-select:none;">
+          <span>🧾 Giá vốn sản phẩm <span style="font-size:11px;color:#9CA3AF;font-weight:500;">(bấm để mở)</span></span>
+          <span style="font-size:14px;color:#6B7280;">▾</span>
+        </summary>
+        <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <p style="font-size:12px;color:#6B7280;margin:0;">Nhập giá vốn (¥) cho mỗi đơn vị (0.5kg cho giò/chả/mọc, 1 hộp cho nem/pate). Sau khi lưu, lợi nhuận của tất cả đơn hàng tự động cập nhật theo cost thực.</p>
           <button onclick="loadProductCatalog().then(renderProductCostsTable).then(renderAllStats)" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">🔄 Tải lại</button>
         </div>
-        <p style="font-size:12px;color:#6B7280;margin:0 0 10px;">Nhập giá vốn (¥) cho mỗi đơn vị (0.5kg cho giò/chả/mọc, 1 hộp cho nem/pate). Sau khi lưu, lợi nhuận của tất cả đơn hàng tự động cập nhật theo cost thực.</p>
-        <div id="product-costs-stat" style="font-size:11px;color:#6B7280;margin-bottom:10px;"></div>
+        <div id="product-costs-stat" style="font-size:11px;color:#6B7280;margin:8px 0;"></div>
         <div class="tbl-wrap">
           <table class="tbl">
             <thead>
@@ -334,7 +337,7 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
     </div>
 
     <!-- ORDERS TAB -->
