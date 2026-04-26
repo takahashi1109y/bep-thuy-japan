@@ -620,7 +620,7 @@ let shipModalOrders = [];
 // Sub-tab state for orders (all | unpaid | paid | cancelled)
 let ordersSubTab = 'all';
 const ORDERS_STATUS_GROUPS = {
-  all: null,
+  all: ['pending', 'customer_paid', 'confirmed', 'shipped', 'delivered'], // không bao gồm cancelled
   unpaid: ['pending', 'customer_paid'],
   paid: ['confirmed', 'shipped', 'delivered'],
   cancelled: ['cancelled']
@@ -1227,7 +1227,7 @@ function setOrdersSubTab(tab) {
 
 function updateSubTabCounts() {
   const counts = {
-    all: allOrders.length,
+    all: allOrders.filter(o => o.status !== 'cancelled').length,
     unpaid: allOrders.filter(o => ['pending', 'customer_paid'].includes(o.status)).length,
     paid: allOrders.filter(o => ['confirmed', 'shipped', 'delivered'].includes(o.status)).length,
     cancelled: allOrders.filter(o => o.status === 'cancelled').length
