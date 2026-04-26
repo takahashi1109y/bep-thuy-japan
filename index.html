@@ -1738,9 +1738,9 @@ function switchTab(type) {
           email: email || '',
           name: name || '',
           phone: phone || '',
-          prefecture: shipPref || '',
-          postal: shipPostal || '',
-          address: shipAddress || ''
+          prefecture: pref || '',
+          postal: postal || '',
+          address: address || ''
         };
         sessionStorage.setItem('register_prefill', JSON.stringify(prefill));
         upsellBanner.classList.remove('hidden');
