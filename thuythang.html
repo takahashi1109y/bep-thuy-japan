@@ -2587,11 +2587,34 @@ function filterExportOrders(from, to, status) {
   }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 }
 
-// Extract product code from item.name (catalog format: "[CODE] Tên")
+// Extract product code from item.name. Tries 3 strategies in order:
+// 1. [CODE] prefix in name (modern format from cart)
+// 2. Catalog exact-match (item.name === productCatalog[i].name)
+// 3. Vietnamese keyword matching (legacy/imported orders)
 function extractItemCode(itemName) {
   if (!itemName) return null;
+  // Strategy 1: [CODE] prefix
   const m = itemName.match(/^\[([^\]]+)\]/);
-  return m ? m[1].trim() : null;
+  if (m) return m[1].trim();
+  // Strategy 2: catalog exact match (productCatalog has names like "[GT] Giò Tiêu")
+  if (typeof productCatalog !== 'undefined' && Array.isArray(productCatalog)) {
+    const hit = productCatalog.find(p => p.name === itemName);
+    if (hit) {
+      const cm = hit.name.match(/^\[([^\]]+)\]/);
+      if (cm) return cm[1].trim();
+    }
+  }
+  // Strategy 3: Vietnamese keyword fallback
+  const n = itemName.toLowerCase().replace(/đ/g, 'd');
+  const isKT = /\b(kt|khong tieu|không tiêu|kg tieu|kg tiêu|ko tieu|ko tiêu|ko t-ko q|kotieu)\b/.test(n);
+  const hasTieuExplicit = /tieu|tiêu/.test(n) && !isKT;
+  if (/cha lua|chả lụa|clua/.test(n)) return hasTieuExplicit ? 'CLUA TIEU' : 'CLUA';
+  if (/cha que|chả quế/.test(n) || /^cha\b/.test(n)) return isKT ? 'CKT' : 'C';
+  if (/^gio|giò|gio /.test(n)) return isKT ? 'GKT' : 'GT';
+  if (/moc|mọc/.test(n)) return isKT ? 'MKT' : 'M';
+  if (/nem/.test(n)) return 'NEM';
+  if (/pate|pâté/.test(n)) return 'Pte';
+  return null;
 }
 
 // For each order, return a map { CODE: quantity } following user's manual format.
