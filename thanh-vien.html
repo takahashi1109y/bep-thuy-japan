@@ -655,6 +655,13 @@ const SUPABASE_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
+// Capture recovery flag BEFORE Supabase createClient (which clears the hash via detectSessionInUrl).
+// Without this, init() never sees type=recovery and user gets auto-logged-in instead of reset form.
+const _IS_RECOVERY_URL = (() => {
+  const h = window.location.hash || '';
+  return h.includes('type=recovery') || h.includes('type=password_recovery');
+})();
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     persistSession: true,
@@ -886,8 +893,10 @@ function renderOrdersToUI(orders) {
   }).join('');
 }
 
-// Detect if URL contains password recovery token (Supabase puts it in #hash)
+// Detect if URL contains password recovery token (Supabase puts it in #hash).
+// Reads the flag captured BEFORE createClient cleared the hash.
 function isPasswordRecoveryUrl() {
+  if (typeof _IS_RECOVERY_URL !== 'undefined' && _IS_RECOVERY_URL) return true;
   const h = window.location.hash || '';
   return h.includes('type=recovery') || h.includes('type=password_recovery');
 }
