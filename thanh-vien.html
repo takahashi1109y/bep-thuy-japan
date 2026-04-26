@@ -678,12 +678,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   try {
     // 1. Warmup auth state
     sb.auth.getSession().catch(() => {});
-    // 2. Ping Supabase REST endpoint to wake up cold-started database
-    fetch(SUPABASE_URL + '/rest/v1/', {
-      method: 'HEAD',
-      headers: { 'apikey': SUPABASE_ANON },
-      keepalive: true
-    }).catch(() => {});
+    // 2. Warmup auth đã đủ wake-up Supabase ở (1) — bỏ HEAD ping vì
+    // sb_publishable_* keys reject HEAD method (401) gây noise console.
   } catch (e) {}
 })();
 
