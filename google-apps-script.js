@@ -125,7 +125,23 @@ function doPost(e) {
     // Payment proof notification (khach gui bien lai chuyen tien)
     if (data.type === 'payment_received') {
       try { sendPaymentReceivedNotification_(data); } catch(e) { Logger.log('Payment notif err: ' + e); }
+      // Auto-trigger AI verification in background (non-blocking — admin sees badge later)
+      try {
+        if (data.image_url && data.expected_amount && (data.screenshot_hash || data.orderNo)) {
+          var confId = data.confirmation_id || lookupConfirmationId_(data.orderNo, data.screenshot_hash);
+          if (confId) verifyReceiptWithAI_(confId, data.image_url, data.expected_amount);
+        }
+      } catch(e) { Logger.log('AI verify err: ' + e); }
       return buildResponse({ success: true, type: 'payment_received' });
+    }
+
+    // AI verify on demand (admin clicks "🔄 Xác thực bằng AI" button)
+    if (data.type === 'verify_receipt') {
+      if (!data.confirmation_id || !data.image_url || !data.expected_amount) {
+        return buildResponse({ success: false, error: 'Missing confirmation_id / image_url / expected_amount' });
+      }
+      var result = verifyReceiptWithAI_(data.confirmation_id, data.image_url, data.expected_amount);
+      return buildResponse({ success: true, type: 'verify_receipt', result: result });
     }
 
     const orderNo = getNextOrderNo(ss);
@@ -617,6 +633,160 @@ function sendPaymentReceivedNotification_(data) {
 
   // Optional: Telegram notification (neu anh da setup Telegram bot)
   try { sendTelegramNotification_(data); } catch(e) { /* skip if not configured */ }
+}
+
+// ============================================================
+// AI RECEIPT VERIFICATION (Google Vision OCR)
+// ============================================================
+// Reads the uploaded receipt image, extracts the largest ¥-amount,
+// compares with expected order total, writes result back to
+// payment_confirmations table (ai_verified_amount, ai_match, ai_reason).
+//
+// Setup: Script Properties must include:
+//   GOOGLE_VISION_KEY  = your Google Cloud Vision API key
+//   SUPABASE_URL       = https://<project>.supabase.co
+//   SUPABASE_SERVICE_KEY = service_role key (write access)
+//
+// Cost: free tier 1000 images/month. Beyond that $1.50/1000.
+
+function verifyReceiptWithAI_(confirmationId, imageUrl, expectedAmount) {
+  var apiKey = _prop('GOOGLE_VISION_KEY', '');
+  if (!apiKey) {
+    Logger.log('GOOGLE_VISION_KEY not set — skipping AI verify');
+    return { ok: false, reason: 'API key not configured' };
+  }
+
+  expectedAmount = Number(expectedAmount) || 0;
+  var result = { ok: false, detected_amount: null, match: null, reason: '', raw_text: '', confidence: 0 };
+
+  try {
+    // 1. Fetch image bytes from Supabase Storage URL
+    var imgResp = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
+    if (imgResp.getResponseCode() !== 200) throw new Error('Image fetch failed: ' + imgResp.getResponseCode());
+    var b64 = Utilities.base64Encode(imgResp.getBlob().getBytes());
+
+    // 2. Call Google Vision OCR
+    var visionResp = UrlFetchApp.fetch(
+      'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
+      {
+        method: 'post',
+        contentType: 'application/json',
+        muteHttpExceptions: true,
+        payload: JSON.stringify({
+          requests: [{
+            image: { content: b64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+            imageContext: { languageHints: ['ja', 'vi', 'en'] }
+          }]
+        })
+      }
+    );
+    if (visionResp.getResponseCode() !== 200) throw new Error('Vision API: ' + visionResp.getContentText().slice(0, 200));
+
+    var visionData = JSON.parse(visionResp.getContentText());
+    var fullText = (visionData.responses && visionData.responses[0] && visionData.responses[0].fullTextAnnotation
+      ? visionData.responses[0].fullTextAnnotation.text
+      : '') || '';
+    result.raw_text = fullText;
+
+    if (!fullText) {
+      result.reason = 'AI không đọc được text trong ảnh (ảnh mờ hoặc không có chữ)';
+      _writeAIResult_(confirmationId, result);
+      return result;
+    }
+
+    // 3. Extract candidate amounts. Match patterns:
+    //    ¥12,500   12,500円   12,500 JPY   12500   12,500
+    var amountRegex = /(?:¥|￥|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円)?/g;
+    var matches = [];
+    var m;
+    while ((m = amountRegex.exec(fullText)) !== null) {
+      var raw = m[1].replace(/[,，]/g, '');
+      var n = parseInt(raw, 10);
+      if (n >= 100 && n <= 10000000) matches.push(n);
+    }
+
+    if (matches.length === 0) {
+      result.reason = 'AI đọc được text nhưng không tìm thấy số tiền hợp lệ';
+      _writeAIResult_(confirmationId, result);
+      return result;
+    }
+
+    // 4. Find best match: prefer exact match to expected, otherwise largest amount
+    var exactMatch = matches.indexOf(expectedAmount) >= 0 ? expectedAmount : null;
+    var detected = exactMatch !== null ? exactMatch : Math.max.apply(null, matches);
+    result.detected_amount = detected;
+    result.confidence = matches.length === 1 ? 0.95 : 0.75;
+
+    // 5. Compare. Tolerance ¥1 to handle rounding.
+    var diff = Math.abs(detected - expectedAmount);
+    if (diff <= 1) {
+      result.match = true;
+      result.reason = 'Số tiền khớp đơn (¥' + detected.toLocaleString() + ')';
+    } else {
+      result.match = false;
+      result.reason = 'AI đọc ¥' + detected.toLocaleString() + ' nhưng đơn cần ¥' + expectedAmount.toLocaleString()
+                    + ' (lệch ¥' + diff.toLocaleString() + ')';
+    }
+    result.ok = true;
+
+    // 6. Persist
+    _writeAIResult_(confirmationId, result);
+    Logger.log('AI verified conf #' + confirmationId + ': ' + JSON.stringify({match: result.match, detected: result.detected_amount}));
+    return result;
+
+  } catch (err) {
+    result.reason = 'Lỗi AI: ' + err.toString().slice(0, 200);
+    _writeAIResult_(confirmationId, result);
+    Logger.log('verifyReceiptWithAI_ error: ' + err);
+    return result;
+  }
+}
+
+// Look up the latest payment_confirmations.id for a given order_no + screenshot_hash.
+// Used when client doesn't have the id (right after RPC insert).
+function lookupConfirmationId_(orderNo, hash) {
+  var sbUrl = _prop('SUPABASE_URL', '');
+  var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
+  if (!sbUrl || !sbKey) return null;
+  try {
+    var q = '/rest/v1/payment_confirmations?select=id&order=created_at.desc&limit=1';
+    if (orderNo) q += '&order_no=eq.' + encodeURIComponent(orderNo);
+    if (hash)    q += '&screenshot_hash=eq.' + encodeURIComponent(hash);
+    var r = UrlFetchApp.fetch(sbUrl + q, {
+      headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey },
+      muteHttpExceptions: true
+    });
+    if (r.getResponseCode() !== 200) return null;
+    var rows = JSON.parse(r.getContentText());
+    return rows && rows[0] && rows[0].id || null;
+  } catch (e) { Logger.log('lookupConfirmationId_ err: ' + e); return null; }
+}
+
+function _writeAIResult_(confirmationId, result) {
+  var sbUrl = _prop('SUPABASE_URL', '');
+  var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
+  if (!sbUrl || !sbKey) { Logger.log('Supabase creds missing'); return; }
+
+  var body = {
+    ai_verified_amount: result.detected_amount,
+    ai_match: result.match,
+    ai_reason: result.reason,
+    ai_verified_at: new Date().toISOString(),
+    ai_raw_text: (result.raw_text || '').slice(0, 5000),
+    ai_confidence: result.confidence || null
+  };
+
+  UrlFetchApp.fetch(
+    sbUrl + '/rest/v1/payment_confirmations?id=eq.' + encodeURIComponent(confirmationId),
+    {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey, 'Prefer': 'return=minimal' },
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
+    }
+  );
 }
 
 // Optional: Telegram bot notification

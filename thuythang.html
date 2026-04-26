@@ -1435,11 +1435,31 @@ async function openOrderModal(orderNo) {
           if (hashReuse) warnings.push('🚨 Ảnh này cũng được dùng trong đơn #' + hashReuse + ' (NGHI NGỜ GIAN LẬN)');
 
           const actions = c.status === 'submitted'
-            ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
+            ? '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">' +
               '<button onclick="doVerifyPayment(' + c.id + ', \'verify\')" class="btn btn-success" style="padding:6px 12px;font-size:12px;">✅ Xác nhận TT</button>' +
               '<button onclick="doVerifyPayment(' + c.id + ', \'reject\')" class="btn btn-danger" style="padding:6px 12px;font-size:12px;">❌ Từ chối</button>' +
+              '<button onclick="doReVerifyAI(' + c.id + ', \'' + (c.screenshot_url || '').replace(/\'/g, "\\'") + '\', ' + o.total + ', \'' + o.order_no + '\')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;">🤖 Xác thực AI</button>' +
               '</div>'
             : (c.rejected_reason ? '<p style="font-size:11px;color:#EF4444;margin-top:6px;"><strong>Lý do từ chối:</strong> ' + escapeHtml(c.rejected_reason) + '</p>' : '');
+
+          // AI verification badge
+          let aiBadgeHtml = '';
+          if (c.ai_verified_at) {
+            if (c.ai_match === true) {
+              aiBadgeHtml = '<div style="background:#D1FAE5;border:1px solid #10B981;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#065F46;">' +
+                '<strong>🤖 AI: ✅ KHỚP</strong> — đọc được ¥' + Number(c.ai_verified_amount).toLocaleString() +
+                ' (khớp đơn ¥' + Number(o.total).toLocaleString() + ')</div>';
+            } else if (c.ai_match === false) {
+              aiBadgeHtml = '<div style="background:#FEE2E2;border:2px solid #EF4444;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#991B1B;">' +
+                '<strong>🤖 AI: 🔴 LỆCH SỐ TIỀN — KIỂM TRA KỸ!</strong><br>' +
+                escapeHtml(c.ai_reason || '') + '</div>';
+            } else {
+              aiBadgeHtml = '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#78350F;">' +
+                '<strong>🤖 AI: ⚠️ KHÔNG ĐỌC ĐƯỢC</strong> — ' + escapeHtml(c.ai_reason || '') + '</div>';
+            }
+          } else {
+            aiBadgeHtml = '<div style="background:#F3F4F6;border:1px dashed #9CA3AF;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:11px;color:#6B7280;">🤖 AI chưa xác thực — bấm nút "Xác thực AI" để chạy</div>';
+          }
 
           return '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:10px;margin-bottom:8px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
@@ -1449,6 +1469,7 @@ async function openOrderModal(orderNo) {
             '<div style="font-size:12px;margin-bottom:4px;">Khách khai: <strong style="color:' + (amountMismatch?'#EF4444':'#10B981') + ';">¥' + Number(c.claimed_amount).toLocaleString() + '</strong>' +
               (amountMismatch ? ' (đơn ¥' + Number(o.total).toLocaleString() + ')' : '') + '</div>' +
             (c.note ? '<div style="font-size:11px;color:#6B7280;margin-bottom:4px;">📝 ' + escapeHtml(c.note) + '</div>' : '') +
+            aiBadgeHtml +
             (warnings.length > 0 ? '<div style="background:#FEF3C7;border:1px solid #FBBF24;border-radius:6px;padding:6px;margin:6px 0;font-size:11px;color:#78350F;">' + warnings.join('<br>') + '</div>' : '') +
             '<a href="' + c.screenshot_url + '" target="_blank"><img src="' + c.screenshot_url + '" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;margin-top:4px;"></a>' +
             actions +
@@ -1585,6 +1606,34 @@ async function openPendingPaymentsModal() {
 
 function closePendingPaymentsModal() {
   document.getElementById('pending-payments-modal').classList.add('hidden');
+}
+
+// ============ AI RECEIPT VERIFICATION (Google Vision) ============
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz38j2-cr8sWIib0qokfYyaPnjz7BemNIZjr-P9T4aIIW_R2vOpMfOUDeOFs_FnFYJA2g/exec';
+
+async function doReVerifyAI(confId, imageUrl, expectedAmount, orderNo) {
+  if (!confirm('Chạy AI xác thực lại biên lai này? (~3 giây)')) return;
+  showToast('🤖 Đang gọi Google Vision AI...', 'success');
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'verify_receipt',
+        confirmation_id: confId,
+        image_url: imageUrl,
+        expected_amount: expectedAmount,
+        orderNo: orderNo
+      })
+    });
+    // Apps Script writes result to DB. Wait 3s for it to complete, then refresh modal.
+    showToast('🤖 Chờ AI xử lý + cập nhật...', 'success');
+    setTimeout(async () => {
+      await openOrderModal(orderNo); // re-open to show fresh AI badge
+    }, 3500);
+  } catch (e) {
+    showToast('❌ Lỗi gọi AI: ' + (e.message || e), 'error');
+  }
 }
 
 // ============ PAYMENT PROOF VERIFY ============

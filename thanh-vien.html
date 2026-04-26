@@ -2117,7 +2117,7 @@ async function submitPaymentProof() {
     if (error) throw error;
     if (!data || !data.ok) throw new Error(data?.error || 'Không thể xác nhận');
 
-    // Fire-and-forget: notify shop via Apps Script (email + Telegram)
+    // Fire-and-forget: notify shop via Apps Script (email + Telegram + AI verify)
     try {
       fetch('https://script.google.com/macros/s/AKfycbz38j2-cr8sWIib0qokfYyaPnjz7BemNIZjr-P9T4aIIW_R2vOpMfOUDeOFs_FnFYJA2g/exec', {
         method: 'POST',
@@ -2128,7 +2128,11 @@ async function submitPaymentProof() {
           customerName: currentProfile?.display_name || currentUser?.email || '',
           amount: pmCurrentAmount,
           method: method,
-          note: note
+          note: note,
+          // Hints for AI verification (Apps Script will look up confirmation_id by hash)
+          image_url: screenshotUrl,
+          expected_amount: pmCurrentAmount,
+          screenshot_hash: hash
         })
       }).catch(e => console.warn('Notify shop err:', e));
     } catch(e) {}
