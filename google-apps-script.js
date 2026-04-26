@@ -811,17 +811,19 @@ var PRODUCTION_PRODUCTS = [
   { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
 ];
 
-function sendDailyProductionReport() {
+function sendDailyProductionReport(fromDate, toDate) {
   var sbUrl = _prop('SUPABASE_URL', '');
   var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
   if (!sbUrl || !sbKey) { Logger.log('Supabase creds missing'); return; }
 
-  // JST today range
+  // Default to today (JST). Pass YYYY-MM-DD strings to override.
   var now = new Date();
   var jst = new Date(now.getTime() + 9 * 3600 * 1000);
   var todayStr = jst.toISOString().slice(0, 10);
-  var fromIso  = todayStr + 'T00:00:00+09:00';
-  var toIso    = todayStr + 'T23:59:59+09:00';
+  var fromStr = fromDate || todayStr;
+  var toStr   = toDate   || todayStr;
+  var fromIso = fromStr + 'T00:00:00+09:00';
+  var toIso   = toStr   + 'T23:59:59+09:00';
 
   // Query non-cancelled orders for today
   var url = sbUrl + '/rest/v1/orders?select=order_no,items,status,total,customer_name,created_at'
@@ -860,11 +862,12 @@ function sendDailyProductionReport() {
     '</tr>';
   }).join('');
 
+  var rangeLabel = fromStr === toStr ? fromStr : (fromStr + ' → ' + toStr);
   var html =
     '<div style="font-family:-apple-system,Inter,sans-serif;background:#FFF8F0;padding:20px;color:#2C1A0E;">' +
       '<div style="background:linear-gradient(135deg,#2C1A0E,#4A2C1A);color:white;padding:24px;border-radius:14px;text-align:center;margin-bottom:18px;">' +
         '<h2 style="margin:0;font-family:Georgia,serif;color:#F4CC54;">🏭 Báo Cáo Sản Xuất</h2>' +
-        '<p style="margin:8px 0 0;font-size:14px;color:#FFF1D6;">Ngày: ' + todayStr + ' (JST)</p>' +
+        '<p style="margin:8px 0 0;font-size:14px;color:#FFF1D6;">Ngày: ' + rangeLabel + ' (JST)</p>' +
         '<p style="margin:4px 0 0;font-size:12px;color:#F4CC54;">📦 ' + totalOrders + ' đơn · 💰 ¥' + totalRevenue.toLocaleString() + '</p>' +
       '</div>' +
       '<table style="width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;">' +
@@ -880,10 +883,18 @@ function sendDailyProductionReport() {
 
   MailApp.sendEmail({
     to: PRODUCTION_REPORT_EMAIL,
-    subject: '🏭 Báo cáo sản xuất ' + todayStr + ' — ' + totalOrders + ' đơn (¥' + totalRevenue.toLocaleString() + ')',
+    subject: '🏭 Báo cáo sản xuất ' + rangeLabel + ' — ' + totalOrders + ' đơn (¥' + totalRevenue.toLocaleString() + ')',
     htmlBody: html
   });
-  Logger.log('Production report sent to ' + PRODUCTION_REPORT_EMAIL + ' for ' + todayStr);
+  Logger.log('Production report sent to ' + PRODUCTION_REPORT_EMAIL + ' for ' + rangeLabel);
+}
+
+// 🧪 Test wrapper — gọi hàm chính với date range tùy ý.
+// Edit 2 dòng dưới rồi bấm ▶ Run hàm này.
+function testProductionReportRange() {
+  var FROM = '2026-04-24';   // ← sửa ngày bắt đầu
+  var TO   = '2026-04-26';   // ← sửa ngày kết thúc
+  sendDailyProductionReport(FROM, TO);
 }
 
 // Aggregate items in one order — handles both modern and legacy concatenated formats
