@@ -1038,6 +1038,12 @@ window.addEventListener('scroll', function() {
     }
     updateCartUI();
     showToast('✓ ' + name + ' ' + size);
+    // GA4 e-commerce event
+    if (window.btTrack) window.btTrack('add_to_cart', {
+      currency: 'JPY',
+      value: price,
+      items: [{ item_id: String(id), item_name: name, item_variant: size, price: unitPrice, quantity: wt > 0 ? wt / 0.5 : 1 }]
+    });
   }
 
   // Recalc price based on wt + unitPrice
@@ -1496,6 +1502,21 @@ window.addEventListener('scroll', function() {
       upsellBanner.classList.add('hidden');
     }
 
+    // GA4 e-commerce: purchase event
+    if (window.btTrack) window.btTrack('purchase', {
+      transaction_id: orderNo,
+      currency: 'JPY',
+      value: total,
+      shipping: ship,
+      items: cart.map(i => ({
+        item_id: String(i.id || i.key),
+        item_name: i.name,
+        item_variant: i.size,
+        price: i.unitPrice,
+        quantity: i.wt > 0 ? i.wt / 0.5 : i.qty
+      }))
+    });
+
     showStep('order-success');
     document.getElementById('cart-panel').scrollTop = 0;
   }
@@ -1895,6 +1916,7 @@ window.addEventListener('scroll', function() {
   initSupabase();
 </script>
 <script src="/assets/pull-to-refresh.js" defer></script>
+<script src="/assets/gtm.js" defer></script>
 <script src="/assets/back-button.js" defer></script>
 </body>
 </html>

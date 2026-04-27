@@ -1152,6 +1152,7 @@ async function doLogin() {
   }
 
   currentUser = data.user;
+  if (window.btTrack) window.btTrack('login', { method: 'email' });
 
   // IMMEDIATE PREFETCH: Fire RPC ngay khi co token, parallel voi showSection
   // By the time loadDashboard runs, data is already coming back
@@ -1254,6 +1255,9 @@ async function doRegister() {
     btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
     return;
   }
+
+  // GA4 e-commerce: sign_up event
+  if (window.btTrack) window.btTrack('sign_up', { method: 'email' });
 
   // Email confirmation is REQUIRED — signUp returns user but NO session.
   // Show "check your email" screen instead of dashboard.
@@ -2409,6 +2413,7 @@ if (document.readyState === 'complete') {
 }
 </script>
 <script src="/assets/pull-to-refresh.js" defer></script>
+<script src="/assets/gtm.js" defer></script>
 <script src="/assets/back-button.js" defer></script>
 </body>
 </html>
