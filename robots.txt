@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /thuythang
+Disallow: /thuythang.html
+
+Sitemap: https://www.thuyjapan.com/sitemap.xml
