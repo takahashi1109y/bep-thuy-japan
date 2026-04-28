@@ -1656,7 +1656,7 @@ window.addEventListener('scroll', function() {
       }
       if (!client) return;
       const { data, error } = await client.from('product_catalog')
-        .select('id, code, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold')
+        .select('id, code, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold, image_url, description')
         .order('display_order');
       if (error) { console.warn('Catalog sync error:', error.message); return; }
       if (!Array.isArray(data)) return;
@@ -1672,6 +1672,29 @@ window.addEventListener('scroll', function() {
     );
     if (!sel) return;
     const card = sel.closest('.product-card');
+
+    // Override product image (if admin uploaded one)
+    if (p.image_url && card) {
+      const imgs = card.querySelectorAll('img');
+      imgs.forEach(img => { img.src = p.image_url; img.srcset = ''; });
+      const sources = card.querySelectorAll('source');
+      sources.forEach(src => { src.srcset = p.image_url; });
+    }
+
+    // Override description text (the long <p> below product name)
+    if (p.description && card) {
+      const inner = card.querySelector('.p-5, .p-4');
+      if (inner) {
+        // Find the leading-relaxed description paragraph (not the small subtitle)
+        const ps = inner.querySelectorAll('p');
+        for (const pEl of ps) {
+          if (pEl.classList.contains('leading-relaxed')) {
+            pEl.textContent = p.description;
+            break;
+          }
+        }
+      }
+    }
 
     // Hide only if explicitly inactive (admin set is_active=false)
     if (!p.is_active) {
