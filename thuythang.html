@@ -80,12 +80,12 @@
   @media (min-width: 640px) { .grid-stats { grid-template-columns: repeat(4, 1fr); gap: 14px; } }
   /* Inventory rows: stack on mobile, grid on desktop */
   .inv-row { grid-template-columns: 60px 1fr !important; row-gap: 8px; }
-  .inv-row > div:nth-child(3), .inv-row > div:nth-child(4), .inv-row > div:nth-child(5) {
+  .inv-row > div:nth-child(3), .inv-row > div:nth-child(4) {
     grid-column: 1 / -1; padding-left: 72px; text-align: left !important;
   }
   @media (min-width: 768px) {
-    .inv-row { grid-template-columns: 80px 1fr 130px 150px 130px !important; row-gap: 0; }
-    .inv-row > div:nth-child(3), .inv-row > div:nth-child(4), .inv-row > div:nth-child(5) {
+    .inv-row { grid-template-columns: 80px 1fr 150px 170px !important; row-gap: 0; }
+    .inv-row > div:nth-child(3), .inv-row > div:nth-child(4) {
       grid-column: auto; padding-left: 0;
     }
     .inv-row > div:nth-child(3) { text-align: right !important; }
@@ -631,9 +631,15 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div>
             <h3 style="margin:0 0 4px;font-size:16px;font-weight:800;">📦 Quản Lý Tồn Kho</h3>
-            <p style="font-size:12px;color:#6B7280;margin:0;">Set giá bán + tồn kho — thay đổi tự động đồng bộ ra trang chủ thuyjapan.com sau khi khách F5.</p>
+            <p style="font-size:12px;color:#6B7280;margin:0;">Set tồn kho = 0 để ẩn sản phẩm khỏi trang chủ. Đổi giá / tồn kho rồi bấm 💾 Lưu để áp dụng.</p>
           </div>
-          <button onclick="loadInventory()" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">🔄 Làm mới</button>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button onclick="loadInventory()" class="btn btn-ghost" style="padding:6px 10px;font-size:12px;" title="Tải lại từ database">🔄</button>
+            <button id="inv-master-save" onclick="invMasterSaveAll()" disabled
+                    style="padding:8px 16px;font-size:14px;font-weight:700;border:none;border-radius:8px;background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;">
+              💾 Lưu <span id="inv-dirty-count">(0)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -671,52 +677,6 @@
       </p>
     </div>
 
-  </div>
-</div>
-
-<!-- INVENTORY EDIT MODAL -->
-<div id="inv-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeInventoryModal()">
-  <div class="modal" style="max-width:480px;">
-    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
-      <div>
-        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Chỉnh sửa sản phẩm</div>
-        <div id="inv-modal-name" style="font-size:20px;font-weight:800;color:#C8102E;">-</div>
-        <div id="inv-modal-code" style="font-size:11px;color:#9CA3AF;font-family:monospace;">-</div>
-      </div>
-      <button onclick="closeInventoryModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">💰 Giá bán (¥) — mỗi <span id="inv-modal-unit-label">unit</span></label>
-        <input id="inv-modal-price" type="number" min="0" class="input" style="font-size:16px;font-weight:700;">
-      </div>
-
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📦 Số lượng tồn (<span id="inv-modal-stock-unit">kg</span>)</label>
-        <input id="inv-modal-stock" type="number" min="0" step="0.5" class="input" style="font-size:16px;font-weight:700;">
-        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Số dương = còn hàng. 0 = hết hàng (tự ẩn). Có thể nhập số thập phân (vd: 12.5 kg).</p>
-      </div>
-
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">⚠️ Ngưỡng cảnh báo "sắp hết"</label>
-        <input id="inv-modal-threshold" type="number" min="0" step="0.5" class="input">
-        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Khi tồn ≤ ngưỡng này sẽ hiện badge vàng "Sắp hết" trên trang chủ.</p>
-      </div>
-
-      <div style="background:#F9FAFB;border-radius:8px;padding:12px;">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-          <input id="inv-modal-active" type="checkbox" style="width:18px;height:18px;">
-          <span style="font-weight:600;">🟢 Đang bán (hiện trên trang chủ)</span>
-        </label>
-        <p style="font-size:11px;color:#9CA3AF;margin:6px 0 0 28px;">Bỏ tick để tạm dừng — sản phẩm ẩn khỏi thuyjapan.com ngay lập tức.</p>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
-      <button onclick="closeInventoryModal()" class="btn btn-ghost">Huỷ</button>
-      <button onclick="saveInventoryEdit()" id="inv-modal-save-btn" class="btn btn-primary">💾 Lưu thay đổi</button>
-    </div>
   </div>
 </div>
 
@@ -1184,12 +1144,8 @@ function invRowHtml(p, sold30d) {
   // Image
   const imgSrc = p.image_url || guessProductImage(p.code);
 
-  // Toggle button label
-  const toggleLabel = p.is_active ? '⏸ Tạm dừng' : '▶ Bật bán lại';
-  const toggleClass = p.is_active ? 'btn-ghost' : 'btn-primary';
-
   return `
-    <div class="inv-row" data-id="${p.id}" style="display:grid;grid-template-columns:80px 1fr 130px 150px 130px;gap:12px;padding:14px;border-bottom:1px solid #F3F4F6;align-items:center;${!p.is_active ? 'opacity:0.6;' : ''}">
+    <div class="inv-row" data-id="${p.id}" style="display:grid;grid-template-columns:80px 1fr 150px 170px;gap:12px;padding:14px;border-bottom:1px solid #F3F4F6;align-items:center;${!p.is_active ? 'opacity:0.6;' : ''}">
       <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#f5e6d3,#e8c99a);display:flex;align-items:center;justify-content:center;">
         ${imgSrc ? `<img src="${imgSrc}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='📦'" />` : '<span style="font-size:30px;">📦</span>'}
       </div>
@@ -1211,34 +1167,24 @@ function invRowHtml(p, sold30d) {
                  oninput="markInvDirty(this)"
                  onkeydown="invInputKey(event, this)"
                  onfocus="this.select()"
-                 style="width:80px;padding:6px 8px;font-size:15px;font-weight:700;color:#C8102E;border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
-          <button data-id="${p.id}" data-field="price" onclick="invSaveClick(this)" disabled
-                  style="padding:5px 8px;font-size:13px;border-radius:6px;border:none;background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;font-weight:700;"
-                  title="Lưu thay đổi (hoặc bấm Enter)">💾</button>
+                 style="width:100px;padding:6px 8px;font-size:15px;font-weight:700;color:#C8102E;border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
         </div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:3px;">/ ${esc(unitLabel)}${pricePerKg ? ` · ¥${pricePerKg.toLocaleString('en-US')}/kg` : ''}</div>
       </div>
       <div>
-        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Tồn kho</div>
-        <div style="display:flex;align-items:center;gap:4px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Tồn kho <span style="font-size:9px;text-transform:none;color:#9CA3AF;">(set 0 = ẩn)</span></div>
+        <div style="display:flex;align-items:center;gap:6px;">
           <input type="number" data-field="stock" data-id="${p.id}" data-original="${stock}" value="${stock}" min="0" step="0.5"
                  oninput="markInvDirty(this)"
                  onkeydown="invInputKey(event, this)"
                  onfocus="this.select()"
-                 style="width:70px;padding:6px 8px;font-size:15px;font-weight:700;color:${statusColor};border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
-          <span style="font-size:12px;font-weight:600;color:#6B7280;min-width:24px;">${esc(unit)}</span>
-          <button data-id="${p.id}" data-field="stock" onclick="invSaveClick(this)" disabled
-                  style="padding:5px 8px;font-size:13px;border-radius:6px;border:none;background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;font-weight:700;"
-                  title="Lưu thay đổi (hoặc bấm Enter)">💾</button>
+                 style="width:90px;padding:6px 8px;font-size:15px;font-weight:700;color:${statusColor};border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+          <span style="font-size:12px;font-weight:600;color:#6B7280;">${esc(unit)}</span>
         </div>
         <div style="height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:4px;">
           <div style="height:100%;width:${stockPercent}%;background:${stockBarColor};transition:width .3s;"></div>
         </div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">Cảnh báo ≤ ${formatStock(threshold)} ${esc(unit)}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <button onclick="openInventoryModal(${p.id})" class="btn btn-ghost" style="padding:6px 10px;font-size:11px;" title="Đổi ngưỡng cảnh báo / ảnh">⚙️ Khác</button>
-        <button onclick="toggleProductActive(${p.id})" class="btn ${toggleClass}" style="padding:6px 10px;font-size:12px;">${toggleLabel}</button>
       </div>
     </div>
   `;
@@ -1259,111 +1205,43 @@ function guessProductImage(code) {
   return '';
 }
 
-function openInventoryModal(id) {
-  const p = _invProducts.find(x => x.id === id);
-  if (!p) return;
-  document.getElementById('inv-modal').dataset.id = id;
-  document.getElementById('inv-modal-name').textContent = p.name;
-  document.getElementById('inv-modal-code').textContent = p.code + ' · ' + (p.unit_label || '') + ' · tồn theo ' + (p.stock_unit || 'kg');
-  document.getElementById('inv-modal-unit-label').textContent = p.unit_label || 'unit';
-  document.getElementById('inv-modal-stock-unit').textContent = p.stock_unit || 'kg';
-  document.getElementById('inv-modal-price').value = p.unit_price || 0;
-  document.getElementById('inv-modal-stock').value = p.stock_quantity || 0;
-  document.getElementById('inv-modal-threshold').value = p.low_stock_threshold || 0;
-  document.getElementById('inv-modal-active').checked = !!p.is_active;
-  document.getElementById('inv-modal').classList.remove('hidden');
-}
+// ── Inline edit + master save ──
 
-function closeInventoryModal() {
-  document.getElementById('inv-modal').classList.add('hidden');
-}
-
-async function saveInventoryEdit() {
-  const id = parseInt(document.getElementById('inv-modal').dataset.id);
-  const price = parseInt(document.getElementById('inv-modal-price').value) || 0;
-  const stock = parseFloat(document.getElementById('inv-modal-stock').value) || 0;
-  const threshold = parseFloat(document.getElementById('inv-modal-threshold').value) || 0;
-  const active = document.getElementById('inv-modal-active').checked;
-
-  if (price < 0 || stock < 0 || threshold < 0) {
-    alert('Giá / tồn / ngưỡng không được âm');
-    return;
-  }
-
-  const btn = document.getElementById('inv-modal-save-btn');
-  btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
-
-  try {
-    const { data, error } = await sb.rpc('admin_update_product', {
-      p_id: id,
-      p_unit_price: price,
-      p_stock_quantity: stock,
-      p_low_stock_threshold: threshold,
-      p_is_active: active,
-    });
-    if (error) throw error;
-    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
-
-    showToast('✓ Đã lưu thay đổi', 'success');
-    closeInventoryModal();
-    loadInventory();
-  } catch(e) {
-    console.error('saveInventoryEdit err:', e);
-    alert('Lỗi lưu: ' + (e.message || e));
-  } finally {
-    btn.disabled = false; btn.textContent = '💾 Lưu thay đổi';
-  }
-}
-
-async function toggleProductActive(id) {
-  const p = _invProducts.find(x => x.id === id);
-  if (!p) return;
-  const newActive = !p.is_active;
-  const action = newActive ? 'BẬT bán lại' : 'TẠM DỪNG bán';
-  if (!confirm(`${action} sản phẩm "${p.name}"?\n${newActive ? 'Sẽ hiện trên trang chủ thuyjapan.com.' : 'Sẽ ẩn khỏi trang chủ ngay.'}`)) return;
-
-  try {
-    const { data, error } = await sb.rpc('admin_update_product', {
-      p_id: id,
-      p_is_active: newActive,
-    });
-    if (error) throw error;
-    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
-    showToast(`✓ Đã ${newActive ? 'bật' : 'tạm dừng'} ${p.name}`, 'success');
-    loadInventory();
-  } catch(e) {
-    console.error('toggleProductActive err:', e);
-    alert('Lỗi: ' + (e.message || e));
-  }
-}
-
-// ── Inline quick-edit (giá + tồn) — explicit save via 💾 button or Enter ──
-
-// Mark input "dirty" (value differs from original) → enable save button + orange border
+// Mark input "dirty" (value differs from original) → orange border + update master save button count
 function markInvDirty(input) {
   const original = parseFloat(input.dataset.original);
   const current = parseFloat(input.value);
   const dirty = !isNaN(current) && current !== original;
   input.style.borderColor = dirty ? '#F59E0B' : '#FED7AA';
   input.style.background = dirty ? '#FFFBEB' : '';
-  // Find the save button (sibling button with same data-field/data-id)
-  const wrap = input.parentElement;
-  const btn = wrap.querySelector('button[data-field="' + input.dataset.field + '"][data-id="' + input.dataset.id + '"]');
+  updateMasterSaveButton();
+}
+
+// Count all dirty inputs and update master save button state
+function updateMasterSaveButton() {
+  const inputs = document.querySelectorAll('#inv-list input[data-field]');
+  let dirtyCount = 0;
+  inputs.forEach(inp => {
+    const orig = parseFloat(inp.dataset.original);
+    const cur = parseFloat(inp.value);
+    if (!isNaN(cur) && cur !== orig) dirtyCount++;
+  });
+  const btn = document.getElementById('inv-master-save');
+  const count = document.getElementById('inv-dirty-count');
+  if (count) count.textContent = '(' + dirtyCount + ')';
   if (btn) {
-    btn.disabled = !dirty;
-    btn.style.background = dirty ? '#C8102E' : '#E5E7EB';
-    btn.style.color = dirty ? 'white' : '#9CA3AF';
-    btn.style.cursor = dirty ? 'pointer' : 'not-allowed';
+    btn.disabled = dirtyCount === 0;
+    btn.style.background = dirtyCount > 0 ? '#C8102E' : '#E5E7EB';
+    btn.style.color = dirtyCount > 0 ? 'white' : '#9CA3AF';
+    btn.style.cursor = dirtyCount > 0 ? 'pointer' : 'not-allowed';
   }
 }
 
-// Keyboard shortcuts on input: Enter = click save, Escape = revert
+// Keyboard shortcuts: Enter = master save all, Escape = revert this input only
 function invInputKey(event, input) {
   if (event.key === 'Enter') {
     event.preventDefault();
-    const wrap = input.parentElement;
-    const btn = wrap.querySelector('button[data-field="' + input.dataset.field + '"][data-id="' + input.dataset.id + '"]');
-    if (btn && !btn.disabled) btn.click();
+    invMasterSaveAll();
   } else if (event.key === 'Escape') {
     input.value = input.dataset.original;
     markInvDirty(input);
@@ -1371,68 +1249,85 @@ function invInputKey(event, input) {
   }
 }
 
-// Click 💾 → save the corresponding input
-function invSaveClick(btn) {
-  const id = parseInt(btn.dataset.id, 10);
-  const field = btn.dataset.field;
-  const wrap = btn.parentElement;
-  const input = wrap.querySelector('input[data-field="' + field + '"][data-id="' + id + '"]');
-  if (!input) return;
-
-  const p = _invProducts.find(x => x.id === id);
-  if (!p) return;
-
-  if (field === 'price') {
-    const newPrice = parseInt(input.value, 10);
-    if (isNaN(newPrice) || newPrice < 0) {
-      flashInput(input, 'error');
-      showToast('Giá phải ≥ 0', 'error');
+// Master save: collect all dirty inputs, validate, save in parallel
+async function invMasterSaveAll() {
+  const inputs = document.querySelectorAll('#inv-list input[data-field]');
+  const changes = []; // { id, field, newValue, inputEl }
+  for (const inp of inputs) {
+    const orig = parseFloat(inp.dataset.original);
+    const cur = parseFloat(inp.value);
+    if (isNaN(cur) || cur === orig) continue;
+    if (cur < 0) {
+      flashInput(inp, 'error');
+      showToast('Số phải ≥ 0', 'error');
       return;
     }
-    quickSaveField(id, input, btn, { p_unit_price: newPrice }, 'price', newPrice);
-  } else if (field === 'stock') {
-    const newStock = parseFloat(input.value);
-    if (isNaN(newStock) || newStock < 0) {
-      flashInput(input, 'error');
-      showToast('Tồn kho phải ≥ 0', 'error');
-      return;
-    }
-    quickSaveField(id, input, btn, { p_stock_quantity: newStock }, 'stock', newStock);
+    changes.push({
+      id: parseInt(inp.dataset.id, 10),
+      field: inp.dataset.field,
+      newValue: inp.dataset.field === 'price' ? Math.round(cur) : cur,
+      inputEl: inp
+    });
   }
-}
+  if (changes.length === 0) return;
 
-async function quickSaveField(id, inputEl, btnEl, rpcArgs, fieldKey, newValue) {
-  flashInput(inputEl, 'saving');
-  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳'; }
-  try {
-    const { data, error } = await sb.rpc('admin_update_product', Object.assign({ p_id: id }, rpcArgs));
-    if (error) throw error;
-    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
+  // Group by product id (price + stock of same product → 1 RPC call)
+  const byId = {};
+  changes.forEach(c => {
+    if (!byId[c.id]) byId[c.id] = { changes: [], inputs: [] };
+    byId[c.id].changes.push(c);
+    byId[c.id].inputs.push(c.inputEl);
+  });
 
-    // Update local cache
-    const p = _invProducts.find(x => x.id === id);
-    if (p) {
-      if (fieldKey === 'price') p.unit_price = newValue;
-      if (fieldKey === 'stock') p.stock_quantity = newValue;
-    }
-
-    // Update input's data-original so it's no longer "dirty"
-    inputEl.dataset.original = String(newValue);
-
-    flashInput(inputEl, 'success');
-    if (btnEl) btnEl.textContent = '💾';
-    markInvDirty(inputEl);  // resets button to disabled state
-    showToast('✓ Đã lưu ' + (fieldKey === 'price' ? 'giá' : 'tồn kho'), 'success');
-
-    // Surgical update: only the bar/status, keep input focus if user is still typing
-    refreshInventoryRowBackground(id);
-    renderInventorySummary(_invProducts);
-  } catch(e) {
-    console.error('quickSaveField err:', e);
-    flashInput(inputEl, 'error');
-    if (btnEl) { btnEl.textContent = '💾'; btnEl.disabled = false; }
-    showToast('Lỗi lưu: ' + (e.message || e), 'error');
+  // Set master button to "saving" state
+  const masterBtn = document.getElementById('inv-master-save');
+  if (masterBtn) {
+    masterBtn.disabled = true;
+    masterBtn.innerHTML = '⏳ Đang lưu ' + changes.length + '...';
   }
+  changes.forEach(c => flashInput(c.inputEl, 'saving'));
+
+  let okCount = 0, failCount = 0;
+  await Promise.all(Object.keys(byId).map(async (idStr) => {
+    const id = parseInt(idStr, 10);
+    const group = byId[id];
+    const args = { p_id: id };
+    group.changes.forEach(c => {
+      if (c.field === 'price') args.p_unit_price = c.newValue;
+      if (c.field === 'stock') args.p_stock_quantity = c.newValue;
+    });
+    try {
+      const { data, error } = await sb.rpc('admin_update_product', args);
+      if (error) throw error;
+      if (data && data.ok === false) throw new Error(data.error || 'Update failed');
+
+      // Update local cache + input.data-original
+      const p = _invProducts.find(x => x.id === id);
+      group.changes.forEach(c => {
+        if (p) {
+          if (c.field === 'price') p.unit_price = c.newValue;
+          if (c.field === 'stock') p.stock_quantity = c.newValue;
+        }
+        c.inputEl.dataset.original = String(c.newValue);
+        flashInput(c.inputEl, 'success');
+        okCount++;
+      });
+      refreshInventoryRowBackground(id);
+    } catch(e) {
+      console.error('save group err for id', id, e);
+      group.inputs.forEach(inp => flashInput(inp, 'error'));
+      failCount += group.changes.length;
+    }
+  }));
+
+  // Reset master button + summary
+  if (masterBtn) masterBtn.innerHTML = '💾 Lưu <span id="inv-dirty-count">(0)</span>';
+  updateMasterSaveButton();
+  renderInventorySummary(_invProducts);
+
+  if (failCount === 0) showToast('✓ Đã lưu ' + okCount + ' thay đổi', 'success');
+  else if (okCount === 0) showToast('Lỗi lưu ' + failCount + ' thay đổi', 'error');
+  else showToast('Đã lưu ' + okCount + ', lỗi ' + failCount, 'error');
 }
 
 function flashInput(el, state) {
