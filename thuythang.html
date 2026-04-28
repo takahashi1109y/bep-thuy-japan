@@ -1207,23 +1207,29 @@ function invRowHtml(p, sold30d) {
         <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Giá bán (¥)</div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
           <span style="font-size:14px;font-weight:700;color:#C8102E;">¥</span>
-          <input type="number" class="inv-quick-price" data-id="${p.id}" value="${price}" min="0" step="1"
+          <input type="number" data-field="price" data-id="${p.id}" data-original="${price}" value="${price}" min="0" step="1"
+                 oninput="markInvDirty(this)"
+                 onkeydown="invInputKey(event, this)"
                  onfocus="this.select()"
-                 onblur="quickSavePrice(${p.id}, this)"
-                 onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=${price};this.blur();}"
-                 style="width:90px;padding:6px 8px;font-size:15px;font-weight:700;color:#C8102E;border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+                 style="width:80px;padding:6px 8px;font-size:15px;font-weight:700;color:#C8102E;border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+          <button data-id="${p.id}" data-field="price" onclick="invSaveClick(this)" disabled
+                  style="padding:5px 8px;font-size:13px;border-radius:6px;border:none;background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;font-weight:700;"
+                  title="Lưu thay đổi (hoặc bấm Enter)">💾</button>
         </div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:3px;">/ ${esc(unitLabel)}${pricePerKg ? ` · ¥${pricePerKg.toLocaleString('en-US')}/kg` : ''}</div>
       </div>
       <div>
         <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Tồn kho</div>
         <div style="display:flex;align-items:center;gap:4px;">
-          <input type="number" class="inv-quick-stock" data-id="${p.id}" value="${stock}" min="0" step="0.5"
+          <input type="number" data-field="stock" data-id="${p.id}" data-original="${stock}" value="${stock}" min="0" step="0.5"
+                 oninput="markInvDirty(this)"
+                 onkeydown="invInputKey(event, this)"
                  onfocus="this.select()"
-                 onblur="quickSaveStock(${p.id}, this)"
-                 onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=${stock};this.blur();}"
-                 style="width:80px;padding:6px 8px;font-size:15px;font-weight:700;color:${statusColor};border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
-          <span style="font-size:12px;font-weight:600;color:#6B7280;">${esc(unit)}</span>
+                 style="width:70px;padding:6px 8px;font-size:15px;font-weight:700;color:${statusColor};border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+          <span style="font-size:12px;font-weight:600;color:#6B7280;min-width:24px;">${esc(unit)}</span>
+          <button data-id="${p.id}" data-field="stock" onclick="invSaveClick(this)" disabled
+                  style="padding:5px 8px;font-size:13px;border-radius:6px;border:none;background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;font-weight:700;"
+                  title="Lưu thay đổi (hoặc bấm Enter)">💾</button>
         </div>
         <div style="height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:4px;">
           <div style="height:100%;width:${stockPercent}%;background:${stockBarColor};transition:width .3s;"></div>
@@ -1331,39 +1337,75 @@ async function toggleProductActive(id) {
   }
 }
 
-// ── Inline quick-edit (giá + tồn) ──
-async function quickSavePrice(id, inputEl) {
-  const p = _invProducts.find(x => x.id === id);
-  if (!p) return;
-  const newPrice = parseInt(inputEl.value, 10);
-  if (isNaN(newPrice) || newPrice < 0) {
-    flashInput(inputEl, 'error');
-    inputEl.value = p.unit_price;
-    showToast('Giá phải ≥ 0', 'error');
-    return;
+// ── Inline quick-edit (giá + tồn) — explicit save via 💾 button or Enter ──
+
+// Mark input "dirty" (value differs from original) → enable save button + orange border
+function markInvDirty(input) {
+  const original = parseFloat(input.dataset.original);
+  const current = parseFloat(input.value);
+  const dirty = !isNaN(current) && current !== original;
+  input.style.borderColor = dirty ? '#F59E0B' : '#FED7AA';
+  input.style.background = dirty ? '#FFFBEB' : '';
+  // Find the save button (sibling button with same data-field/data-id)
+  const wrap = input.parentElement;
+  const btn = wrap.querySelector('button[data-field="' + input.dataset.field + '"][data-id="' + input.dataset.id + '"]');
+  if (btn) {
+    btn.disabled = !dirty;
+    btn.style.background = dirty ? '#C8102E' : '#E5E7EB';
+    btn.style.color = dirty ? 'white' : '#9CA3AF';
+    btn.style.cursor = dirty ? 'pointer' : 'not-allowed';
   }
-  if (newPrice === Number(p.unit_price)) return; // no change
-  await quickSaveField(id, inputEl, { p_unit_price: newPrice }, 'price', newPrice);
 }
 
-async function quickSaveStock(id, inputEl) {
-  const p = _invProducts.find(x => x.id === id);
-  if (!p) return;
-  const newStock = parseFloat(inputEl.value);
-  if (isNaN(newStock) || newStock < 0) {
-    flashInput(inputEl, 'error');
-    inputEl.value = p.stock_quantity;
-    showToast('Tồn kho phải ≥ 0', 'error');
-    return;
+// Keyboard shortcuts on input: Enter = click save, Escape = revert
+function invInputKey(event, input) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const wrap = input.parentElement;
+    const btn = wrap.querySelector('button[data-field="' + input.dataset.field + '"][data-id="' + input.dataset.id + '"]');
+    if (btn && !btn.disabled) btn.click();
+  } else if (event.key === 'Escape') {
+    input.value = input.dataset.original;
+    markInvDirty(input);
+    input.blur();
   }
-  if (newStock === Number(p.stock_quantity)) return;
-  await quickSaveField(id, inputEl, { p_stock_quantity: newStock }, 'stock', newStock);
 }
 
-async function quickSaveField(id, inputEl, rpcArgs, fieldKey, newValue) {
+// Click 💾 → save the corresponding input
+function invSaveClick(btn) {
+  const id = parseInt(btn.dataset.id, 10);
+  const field = btn.dataset.field;
+  const wrap = btn.parentElement;
+  const input = wrap.querySelector('input[data-field="' + field + '"][data-id="' + id + '"]');
+  if (!input) return;
+
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+
+  if (field === 'price') {
+    const newPrice = parseInt(input.value, 10);
+    if (isNaN(newPrice) || newPrice < 0) {
+      flashInput(input, 'error');
+      showToast('Giá phải ≥ 0', 'error');
+      return;
+    }
+    quickSaveField(id, input, btn, { p_unit_price: newPrice }, 'price', newPrice);
+  } else if (field === 'stock') {
+    const newStock = parseFloat(input.value);
+    if (isNaN(newStock) || newStock < 0) {
+      flashInput(input, 'error');
+      showToast('Tồn kho phải ≥ 0', 'error');
+      return;
+    }
+    quickSaveField(id, input, btn, { p_stock_quantity: newStock }, 'stock', newStock);
+  }
+}
+
+async function quickSaveField(id, inputEl, btnEl, rpcArgs, fieldKey, newValue) {
   flashInput(inputEl, 'saving');
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳'; }
   try {
-    const { data, error } = await sb.rpc('admin_update_product', { p_id: id, ...rpcArgs });
+    const { data, error } = await sb.rpc('admin_update_product', Object.assign({ p_id: id }, rpcArgs));
     if (error) throw error;
     if (data && data.ok === false) throw new Error(data.error || 'Update failed');
 
@@ -1374,12 +1416,21 @@ async function quickSaveField(id, inputEl, rpcArgs, fieldKey, newValue) {
       if (fieldKey === 'stock') p.stock_quantity = newValue;
     }
 
+    // Update input's data-original so it's no longer "dirty"
+    inputEl.dataset.original = String(newValue);
+
     flashInput(inputEl, 'success');
-    refreshInventoryRow(id);
+    if (btnEl) btnEl.textContent = '💾';
+    markInvDirty(inputEl);  // resets button to disabled state
+    showToast('✓ Đã lưu ' + (fieldKey === 'price' ? 'giá' : 'tồn kho'), 'success');
+
+    // Surgical update: only the bar/status, keep input focus if user is still typing
+    refreshInventoryRowBackground(id);
     renderInventorySummary(_invProducts);
   } catch(e) {
     console.error('quickSaveField err:', e);
     flashInput(inputEl, 'error');
+    if (btnEl) { btnEl.textContent = '💾'; btnEl.disabled = false; }
     showToast('Lỗi lưu: ' + (e.message || e), 'error');
   }
 }
@@ -1400,18 +1451,26 @@ function flashInput(el, state) {
   }
 }
 
-function refreshInventoryRow(id) {
+// Update only stock-bar + status badge in the row WITHOUT re-rendering inputs
+// (preserves user focus / typing on other inputs in the row)
+function refreshInventoryRowBackground(id) {
   const p = _invProducts.find(x => x.id === id);
   if (!p) return;
-  const oldRow = document.querySelector('.inv-row[data-id="' + id + '"]');
-  if (!oldRow) return;
-  // Don't replace the row while focus is on one of its inputs (would lose focus)
-  // Instead, surgically update the visual stock bar + status badge
-  const sold30d = _invSalesByCode[p.code] || 0;
-  const tmp = document.createElement('div');
-  tmp.innerHTML = invRowHtml(p, sold30d);
-  const newRow = tmp.firstElementChild;
-  if (newRow) oldRow.replaceWith(newRow);
+  const row = document.querySelector('.inv-row[data-id="' + id + '"]');
+  if (!row) return;
+
+  const stock = Number(p.stock_quantity) || 0;
+  const threshold = Number(p.low_stock_threshold) || 0;
+  const stockPercent = threshold > 0 ? Math.min(100, Math.round((stock / Math.max(threshold * 4, 1)) * 100)) : 100;
+  const barColor = stock <= 0 ? '#DC2626' : stock <= threshold ? '#F59E0B' : '#10B981';
+
+  const bar = row.querySelector('div[style*="width:"][style*="background:"]');
+  // Find stock bar more reliably
+  const bars = row.querySelectorAll('div > div[style*="height:100%"]');
+  if (bars.length > 0) {
+    bars[0].style.width = stockPercent + '%';
+    bars[0].style.background = barColor;
+  }
 }
 
 async function adminLogin() {
