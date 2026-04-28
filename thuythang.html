@@ -1070,6 +1070,7 @@ function showSection(id) {
 // ═══════════════════ INVENTORY TAB ═══════════════════
 const esc = escapeHtml;
 let _invProducts = [];
+let _invSalesByCode = {};
 
 async function loadInventory() {
   const box = document.getElementById('inv-list');
@@ -1082,9 +1083,9 @@ async function loadInventory() {
     _invProducts = data || [];
 
     // 30-day sales velocity per product (from allOrders if loaded, else fetch)
-    const salesByCode = await computeInventorySales30d();
+    _invSalesByCode = await computeInventorySales30d();
 
-    renderInventoryList(_invProducts, salesByCode);
+    renderInventoryList(_invProducts, _invSalesByCode);
     renderInventorySummary(_invProducts);
   } catch(e) {
     console.error('loadInventory err:', e);
@@ -1203,20 +1204,34 @@ function invRowHtml(p, sold30d) {
         </div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;">Giá bán</div>
-        <div style="font-size:16px;font-weight:800;color:#C8102E;">¥${price.toLocaleString('en-US')}</div>
-        <div style="font-size:10px;color:#9CA3AF;">/ ${esc(unitLabel)}${pricePerKg ? ` · ¥${pricePerKg.toLocaleString('en-US')}/kg` : ''}</div>
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Giá bán (¥)</div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+          <span style="font-size:14px;font-weight:700;color:#C8102E;">¥</span>
+          <input type="number" class="inv-quick-price" data-id="${p.id}" value="${price}" min="0" step="1"
+                 onfocus="this.select()"
+                 onblur="quickSavePrice(${p.id}, this)"
+                 onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=${price};this.blur();}"
+                 style="width:90px;padding:6px 8px;font-size:15px;font-weight:700;color:#C8102E;border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+        </div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:3px;">/ ${esc(unitLabel)}${pricePerKg ? ` · ¥${pricePerKg.toLocaleString('en-US')}/kg` : ''}</div>
       </div>
       <div>
-        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:2px;">Tồn kho</div>
-        <div style="font-size:16px;font-weight:800;color:${statusColor};">${formatStock(stock)} <span style="font-size:11px;font-weight:600;color:#6B7280;">${esc(unit)}</span></div>
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Tồn kho</div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" class="inv-quick-stock" data-id="${p.id}" value="${stock}" min="0" step="0.5"
+                 onfocus="this.select()"
+                 onblur="quickSaveStock(${p.id}, this)"
+                 onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=${stock};this.blur();}"
+                 style="width:80px;padding:6px 8px;font-size:15px;font-weight:700;color:${statusColor};border:1.5px solid #FED7AA;border-radius:6px;text-align:right;">
+          <span style="font-size:12px;font-weight:600;color:#6B7280;">${esc(unit)}</span>
+        </div>
         <div style="height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:4px;">
           <div style="height:100%;width:${stockPercent}%;background:${stockBarColor};transition:width .3s;"></div>
         </div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">Cảnh báo ≤ ${formatStock(threshold)} ${esc(unit)}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;">
-        <button onclick="openInventoryModal(${p.id})" class="btn btn-primary" style="padding:6px 10px;font-size:12px;">✏️ Sửa</button>
+        <button onclick="openInventoryModal(${p.id})" class="btn btn-ghost" style="padding:6px 10px;font-size:11px;" title="Đổi ngưỡng cảnh báo / ảnh">⚙️ Khác</button>
         <button onclick="toggleProductActive(${p.id})" class="btn ${toggleClass}" style="padding:6px 10px;font-size:12px;">${toggleLabel}</button>
       </div>
     </div>
@@ -1314,6 +1329,89 @@ async function toggleProductActive(id) {
     console.error('toggleProductActive err:', e);
     alert('Lỗi: ' + (e.message || e));
   }
+}
+
+// ── Inline quick-edit (giá + tồn) ──
+async function quickSavePrice(id, inputEl) {
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+  const newPrice = parseInt(inputEl.value, 10);
+  if (isNaN(newPrice) || newPrice < 0) {
+    flashInput(inputEl, 'error');
+    inputEl.value = p.unit_price;
+    showToast('Giá phải ≥ 0', 'error');
+    return;
+  }
+  if (newPrice === Number(p.unit_price)) return; // no change
+  await quickSaveField(id, inputEl, { p_unit_price: newPrice }, 'price', newPrice);
+}
+
+async function quickSaveStock(id, inputEl) {
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+  const newStock = parseFloat(inputEl.value);
+  if (isNaN(newStock) || newStock < 0) {
+    flashInput(inputEl, 'error');
+    inputEl.value = p.stock_quantity;
+    showToast('Tồn kho phải ≥ 0', 'error');
+    return;
+  }
+  if (newStock === Number(p.stock_quantity)) return;
+  await quickSaveField(id, inputEl, { p_stock_quantity: newStock }, 'stock', newStock);
+}
+
+async function quickSaveField(id, inputEl, rpcArgs, fieldKey, newValue) {
+  flashInput(inputEl, 'saving');
+  try {
+    const { data, error } = await sb.rpc('admin_update_product', { p_id: id, ...rpcArgs });
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
+
+    // Update local cache
+    const p = _invProducts.find(x => x.id === id);
+    if (p) {
+      if (fieldKey === 'price') p.unit_price = newValue;
+      if (fieldKey === 'stock') p.stock_quantity = newValue;
+    }
+
+    flashInput(inputEl, 'success');
+    refreshInventoryRow(id);
+    renderInventorySummary(_invProducts);
+  } catch(e) {
+    console.error('quickSaveField err:', e);
+    flashInput(inputEl, 'error');
+    showToast('Lỗi lưu: ' + (e.message || e), 'error');
+  }
+}
+
+function flashInput(el, state) {
+  if (!el) return;
+  if (state === 'saving') {
+    el.style.borderColor = '#3B82F6';
+    el.style.background = '#EFF6FF';
+  } else if (state === 'success') {
+    el.style.borderColor = '#10B981';
+    el.style.background = '#ECFDF5';
+    setTimeout(() => { el.style.borderColor = '#FED7AA'; el.style.background = ''; }, 1200);
+  } else if (state === 'error') {
+    el.style.borderColor = '#DC2626';
+    el.style.background = '#FEF2F2';
+    setTimeout(() => { el.style.borderColor = '#FED7AA'; el.style.background = ''; }, 1500);
+  }
+}
+
+function refreshInventoryRow(id) {
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+  const oldRow = document.querySelector('.inv-row[data-id="' + id + '"]');
+  if (!oldRow) return;
+  // Don't replace the row while focus is on one of its inputs (would lose focus)
+  // Instead, surgically update the visual stock bar + status badge
+  const sold30d = _invSalesByCode[p.code] || 0;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = invRowHtml(p, sold30d);
+  const newRow = tmp.firstElementChild;
+  if (newRow) oldRow.replaceWith(newRow);
 }
 
 async function adminLogin() {
