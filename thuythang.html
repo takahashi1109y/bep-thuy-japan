@@ -78,6 +78,18 @@
   /* Grid responsive */
   .grid-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   @media (min-width: 640px) { .grid-stats { grid-template-columns: repeat(4, 1fr); gap: 14px; } }
+  /* Inventory rows: stack on mobile, grid on desktop */
+  .inv-row { grid-template-columns: 60px 1fr !important; row-gap: 8px; }
+  .inv-row > div:nth-child(3), .inv-row > div:nth-child(4), .inv-row > div:nth-child(5) {
+    grid-column: 1 / -1; padding-left: 72px; text-align: left !important;
+  }
+  @media (min-width: 768px) {
+    .inv-row { grid-template-columns: 80px 1fr 130px 150px 130px !important; row-gap: 0; }
+    .inv-row > div:nth-child(3), .inv-row > div:nth-child(4), .inv-row > div:nth-child(5) {
+      grid-column: auto; padding-left: 0;
+    }
+    .inv-row > div:nth-child(3) { text-align: right !important; }
+  }
   .grid-content { display: grid; grid-template-columns: 1fr; gap: 16px; }
   @media (min-width: 1024px) { .grid-content { grid-template-columns: 2fr 1fr; } }
   /* Login card */
@@ -172,6 +184,7 @@
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="campaign" onclick="switchTab('campaign')">📢 Gửi Tin</button>
+      <button class="tab" data-tab="inventory" onclick="switchTab('inventory')">📦 Tồn Kho <span id="inv-low-badge" class="hidden" style="background:#F59E0B;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
     </div>
   </div>
 
@@ -612,6 +625,98 @@
       </div>
     </div>
 
+    <!-- INVENTORY TAB -->
+    <div id="tab-inventory" class="hidden">
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <h3 style="margin:0 0 4px;font-size:16px;font-weight:800;">📦 Quản Lý Tồn Kho</h3>
+            <p style="font-size:12px;color:#6B7280;margin:0;">Set giá bán + tồn kho — thay đổi tự động đồng bộ ra trang chủ thuyjapan.com sau khi khách F5.</p>
+          </div>
+          <button onclick="loadInventory()" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">🔄 Làm mới</button>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="grid-stats" style="margin-bottom:12px;">
+        <div class="stat-card">
+          <div class="label">Tổng sản phẩm</div>
+          <div class="value" id="inv-total">-</div>
+          <div class="sub" id="inv-active-sub">- đang bán</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">⚠️ Sắp hết</div>
+          <div class="value" style="color:#F59E0B;" id="inv-low">-</div>
+          <div class="sub">dưới ngưỡng cảnh báo</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">🔴 Hết hàng</div>
+          <div class="value" style="color:#DC2626;" id="inv-out">-</div>
+          <div class="sub">tự ẩn khỏi trang chủ</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">💰 Giá trị tồn</div>
+          <div class="value" id="inv-value">¥0</div>
+          <div class="sub">theo giá bán hiện tại</div>
+        </div>
+      </div>
+
+      <!-- Product rows (Amazon-style) -->
+      <div id="inv-list" class="card" style="padding:0;overflow:hidden;">
+        <p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>
+      </div>
+
+      <p style="font-size:11px;color:#9CA3AF;margin-top:10px;text-align:center;">
+        💡 Tip: Sản phẩm có 🟢 <b>Đang bán</b> = hiện trên trang chủ. Tắt 🔴 <b>Tạm dừng</b> sẽ ẩn ngay.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- INVENTORY EDIT MODAL -->
+<div id="inv-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeInventoryModal()">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Chỉnh sửa sản phẩm</div>
+        <div id="inv-modal-name" style="font-size:20px;font-weight:800;color:#C8102E;">-</div>
+        <div id="inv-modal-code" style="font-size:11px;color:#9CA3AF;font-family:monospace;">-</div>
+      </div>
+      <button onclick="closeInventoryModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">💰 Giá bán (¥) — mỗi <span id="inv-modal-unit-label">unit</span></label>
+        <input id="inv-modal-price" type="number" min="0" class="input" style="font-size:16px;font-weight:700;">
+      </div>
+
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📦 Số lượng tồn (<span id="inv-modal-stock-unit">kg</span>)</label>
+        <input id="inv-modal-stock" type="number" min="0" step="0.5" class="input" style="font-size:16px;font-weight:700;">
+        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Số dương = còn hàng. 0 = hết hàng (tự ẩn). Có thể nhập số thập phân (vd: 12.5 kg).</p>
+      </div>
+
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">⚠️ Ngưỡng cảnh báo "sắp hết"</label>
+        <input id="inv-modal-threshold" type="number" min="0" step="0.5" class="input">
+        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Khi tồn ≤ ngưỡng này sẽ hiện badge vàng "Sắp hết" trên trang chủ.</p>
+      </div>
+
+      <div style="background:#F9FAFB;border-radius:8px;padding:12px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input id="inv-modal-active" type="checkbox" style="width:18px;height:18px;">
+          <span style="font-weight:600;">🟢 Đang bán (hiện trên trang chủ)</span>
+        </label>
+        <p style="font-size:11px;color:#9CA3AF;margin:6px 0 0 28px;">Bỏ tick để tạm dừng — sản phẩm ẩn khỏi thuyjapan.com ngay lập tức.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="closeInventoryModal()" class="btn btn-ghost">Huỷ</button>
+      <button onclick="saveInventoryEdit()" id="inv-modal-save-btn" class="btn btn-primary">💾 Lưu thay đổi</button>
+    </div>
   </div>
 </div>
 
@@ -962,6 +1067,254 @@ function showSection(id) {
   });
 }
 
+// ═══════════════════ INVENTORY TAB ═══════════════════
+let _invProducts = [];
+
+async function loadInventory() {
+  const box = document.getElementById('inv-list');
+  box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:40px;">Đang tải...</p>';
+  try {
+    const { data, error } = await sb.from('product_catalog')
+      .select('*')
+      .order('display_order');
+    if (error) throw error;
+    _invProducts = data || [];
+
+    // 30-day sales velocity per product (from allOrders if loaded, else fetch)
+    const salesByCode = await computeInventorySales30d();
+
+    renderInventoryList(_invProducts, salesByCode);
+    renderInventorySummary(_invProducts);
+  } catch(e) {
+    console.error('loadInventory err:', e);
+    box.innerHTML = '<p style="text-align:center;color:#DC2626;padding:40px;">Lỗi tải tồn kho: ' + (e.message || e) + '</p>';
+  }
+}
+
+async function computeInventorySales30d() {
+  const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  const { data, error } = await sb.from('orders')
+    .select('items, status, created_at')
+    .gte('created_at', since)
+    .neq('status', 'cancelled');
+  if (error) { console.warn('Sales fetch err:', error); return {}; }
+
+  const totals = {};
+  (data || []).forEach(o => {
+    if (!Array.isArray(o.items)) return;
+    o.items.forEach(it => {
+      const m = (it.name || '').match(/^\[([^\]]+)\]/);
+      if (!m) return;
+      const code = m[1];
+      // Mirror google-apps-script.js CODE_MAP byBox flag
+      const isByBox = (code === 'Nem' || code === 'Pte');
+      // For boxes: amount = qty (count of boxes); for kg: amount = qty * wt
+      const wt = Number(it.wt) || 0;
+      const qty = Number(it.qty) || 0;
+      const amt = isByBox ? Math.max(qty, wt / 0.5) : (qty * wt);
+      if (amt > 0) totals[code] = (totals[code] || 0) + amt;
+    });
+  });
+  return totals;
+}
+
+function renderInventorySummary(products) {
+  const total = products.length;
+  const active = products.filter(p => p.is_active).length;
+  const low = products.filter(p => p.is_active && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold)).length;
+  const out = products.filter(p => p.is_active && Number(p.stock_quantity) <= 0).length;
+  const value = products.reduce((sum, p) => {
+    const stock = Number(p.stock_quantity) || 0;
+    const price = Number(p.unit_price) || 0;
+    // For kg products: unit_price is per 0.5kg, so per kg = price * 2
+    const isKg = p.stock_unit === 'kg';
+    return sum + stock * (isKg ? price * 2 : price);
+  }, 0);
+
+  document.getElementById('inv-total').textContent = total;
+  document.getElementById('inv-active-sub').textContent = active + ' đang bán';
+  document.getElementById('inv-low').textContent = low;
+  document.getElementById('inv-out').textContent = out;
+  document.getElementById('inv-value').textContent = '¥' + Math.round(value).toLocaleString('en-US');
+
+  const badge = document.getElementById('inv-low-badge');
+  if (low + out > 0) { badge.textContent = low + out; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+}
+
+function renderInventoryList(products, salesByCode) {
+  const box = document.getElementById('inv-list');
+  if (!products.length) {
+    box.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:40px;">Chưa có sản phẩm</p>';
+    return;
+  }
+
+  box.innerHTML = products.map(p => invRowHtml(p, salesByCode[p.code] || 0)).join('');
+}
+
+function invRowHtml(p, sold30d) {
+  const stock = Number(p.stock_quantity) || 0;
+  const threshold = Number(p.low_stock_threshold) || 0;
+  const unit = p.stock_unit || 'kg';
+  const isKg = unit === 'kg';
+  const unitLabel = p.unit_label || '0.5kg';
+  const price = Number(p.unit_price) || 0;
+  const pricePerKg = isKg ? price * 2 : null;
+
+  // Status
+  let statusLabel, statusColor, statusBg;
+  if (!p.is_active) {
+    statusLabel = '⏸ Tạm dừng'; statusColor = '#6B7280'; statusBg = '#F3F4F6';
+  } else if (stock <= 0) {
+    statusLabel = '🔴 Hết hàng'; statusColor = '#DC2626'; statusBg = '#FEF2F2';
+  } else if (stock <= threshold) {
+    statusLabel = '🟡 Sắp hết'; statusColor = '#D97706'; statusBg = '#FEF3C7';
+  } else {
+    statusLabel = '🟢 Đang bán'; statusColor = '#059669'; statusBg = '#D1FAE5';
+  }
+
+  const stockPercent = threshold > 0 ? Math.min(100, Math.round((stock / Math.max(threshold * 4, 1)) * 100)) : 100;
+  const stockBarColor = stock <= 0 ? '#DC2626' : stock <= threshold ? '#F59E0B' : '#10B981';
+
+  const soldStr = sold30d > 0 ? sold30d.toFixed(isKg ? 1 : 0) + ' ' + unit : '0';
+  const revenueEst = sold30d * (isKg ? price * 2 : price);
+
+  // Image
+  const imgSrc = p.image_url || guessProductImage(p.code);
+
+  // Toggle button label
+  const toggleLabel = p.is_active ? '⏸ Tạm dừng' : '▶ Bật bán lại';
+  const toggleClass = p.is_active ? 'btn-ghost' : 'btn-primary';
+
+  return `
+    <div class="inv-row" data-id="${p.id}" style="display:grid;grid-template-columns:80px 1fr 130px 150px 130px;gap:12px;padding:14px;border-bottom:1px solid #F3F4F6;align-items:center;${!p.is_active ? 'opacity:0.6;' : ''}">
+      <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#f5e6d3,#e8c99a);display:flex;align-items:center;justify-content:center;">
+        ${imgSrc ? `<img src="${imgSrc}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='📦'" />` : '<span style="font-size:30px;">📦</span>'}
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-weight:700;font-size:14px;color:#1F2937;">${esc(p.name)}</span>
+          <span style="font-family:monospace;font-size:10px;background:#F3F4F6;padding:2px 6px;border-radius:4px;color:#6B7280;">${esc(p.code)}</span>
+          <span style="background:${statusBg};color:${statusColor};font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;">${statusLabel}</span>
+        </div>
+        <div style="font-size:11px;color:#6B7280;">
+          📊 30 ngày qua: bán <b>${soldStr}</b> · ¥${Math.round(revenueEst).toLocaleString('en-US')}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;">Giá bán</div>
+        <div style="font-size:16px;font-weight:800;color:#C8102E;">¥${price.toLocaleString('en-US')}</div>
+        <div style="font-size:10px;color:#9CA3AF;">/ ${esc(unitLabel)}${pricePerKg ? ` · ¥${pricePerKg.toLocaleString('en-US')}/kg` : ''}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;font-weight:600;margin-bottom:2px;">Tồn kho</div>
+        <div style="font-size:16px;font-weight:800;color:${statusColor};">${formatStock(stock)} <span style="font-size:11px;font-weight:600;color:#6B7280;">${esc(unit)}</span></div>
+        <div style="height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:4px;">
+          <div style="height:100%;width:${stockPercent}%;background:${stockBarColor};transition:width .3s;"></div>
+        </div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">Cảnh báo ≤ ${formatStock(threshold)} ${esc(unit)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button onclick="openInventoryModal(${p.id})" class="btn btn-primary" style="padding:6px 10px;font-size:12px;">✏️ Sửa</button>
+        <button onclick="toggleProductActive(${p.id})" class="btn ${toggleClass}" style="padding:6px 10px;font-size:12px;">${toggleLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
+function formatStock(n) {
+  const x = Number(n) || 0;
+  return x % 1 === 0 ? String(x) : x.toFixed(1);
+}
+
+function guessProductImage(code) {
+  // Best-effort match to images already on site
+  if (['GT','GKT'].includes(code)) return '/images/gio.jpg';
+  if (['C','CKT','CLUA','CLUA TIEU'].includes(code)) return '/images/cha.jpg';
+  if (['M','MKT'].includes(code)) return '/images/moc.jpg';
+  if (code === 'Nem') return '/images/nem-lui.jpg';
+  if (code === 'Pte') return '/images/pate.jpg';
+  return '';
+}
+
+function openInventoryModal(id) {
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('inv-modal').dataset.id = id;
+  document.getElementById('inv-modal-name').textContent = p.name;
+  document.getElementById('inv-modal-code').textContent = p.code + ' · ' + (p.unit_label || '') + ' · tồn theo ' + (p.stock_unit || 'kg');
+  document.getElementById('inv-modal-unit-label').textContent = p.unit_label || 'unit';
+  document.getElementById('inv-modal-stock-unit').textContent = p.stock_unit || 'kg';
+  document.getElementById('inv-modal-price').value = p.unit_price || 0;
+  document.getElementById('inv-modal-stock').value = p.stock_quantity || 0;
+  document.getElementById('inv-modal-threshold').value = p.low_stock_threshold || 0;
+  document.getElementById('inv-modal-active').checked = !!p.is_active;
+  document.getElementById('inv-modal').classList.remove('hidden');
+}
+
+function closeInventoryModal() {
+  document.getElementById('inv-modal').classList.add('hidden');
+}
+
+async function saveInventoryEdit() {
+  const id = parseInt(document.getElementById('inv-modal').dataset.id);
+  const price = parseInt(document.getElementById('inv-modal-price').value) || 0;
+  const stock = parseFloat(document.getElementById('inv-modal-stock').value) || 0;
+  const threshold = parseFloat(document.getElementById('inv-modal-threshold').value) || 0;
+  const active = document.getElementById('inv-modal-active').checked;
+
+  if (price < 0 || stock < 0 || threshold < 0) {
+    alert('Giá / tồn / ngưỡng không được âm');
+    return;
+  }
+
+  const btn = document.getElementById('inv-modal-save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
+
+  try {
+    const { data, error } = await sb.rpc('admin_update_product', {
+      p_id: id,
+      p_unit_price: price,
+      p_stock_quantity: stock,
+      p_low_stock_threshold: threshold,
+      p_is_active: active,
+    });
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
+
+    showToast('✓ Đã lưu thay đổi', 'success');
+    closeInventoryModal();
+    loadInventory();
+  } catch(e) {
+    console.error('saveInventoryEdit err:', e);
+    alert('Lỗi lưu: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Lưu thay đổi';
+  }
+}
+
+async function toggleProductActive(id) {
+  const p = _invProducts.find(x => x.id === id);
+  if (!p) return;
+  const newActive = !p.is_active;
+  const action = newActive ? 'BẬT bán lại' : 'TẠM DỪNG bán';
+  if (!confirm(`${action} sản phẩm "${p.name}"?\n${newActive ? 'Sẽ hiện trên trang chủ thuyjapan.com.' : 'Sẽ ẩn khỏi trang chủ ngay.'}`)) return;
+
+  try {
+    const { data, error } = await sb.rpc('admin_update_product', {
+      p_id: id,
+      p_is_active: newActive,
+    });
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.error || 'Update failed');
+    showToast(`✓ Đã ${newActive ? 'bật' : 'tạm dừng'} ${p.name}`, 'success');
+    loadInventory();
+  } catch(e) {
+    console.error('toggleProductActive err:', e);
+    alert('Lỗi: ' + (e.message || e));
+  }
+}
+
 async function adminLogin() {
   const email = document.getElementById('admin-email').value.trim();
   const password = document.getElementById('admin-password').value;
@@ -989,7 +1342,7 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','messages','campaign'].forEach(t => {
+  ['dashboard','orders','customers','messages','campaign','inventory'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
@@ -997,6 +1350,7 @@ function switchTab(name) {
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
   if (name === 'campaign') initCampaignTab();
+  if (name === 'inventory') loadInventory();
   try { localStorage.setItem('admin_tab', name); } catch(e) {}
 }
 
@@ -1004,7 +1358,7 @@ function switchTab(name) {
 function restoreAdminTabs() {
   try {
     const savedTab = localStorage.getItem('admin_tab');
-    if (savedTab && ['dashboard','orders','customers','messages','campaign'].includes(savedTab) && savedTab !== 'dashboard') {
+    if (savedTab && ['dashboard','orders','customers','messages','campaign','inventory'].includes(savedTab) && savedTab !== 'dashboard') {
       switchTab(savedTab);
     }
     const savedSub = localStorage.getItem('admin_orders_subtab');

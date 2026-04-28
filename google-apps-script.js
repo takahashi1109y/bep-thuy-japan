@@ -190,6 +190,9 @@ function doPost(e) {
     // Luu don hang vao Supabase orders table (de khach xem lich su)
     try { saveOrderToSupabase(orderNo, data); } catch(soe) { Logger.log('Save order to SB err: ' + soe); }
 
+    // Tu dong tru ton kho theo san pham trong cartItems
+    try { deductStockForOrder_(data.cartItems); } catch(dse) { Logger.log('Deduct stock err: ' + dse); }
+
     // Tru diem da dung ngay (vi khach da chon dung diem de giam gia)
     if (data.userId && data.pointsUsed && data.pointsUsed > 0) {
       try { deductPointsFromSupabase(data.userId, orderNo, data.pointsUsed); } catch(de) { Logger.log('Deduct err: ' + de); }
@@ -1678,6 +1681,86 @@ function buildOrderItems(cartItems) {
     parts.push(numStr + ' ' + code);
   });
   return parts.join(' ');
+}
+
+// ---- Tu dong tru ton kho qua Supabase RPC deduct_stock_for_order ----
+// cartItems: [{ name: "[GT] Giò có tiêu", wt: 1.0, qty: 1, ... }, ...]
+// kg products: amount = wt (kg). Box products (Nem, Pte): amount = wt/0.5 (so hop/tui)
+function deductStockForOrder_(cartItems) {
+  if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) return;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('Skip deduct stock: missing Supabase config');
+    return;
+  }
+
+  // Aggregate per product code (in case same product appears twice in cart)
+  var totals = {};
+  cartItems.forEach(function(item) {
+    var match = (item.name || '').match(/^\[([^\]]+)\]/);
+    if (!match) return;
+    var code = match[1];
+    var mapped = CODE_MAP[code];
+    if (!mapped) return;
+    var wt = Number(item.wt) || 0;
+    if (wt <= 0) return;
+    // byBox products store wt = boxCount * 0.5; convert back to box count
+    var amount = mapped.byBox ? (wt / 0.5) : wt;
+    totals[code] = (totals[code] || 0) + amount;
+  });
+
+  var items = Object.keys(totals).map(function(code) {
+    return { code: code, amount: totals[code] };
+  });
+  if (items.length === 0) return;
+
+  try {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/deduct_stock_for_order', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      payload: JSON.stringify({ p_items: items }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    var body = res.getContentText();
+    Logger.log('deduct_stock_for_order HTTP ' + code + ' - ' + body.substring(0, 300));
+    if (code >= 300) return;
+
+    // Warn admin via Telegram if any product hit 0 or went negative
+    try {
+      var results = JSON.parse(body);
+      if (Array.isArray(results)) {
+        var alerts = results.filter(function(r) { return r.remaining != null && Number(r.remaining) <= 0; });
+        if (alerts.length > 0) sendStockAlertTelegram_(alerts);
+      }
+    } catch(pe) {}
+  } catch(e) {
+    Logger.log('deduct_stock_for_order err: ' + e);
+  }
+}
+
+// ---- Telegram canh bao khi ton kho cham/vuot 0 ----
+function sendStockAlertTelegram_(alerts) {
+  var botToken = _prop('TELEGRAM_BOT_TOKEN', '');
+  var chatId = _prop('TELEGRAM_CHAT_ID', '');
+  if (!botToken || !chatId) return;
+  var lines = alerts.map(function(a) {
+    return '• *' + a.code + '*: còn ' + a.remaining + (Number(a.remaining) < 0 ? ' (âm — oversold!)' : ' (hết hàng)');
+  });
+  var text = '⚠️ *Cảnh báo tồn kho*\n\n' + lines.join('\n') +
+    '\n\n👉 [Mở Tồn Kho](https://www.thuyjapan.com/thuythang) để bổ sung.';
+  try {
+    UrlFetchApp.fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' }),
+      muteHttpExceptions: true
+    });
+  } catch(e) { Logger.log('Stock alert TG err: ' + e); }
 }
 
 // ---- Luu don hang vao sheet "Don Hang" ----

@@ -1645,6 +1645,78 @@ window.addEventListener('scroll', function() {
     document.querySelectorAll('.box-selector').forEach(initBoxSelector);
   });
 
+  // ── INVENTORY SYNC FROM SUPABASE ──
+  // Override hardcoded prices + show stock badges + hide inactive/out-of-stock
+  // Called right after Supabase client is initialized (see initSupabase below)
+  async function syncProductsFromCatalog() {
+    try {
+      let client = sbClient;
+      if (!client && window.supabase) {
+        client = supabase.createClient(SUPA_URL, SUPA_ANON);
+      }
+      if (!client) return;
+      const { data, error } = await client.from('product_catalog')
+        .select('id, code, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold')
+        .order('display_order');
+      if (error) { console.warn('Catalog sync error:', error.message); return; }
+      if (!Array.isArray(data)) return;
+      data.forEach(applyProductOverride);
+    } catch(e) {
+      console.warn('Catalog sync skipped:', e);
+    }
+  }
+
+  function applyProductOverride(p) {
+    const sel = document.querySelector(
+      '.weight-selector[data-id="' + p.id + '"], .box-selector[data-id="' + p.id + '"]'
+    );
+    if (!sel) return;
+    const card = sel.closest('.product-card');
+
+    // Hide if inactive or completely out of stock
+    if (!p.is_active || Number(p.stock_quantity) <= 0) {
+      if (card) card.style.display = 'none';
+      return;
+    }
+
+    const isBox = sel.classList.contains('box-selector');
+    const newPrice = Number(p.unit_price) || 0;
+
+    // Override price + re-render selector with new price
+    if (isBox) {
+      if (newPrice > 0) sel.dataset.price = String(newPrice);
+      // Cap max box count by stock (so customer can't request more than available)
+      const stock = Math.floor(Number(p.stock_quantity));
+      const oldMax = parseInt(sel.dataset.max || '10', 10);
+      sel.dataset.max = String(Math.max(1, Math.min(oldMax, stock)));
+      initBoxSelector(sel);
+    } else {
+      if (newPrice > 0) sel.dataset.halfPrice = String(newPrice);
+      initWeightSelector(sel);
+    }
+
+    // Stock badge if low
+    const stock = Number(p.stock_quantity);
+    const threshold = Number(p.low_stock_threshold) || 0;
+    if (card && stock <= threshold && stock > 0) {
+      addStockBadge(card, stock, p.stock_unit || 'kg');
+    }
+  }
+
+  function addStockBadge(card, stock, unit) {
+    if (card.querySelector('.stock-badge')) return;
+    const badge = document.createElement('div');
+    badge.className = 'stock-badge';
+    badge.style.cssText = 'background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;margin:8px 0 -4px;text-align:center;';
+    const stockStr = stock % 1 === 0 ? String(stock) : stock.toFixed(1);
+    badge.textContent = '⚠️ Sắp hết — chỉ còn ' + stockStr + ' ' + unit;
+    const inner = card.querySelector('.p-5, .p-4');
+    if (!inner) return;
+    const sel = inner.querySelector('.weight-selector, .box-selector');
+    if (sel) sel.parentNode.insertBefore(badge, sel);
+    else inner.appendChild(badge);
+  }
+
   function openSiPopup(){
     document.getElementById('si-overlay').style.display='block';
     document.getElementById('si-popup').style.display='block';
@@ -1671,6 +1743,8 @@ window.addEventListener('scroll', function() {
   async function initSupabase() {
     try {
       sbClient = supabase.createClient(SUPA_URL, SUPA_ANON);
+      // Sync inventory + prices from product_catalog (no auth required, public read)
+      syncProductsFromCatalog();
       const { data: { session } } = await sbClient.auth.getSession();
       if (session) {
         sbUser = session.user;
