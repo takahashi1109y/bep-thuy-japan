@@ -169,6 +169,50 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'verify_receipt', result: result });
     }
 
+    // OPTION B: Verify receipt FIRST, then create order only if AI verifies amount matches
+    if (data.type === 'verify_then_create_order') {
+      if (!data.receipt_base64 || typeof data.total !== 'number') {
+        return buildResponse({ success: false, error: 'Missing receipt_base64 or total' });
+      }
+      var verifyRes = verifyReceiptStandalone_(data.receipt_base64, data.total);
+      if (!verifyRes.match) {
+        return buildResponse({
+          success: false,
+          error: 'verify_failed',
+          detail: {
+            extracted_amount: verifyRes.detected_amount,
+            expected_amount: data.total,
+            reason: verifyRes.reason
+          }
+        });
+      }
+      // Verify passed → create order with status 'customer_paid' + ai_verified flag
+      data.status = 'customer_paid';
+      data.ai_verify_passed = true;
+      data.ai_detected_amount = verifyRes.detected_amount;
+
+      var orderNo2 = getNextOrderNo(ss);
+      saveOrder(ss, orderNo2, data);
+      saveYamato(orderNo2, data);
+      sendOrderNotification(orderNo2, data);
+      sendCustomerConfirmation(orderNo2, data);
+      updateProductStats(ss);
+      try {
+        var buyerEmail2 = data.email || '';
+        if (buyerEmail2) {
+          addToGetResponse(buyerEmail2, data.name || '', data.phone || '', data.prefecture || '',
+            data.userId ? 'member-buyer' : 'buyer');
+        }
+      } catch(ge) { Logger.log('GR err: ' + ge); }
+      try { saveOrderToSupabase(orderNo2, data); } catch(soe) { Logger.log('SB err: ' + soe); }
+      try { savePaymentProofForVerifiedOrder_(orderNo2, data); } catch(pe) { Logger.log('Save proof err: ' + pe); }
+      try { deductStockForOrder_(data.cartItems); } catch(dse) { Logger.log('Deduct stock err: ' + dse); }
+      if (data.userId && data.pointsUsed > 0) {
+        try { deductPointsFromSupabase(data.userId, orderNo2, data.pointsUsed); } catch(de) { Logger.log('Pts err: ' + de); }
+      }
+      return buildResponse({ success: true, orderNo: orderNo2, verified: true, detected_amount: verifyRes.detected_amount });
+    }
+
     const orderNo = getNextOrderNo(ss);
     saveOrder(ss, orderNo, data);
     saveYamato(orderNo, data);
@@ -677,6 +721,135 @@ function sendPaymentReceivedNotification_(data) {
 //
 // Cost: free tier 1000 images/month. Beyond that $1.50/1000.
 
+// Standalone verify — for verify_then_create_order (no DB / no confirmation_id yet)
+// Input: base64 image data + expected amount
+// Output: { match: bool, detected_amount, reason, raw_text }
+function verifyReceiptStandalone_(base64, expectedAmount) {
+  var apiKey = _prop('GOOGLE_VISION_KEY', '');
+  if (!apiKey) {
+    Logger.log('GOOGLE_VISION_KEY not set — cannot verify');
+    return { match: false, reason: 'AI chưa được cấu hình. Liên hệ Thuỷ.' };
+  }
+  expectedAmount = Number(expectedAmount) || 0;
+  var result = { match: false, detected_amount: null, reason: '', raw_text: '' };
+
+  try {
+    var visionResp = UrlFetchApp.fetch(
+      'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
+      {
+        method: 'post',
+        contentType: 'application/json',
+        muteHttpExceptions: true,
+        payload: JSON.stringify({
+          requests: [{
+            image: { content: base64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+            imageContext: { languageHints: ['ja', 'vi', 'en'] }
+          }]
+        })
+      }
+    );
+    if (visionResp.getResponseCode() !== 200) {
+      result.reason = 'Lỗi Vision API: ' + visionResp.getContentText().slice(0, 150);
+      return result;
+    }
+    var visionData = JSON.parse(visionResp.getContentText());
+    var fullText = (visionData.responses && visionData.responses[0] && visionData.responses[0].fullTextAnnotation
+      ? visionData.responses[0].fullTextAnnotation.text : '') || '';
+    result.raw_text = fullText;
+    if (!fullText) { result.reason = 'AI không đọc được text trong ảnh (ảnh mờ hoặc không có chữ)'; return result; }
+
+    // Extract amounts (¥12,500 / 12,500円 / 12500 / etc.)
+    var amountRegex = /(?:¥|￥|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円)?/g;
+    var matches = [];
+    var m;
+    while ((m = amountRegex.exec(fullText)) !== null) {
+      var n = parseInt(m[1].replace(/[,，]/g, ''), 10);
+      if (n >= 100 && n <= 10000000) matches.push(n);
+    }
+    if (matches.length === 0) { result.reason = 'Không tìm thấy số tiền hợp lệ trong ảnh'; return result; }
+
+    // Prefer exact match; otherwise largest amount
+    var exact = matches.indexOf(expectedAmount) >= 0 ? expectedAmount : null;
+    var detected = exact !== null ? exact : Math.max.apply(null, matches);
+    result.detected_amount = detected;
+
+    var diff = Math.abs(detected - expectedAmount);
+    if (diff <= 1) {
+      result.match = true;
+      result.reason = 'Khớp ¥' + detected.toLocaleString();
+    } else {
+      result.match = false;
+      result.reason = 'AI đọc ¥' + detected.toLocaleString() + ' nhưng cần ¥' + expectedAmount.toLocaleString();
+    }
+    return result;
+  } catch(err) {
+    result.reason = 'Lỗi: ' + err.toString().slice(0, 200);
+    Logger.log('verifyReceiptStandalone_ error: ' + err);
+    return result;
+  }
+}
+
+// After verify_then_create_order saves the order, persist the receipt image
+// to Supabase Storage + create a payment_confirmations row linking to it.
+function savePaymentProofForVerifiedOrder_(orderNo, data) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  if (!data.receipt_base64) return;
+
+  // 1) Upload base64 → Storage 'payment-proofs/auto-{orderNo}-{ts}.jpg'
+  var ts = Date.now();
+  var ext = 'jpg';
+  if (data.receipt_mime === 'image/png') ext = 'png';
+  else if (data.receipt_mime === 'image/webp') ext = 'webp';
+  var path = 'auto/' + orderNo + '-' + ts + '.' + ext;
+  var bytes = Utilities.base64Decode(data.receipt_base64);
+  var blob = Utilities.newBlob(bytes, data.receipt_mime || 'image/jpeg', path);
+
+  var uploadUrl = SUPABASE_URL + '/storage/v1/object/payment-proofs/' + encodeURIComponent(path);
+  var upRes = UrlFetchApp.fetch(uploadUrl, {
+    method: 'post',
+    headers: {
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': data.receipt_mime || 'image/jpeg',
+      'x-upsert': 'true'
+    },
+    payload: blob.getBytes(),
+    muteHttpExceptions: true
+  });
+  if (upRes.getResponseCode() >= 300) {
+    Logger.log('Receipt upload err: ' + upRes.getContentText().slice(0, 200));
+    return;
+  }
+  var pubUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(path);
+
+  // 2) Create payment_confirmations row
+  var confPayload = {
+    order_no: orderNo,
+    user_id: data.userId || null,
+    amount: data.total,
+    method: 'auto_verified',
+    image_url: pubUrl,
+    notes: 'Auto-verified at checkout. AI detected ¥' + (data.ai_detected_amount || data.total).toLocaleString(),
+    ai_status: 'matched',
+    ai_detected_amount: data.ai_detected_amount || data.total,
+    ai_match: true,
+    ai_confidence: 0.95,
+    ai_verified_at: new Date().toISOString()
+  };
+  var confRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/payment_confirmations', {
+    method: 'post',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    payload: JSON.stringify(confPayload),
+    muteHttpExceptions: true
+  });
+  Logger.log('Save payment_confirmation: HTTP ' + confRes.getResponseCode());
+}
+
 function verifyReceiptWithAI_(confirmationId, imageUrl, expectedAmount) {
   var apiKey = _prop('GOOGLE_VISION_KEY', '');
   if (!apiKey) {
@@ -1168,7 +1341,7 @@ function saveOrderToSupabase(orderNo, data) {
     points_used:  data.pointsUsed || 0,
     points_earned: pointsEarned,
     points_awarded: false,
-    status: 'pending',
+    status: data.status || 'pending', // Option B uses 'customer_paid' when verified at checkout
     note:          data.note || '',
     delivery_time: data.deliveryTime || ''
   };
@@ -1783,6 +1956,11 @@ function saveOrder(ss, orderNo, data) {
   const dateStr = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
   const itemsSummary = buildOrderItems(data.cartItems);
 
+  // Sheet status: customer_paid → "Da TT - Cho gui", else "Cho gui hang"
+  var sheetStatus = (data.status === 'customer_paid' || data.ai_verify_passed)
+    ? 'Da TT - Cho gui'
+    : 'Cho gui hang';
+
   sheet.appendRow([
     orderNo,
     dateStr,
@@ -1796,7 +1974,7 @@ function saveOrder(ss, orderNo, data) {
     data.shipping  || 0,
     data.total     || 0,
     data.note      || '',
-    'Cho gui hang',
+    sheetStatus,
     '',
     false // Checkbox "Da Gui?" — tick de cong diem cho khach
   ]);

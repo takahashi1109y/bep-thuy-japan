@@ -818,17 +818,117 @@ window.addEventListener('scroll', function() {
       <div class="flex justify-between font-bold text-brand-dark text-base"><span>TỔNG CỘNG:</span><span id="final-total" class="text-brand-red text-xl"></span></div>
     </div>
 
-    <button id="submit-btn" onclick="submitOrder()" class="w-full mt-6 py-4 rounded-2xl text-white font-bold text-base shadow-lg" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">✅ Xác Nhận Đặt Hàng</button>
-    <p class="text-center text-xs text-gray-400 mt-3">Sau khi đặt, bạn nhận mã đơn để chuyển khoản</p>
+    <button id="submit-btn" onclick="submitOrder()" class="w-full mt-6 py-4 rounded-2xl text-white font-bold text-base shadow-lg" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💴 Tiếp Tục Đến Thanh Toán</button>
+    <p class="text-center text-xs text-gray-400 mt-3">Đơn chỉ được tạo sau khi thanh toán + upload biên lai</p>
   </div>
 
-  <!-- Step 3: Success + Bank Transfer -->
+  <!-- Step 2.5: Payment + Receipt Upload (NEW — Option B: pay first) -->
+  <div id="payment-section" class="px-5 py-4" style="display:none">
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-3">💴</div>
+      <h3 class="text-2xl font-bold text-brand-dark mb-1" style="font-family:'Playfair Display',serif">Thanh Toán Để Hoàn Tất</h3>
+      <p class="text-gray-500 text-sm">Chuyển khoản và upload biên lai — đơn sẽ tạo tự động sau khi xác minh</p>
+    </div>
+
+    <!-- Total -->
+    <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-5 text-center">
+      <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Tổng Cần Thanh Toán</p>
+      <p id="pay-total" class="text-brand-red font-bold text-3xl"></p>
+      <p class="text-xs text-gray-400 mt-1">(tiền hàng + phí ship)</p>
+    </div>
+
+    <!-- Step 1: Pay -->
+    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-full bg-yellow-500 text-white font-bold flex items-center justify-center text-sm">1</div>
+        <h4 class="font-bold text-yellow-900">Chuyển khoản</h4>
+      </div>
+
+      <!-- Payment method tabs -->
+      <div class="flex gap-3 mb-4">
+        <button id="pay-tab-paypay" onclick="payTabSwitch('paypay')" class="pay-tab active-paypay">
+          <span class="text-xl">💳</span><br>PayPay
+        </button>
+        <button id="pay-tab-bank" onclick="payTabSwitch('bank')" class="pay-tab inactive">
+          <span class="text-xl">🏦</span><br>Chuyển Khoản
+        </button>
+      </div>
+
+      <!-- PayPay -->
+      <div id="pay-section-paypay">
+        <div class="paypay-box mb-3">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">💳</span>
+            <div><p class="font-bold text-sm">PayPay</p><p class="text-red-200 text-xs">Thanghoang · Bếp Thuỷ Japan</p></div>
+          </div>
+          <div class="bg-white rounded-2xl p-3 text-center">
+            <div id="pay-paypay-qr" class="flex justify-center mb-1"></div>
+            <p class="text-gray-500 text-xs">Mở app PayPay → Quét QR</p>
+          </div>
+          <a href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank"
+             class="block mt-2 text-center py-2 rounded-xl font-bold text-sm bg-white text-red-600">
+            📱 Mở PayPay App
+          </a>
+        </div>
+      </div>
+
+      <!-- Bank -->
+      <div id="pay-section-bank" style="display:none">
+        <div class="bank-box text-sm">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">🏦</span>
+            <div><p class="font-bold text-sm">ゆうちょ銀行</p><p class="text-blue-200 text-xs">Japan Post Bank</p></div>
+          </div>
+          <div class="space-y-2">
+            <div class="flex justify-between"><span class="text-blue-200">支店名:</span><span class="font-semibold">二〇八店 (208)</span></div>
+            <div class="flex justify-between"><span class="text-blue-200">種別:</span><span class="font-semibold">普通</span></div>
+            <div class="flex justify-between items-center">
+              <span class="text-blue-200">口座番号:</span>
+              <div class="flex items-center gap-2"><span class="font-bold tracking-widest">2168488</span><button class="copy-btn" onclick="copyText('2168488')">コピー</button></div>
+            </div>
+            <div class="flex justify-between"><span class="text-blue-200">名義:</span><span class="font-semibold text-xs">タカハラ ケイイチロウ</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Upload receipt -->
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-4 mb-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm">2</div>
+        <h4 class="font-bold text-blue-900">Chụp biên lai + Upload</h4>
+      </div>
+      <p class="text-blue-800 text-sm mb-3">Sau khi chuyển thành công, chụp màn hình confirm rồi upload:</p>
+
+      <input type="file" id="receipt-file-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="onReceiptSelected(this)">
+      <button id="select-receipt-btn" onclick="document.getElementById('receipt-file-input').click()"
+              class="w-full py-4 rounded-xl bg-white border-2 border-dashed border-blue-400 text-blue-700 font-semibold hover:bg-blue-100">
+        📷 Chọn ảnh biên lai
+      </button>
+      <div id="receipt-preview" class="hidden mt-3 text-center">
+        <img id="receipt-preview-img" class="max-h-48 mx-auto rounded-lg border-2 border-blue-300" alt="Preview">
+        <button onclick="document.getElementById('receipt-file-input').click()" class="mt-2 text-blue-600 text-sm underline">Chọn ảnh khác</button>
+      </div>
+    </div>
+
+    <!-- Finalize -->
+    <button id="finalize-btn" onclick="finalizeOrderWithPayment()" disabled
+            class="w-full py-4 rounded-2xl text-white font-bold text-base shadow-lg opacity-50"
+            style="background:linear-gradient(135deg,#10B981,#059669)">
+      ⏳ Chọn ảnh biên lai trước
+    </button>
+    <p id="verify-status" class="text-sm mt-3 text-center text-gray-500"></p>
+
+    <button onclick="backToCheckout()" class="w-full mt-3 py-3 text-gray-500 underline text-sm">← Quay lại sửa đơn</button>
+  </div>
+
+  <!-- Step 3: Success -->
   <div id="order-success" class="px-5 py-8" style="display:none">
     <!-- Header -->
     <div class="text-center mb-5">
-      <div class="text-6xl mb-3">📝</div>
-      <h3 class="text-2xl font-bold text-brand-dark mb-2" style="font-family:'Playfair Display',serif">Đơn Hàng Đã Ghi Nhận</h3>
-      <p class="text-gray-500 text-sm">Vui lòng thanh toán để hoàn tất đơn</p>
+      <div class="text-6xl mb-3">✅</div>
+      <h3 class="text-2xl font-bold text-brand-dark mb-2" style="font-family:'Playfair Display',serif">Đơn Hàng Đã Hoàn Tất</h3>
+      <p class="text-gray-500 text-sm">Cảm ơn anh/chị! Bếp Thuỷ sẽ làm tươi và ship trong 2-3 ngày 🍜</p>
     </div>
 
     <!-- Guest upsell — show only for non-logged-in customers -->
@@ -849,10 +949,10 @@ window.addEventListener('scroll', function() {
       </a>
     </div>
 
-    <!-- Banner CẢNH BÁO chưa thanh toán -->
-    <div class="bg-yellow-100 border-2 border-yellow-400 rounded-2xl p-4 mb-5">
-      <p class="text-yellow-800 font-bold text-sm text-center">⚠️ ĐƠN CHƯA ĐƯỢC THANH TOÁN</p>
-      <p class="text-yellow-700 text-xs text-center mt-1">Đơn hàng chỉ được xử lý sau khi Thuỷ nhận được thanh toán. Vui lòng quét QR hoặc chuyển khoản bên dưới.</p>
+    <!-- Confirmation banner -->
+    <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mb-5">
+      <p class="text-green-800 font-bold text-sm text-center">✅ ĐÃ NHẬN THANH TOÁN</p>
+      <p class="text-green-700 text-xs text-center mt-1">Bếp Thuỷ sẽ xác nhận và bắt đầu sản xuất trong vòng 24 giờ.</p>
     </div>
 
     <!-- Mã đơn -->
@@ -861,91 +961,11 @@ window.addEventListener('scroll', function() {
       <div id="order-no-display" class="order-badge">----</div>
     </div>
 
-    <!-- Số tiền -->
-    <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-5 text-center">
-      <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Số Tiền Cần Thanh Toán</p>
-      <p id="transfer-amount" class="text-brand-red font-bold text-3xl"></p>
+    <!-- Số tiền đã trả -->
+    <div class="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-5 text-center">
+      <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Tổng Đã Thanh Toán</p>
+      <p id="transfer-amount" class="text-green-700 font-bold text-3xl"></p>
       <p class="text-xs text-gray-400 mt-1">(tiền hàng + phí vận chuyển)</p>
-    </div>
-
-    <!-- Tab chọn hình thức thanh toán -->
-    <p class="text-xs text-gray-500 uppercase font-semibold mb-3 text-center">Chọn Hình Thức Thanh Toán</p>
-    <div class="flex gap-3 mb-5">
-      <button id="tab-paypay" onclick="switchPayment('paypay')" class="pay-tab active-paypay">
-        <span class="text-xl">💳</span><br>PayPay
-      </button>
-      <button id="tab-bank" onclick="switchPayment('bank')" class="pay-tab inactive">
-        <span class="text-xl">🏦</span><br>Chuyển Khoản
-      </button>
-    </div>
-
-    <!-- PAYPAY SECTION -->
-    <div id="section-paypay">
-      <div class="paypay-box mb-4">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="text-2xl">💳</span>
-          <div><p class="font-bold text-base">PayPay</p><p class="text-red-200 text-xs">Thanghoang · Bếp Thuỷ Japan</p></div>
-        </div>
-        <!-- QR tạo tự động -->
-        <div class="bg-white rounded-2xl p-4 text-center mb-3">
-          <div id="paypay-qr" class="flex justify-center mb-2"></div>
-          <p class="text-gray-500 text-xs">Mở app PayPay → Quét QR này</p>
-        </div>
-        <a id="paypay-open-btn" href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank"
-           class="block w-full text-center py-3 rounded-xl font-bold text-sm bg-white text-red-600 mb-2">
-          📱 Mở PayPay App Ngay
-        </a>
-      </div>
-      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-4">
-        <p class="font-bold text-yellow-800 mb-2">⚠️ Lưu ý khi thanh toán PayPay</p>
-        <ol class="list-decimal list-inside space-y-1.5 text-xs text-yellow-800">
-          <li>Mở app <strong>PayPay</strong> → nhấn <strong>スキャン</strong> (Quét)</li>
-          <li>Quét QR bên trên hoặc nhấn <strong>"Mở PayPay App Ngay"</strong></li>
-          <li>Nhập số tiền: <strong id="paypay-amount-hint" class="text-red-600 text-sm"></strong></li>
-          <li>Kiểm tra tên người nhận: <strong>Thanghoang</strong></li>
-          <li>Nhấn xác nhận thanh toán ✅</li>
-        </ol>
-      </div>
-    </div>
-
-    <!-- BANK SECTION -->
-    <div id="section-bank" style="display:none">
-      <div class="bank-box mb-4">
-        <div class="flex items-center gap-2 mb-4">
-          <span class="text-2xl">🏦</span>
-          <div><p class="font-bold text-base">ゆうちょ銀行</p><p class="text-blue-200 text-xs">Japan Post Bank</p></div>
-        </div>
-        <div class="space-y-2.5 text-sm">
-          <div class="flex justify-between items-center"><span class="text-blue-200">支店名:</span><span class="font-semibold">二〇八店 (208)</span></div>
-          <div class="flex justify-between items-center"><span class="text-blue-200">口座種別:</span><span class="font-semibold">普通</span></div>
-          <div class="flex justify-between items-center">
-            <span class="text-blue-200">口座番号:</span>
-            <div class="flex items-center gap-2"><span class="font-bold text-lg tracking-widest">2168488</span><button class="copy-btn" onclick="copyText('2168488')">コピー</button></div>
-          </div>
-          <div class="flex justify-between items-center"><span class="text-blue-200">口座名義:</span><span class="font-semibold">タカハラ ケイイチロウ</span></div>
-          <hr class="border-blue-700 my-1">
-          <div class="flex justify-between items-center">
-            <span class="text-blue-200 text-xs">記号番号:</span>
-            <div class="flex items-center gap-2"><span class="font-bold text-sm tracking-wider">12030-21684881</span><button class="copy-btn" onclick="copyText('1203021684881')">コピー</button></div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-4">
-        <p class="font-bold text-yellow-800 mb-2">⚠️ Cách Ghi Tên Khi Chuyển Khoản</p>
-        <p class="text-sm text-yellow-900 mb-2">Ô <strong>振込人名義</strong> → thêm <strong>MÃ ĐƠN</strong> vào trước tên:</p>
-        <div class="bg-white rounded-xl p-3 text-center mb-2">
-          <p class="text-gray-400 text-xs mb-1">Nhập tên:</p>
-          <p class="font-bold text-brand-red text-lg tracking-widest" id="transfer-name-example">0001 TEN BAN</p>
-          <button onclick="copyText(document.getElementById('transfer-name-example').textContent)" class="mt-2 text-xs bg-red-50 border border-red-200 text-brand-red px-3 py-1 rounded-full">📋 Copy tên</button>
-        </div>
-        <ol class="list-decimal list-inside space-y-1 text-xs text-yellow-800">
-          <li>Mở app ngân hàng → chọn <strong>振込</strong></li>
-          <li>Nhập thông tin tài khoản Thuỷ bên trên</li>
-          <li>Nhập số tiền cần chuyển</li>
-          <li>Sửa <strong>振込人名義</strong> như ô đỏ bên trên</li>
-          <li>Xác nhận ✅</li>
-        </ol>
-      </div>
     </div>
 
     <!-- Receipt -->
@@ -1219,7 +1239,7 @@ window.addEventListener('scroll', function() {
     if(successVisible){ resetAndClose(); return; }
   }
   function showStep(id){
-    ['cart-items-section','checkout-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; });
+    ['cart-items-section','checkout-section','payment-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; });
     // Guest upsell visibility — always recompute when order-success shown
     if (id === 'order-success') {
       const banner = document.getElementById('guest-upsell');
@@ -1230,6 +1250,7 @@ window.addEventListener('scroll', function() {
     }
   }
   function backToCart(){ showStep('cart-items-section'); }
+  function backToCheckout(){ showStep('checkout-section'); }
 
   function goToCheckout(){
     document.getElementById('checkout-summary').innerHTML=cart.map(i=>`<div class="flex justify-between text-xs text-gray-600"><span class="flex-1 truncate">${i.name} (${i.size}) × ${i.qty}</span><span class="font-medium ml-2">${yen(i.price*i.qty)}</span></div>`).join('');
@@ -1332,7 +1353,11 @@ window.addEventListener('scroll', function() {
   function copyText(t){ navigator.clipboard.writeText(t).then(()=>showToast('✓ Đã copy!')); }
   function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
 
-  // ── SUBMIT ──
+  // ── SUBMIT (Option B: validate + go to payment-section, no DB write yet) ──
+  // Pending order data held client-side until receipt verified + AI passed
+  let _pendingOrder = null;
+  let _selectedReceiptFile = null;
+
   async function submitOrder(){
     const name=document.getElementById('f-name').value.trim();
     const email=document.getElementById('f-email').value.trim();
@@ -1350,7 +1375,6 @@ window.addEventListener('scroll', function() {
     if(!address){ alert('Vui lòng nhập địa chỉ nhận hàng.'); return; }
     if(getSize(totalWeight())===null){ alert('Đơn trên 15kg — vui lòng liên hệ Thuỷ trực tiếp!'); return; }
 
-    // Kiểm tra địa chỉ nhận mới nếu đặt cho người khác
     const useOther = document.getElementById('chk-other-address').checked;
     let shipPref=pref, shipPostal=postal, shipAddress=address, shipMailbox=mailbox;
     let recipientName=name, recipientPhone=phone;
@@ -1374,66 +1398,197 @@ window.addEventListener('scroll', function() {
     const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0;
     const bdDisc = birthdayDiscount(sub);
     const inaDisc = inactiveDiscount(sub);
-    const total=sub+ship-bdDisc-inaDisc;
+    const grossTotal = sub+ship-bdDisc-inaDisc;
+    // Subtract loyalty points if logged-in member is using them
+    const ptsUsed = (sbUser && pointsUsed) ? pointsUsed : 0;
+    const total = Math.max(0, grossTotal - ptsUsed);
 
-    const btn=document.getElementById('submit-btn');
-    btn.disabled=true; btn.innerHTML='<span class="spin">⏳</span> Đang xử lý...';
+    // Save the order payload in memory; do NOT submit yet — wait for payment + receipt
+    _pendingOrder = {
+      name, email, phone, mailbox, note, deliveryTime,
+      recipientName: useOther ? recipientName : undefined,
+      recipientPhone: useOther ? recipientPhone : undefined,
+      prefecture: shipPref, postal: shipPostal, address: shipAddress,
+      mailboxRecipient: useOther ? shipMailbox : undefined,
+      items: cart.map(i => `${i.name}(${i.size})x${i.qty}`).join(', '),
+      cartItems: cart.map(i => ({ name: i.name, size: i.size, price: i.price, qty: i.qty, wt: i.wt })),
+      subtotal: sub, shipping: ship, total, grossTotal,
+      pointsUsed: ptsUsed,
+      birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent
+    };
+    _selectedReceiptFile = null;
+
+    // Render payment-section UI
+    document.getElementById('pay-total').textContent = yen(total);
+    generatePayPayQRPayment();
+
+    // Reset upload UI
+    document.getElementById('receipt-preview').classList.add('hidden');
+    document.getElementById('select-receipt-btn').classList.remove('hidden');
+    const finBtn = document.getElementById('finalize-btn');
+    finBtn.disabled = true;
+    finBtn.classList.add('opacity-50');
+    finBtn.innerHTML = '⏳ Chọn ảnh biên lai trước';
+    document.getElementById('verify-status').textContent = '';
+    document.getElementById('receipt-file-input').value = '';
+
+    showStep('payment-section');
+    document.getElementById('cart-panel').scrollTop = 0;
+  }
+
+  // Payment method tab switcher (separate from existing switchPayment for order-success)
+  function payTabSwitch(type){
+    const isPaypay = type === 'paypay';
+    document.getElementById('pay-section-paypay').style.display = isPaypay ? 'block' : 'none';
+    document.getElementById('pay-section-bank').style.display   = isPaypay ? 'none' : 'block';
+    document.getElementById('pay-tab-paypay').className = 'pay-tab ' + (isPaypay ? 'active-paypay' : 'inactive');
+    document.getElementById('pay-tab-bank').className   = 'pay-tab ' + (isPaypay ? 'inactive' : 'active-bank');
+  }
+
+  function generatePayPayQRPayment(){
+    const box = document.getElementById('pay-paypay-qr');
+    if (!box) return;
+    box.innerHTML = '';
+    new QRCode(box, {
+      text: PAYPAY_URL, width: 180, height: 180,
+      colorDark: '#d70000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  // Read file as base64 (without data URL prefix)
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const result = r.result || '';
+        const idx = result.indexOf('base64,');
+        resolve(idx >= 0 ? result.slice(idx + 7) : result);
+      };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // User picked a receipt image
+  function onReceiptSelected(input){
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ảnh quá lớn (tối đa 5MB). Vui lòng chọn ảnh khác.');
+      input.value = '';
+      return;
+    }
+    _selectedReceiptFile = file;
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = document.getElementById('receipt-preview-img');
+      img.src = e.target.result;
+      document.getElementById('receipt-preview').classList.remove('hidden');
+      document.getElementById('select-receipt-btn').classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+
+    // Enable finalize button
+    const btn = document.getElementById('finalize-btn');
+    btn.disabled = false;
+    btn.classList.remove('opacity-50');
+    btn.innerHTML = '✅ Hoàn Tất Đơn Hàng';
+    document.getElementById('verify-status').innerHTML = '<span style="color:#3B82F6">📷 Đã chọn ảnh — bấm "Hoàn Tất" để xác minh</span>';
+  }
+
+  // Upload receipt → Apps Script verifies AI Vision → saves order if pass
+  async function finalizeOrderWithPayment(){
+    if (!_pendingOrder) { alert('Lỗi: dữ liệu đơn bị mất, vui lòng đặt lại'); showStep('checkout-section'); return; }
+    if (!_selectedReceiptFile) { alert('Vui lòng chọn ảnh biên lai trước'); return; }
+
+    const btn = document.getElementById('finalize-btn');
+    const status = document.getElementById('verify-status');
+    btn.disabled = true; btn.classList.add('opacity-50');
+    btn.innerHTML = '<span class="spin">⏳</span> Đang upload ảnh...';
+    status.innerHTML = '<span style="color:#3B82F6">📤 Đang tải ảnh lên server...</span>';
 
     try {
-      const res=await fetch(SCRIPT_URL,{
-        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({name,email,phone,mailbox,
-          recipientName: useOther?recipientName:undefined,
-          recipientPhone: useOther?recipientPhone:undefined,
-          prefecture:shipPref,postal:shipPostal,address:shipAddress,
-          mailboxRecipient: useOther?shipMailbox:undefined,
-          note,deliveryTime,
-          items:cart.map(i=>`${i.name}(${i.size})x${i.qty}`).join(', '),
-          cartItems:cart.map(i=>({name:i.name,size:i.size,price:i.price,qty:i.qty,wt:i.wt})),
-          subtotal:sub,shipping:ship,total,birthdayDiscount:bdDisc,inactiveDiscount:inaDisc,inactivePercent:inactiveDiscountPercent})
+      // 1) Read receipt as base64 (sent to Apps Script for AI Vision verify;
+      //    Apps Script then saves to Supabase Storage via service_role if verify passes)
+      btn.innerHTML = '<span class="spin">⏳</span> Đang đọc ảnh...';
+      const receiptBase64 = await fileToBase64(_selectedReceiptFile);
+
+      btn.innerHTML = '<span class="spin">⏳</span> Đang xác minh số tiền...';
+      status.innerHTML = '<span style="color:#3B82F6">🔍 AI đang đọc biên lai để xác minh số tiền...</span>';
+
+      // 2) Send to Apps Script: verify + save order in one shot
+      const payload = Object.assign({}, _pendingOrder, {
+        type: 'verify_then_create_order',
+        receipt_base64: receiptBase64,
+        receipt_mime: _selectedReceiptFile.type,
+        userId: sbUser ? sbUser.id : null
+        // pointsUsed already in _pendingOrder
       });
-      const d=await res.json();
-      orderNo=d.success?d.orderNo:String(Date.now()).slice(-4).padStart(4,'0');
-    } catch(e){ orderNo=String(Date.now()).slice(-4).padStart(4,'0'); }
 
-    btn.disabled=false; btn.innerHTML='✅ Xác Nhận Đặt Hàng';
+      const res = await fetch(SCRIPT_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
 
-    // OPTIMISTIC CACHE: save order ngay vao localStorage de /thanh-vien load nhanh
-    if (sbUser) {
-      try {
-        const optimisticOrder = {
-          order_no: orderNo,
-          user_id: sbUser.id,
-          customer_name: name,
-          customer_email: email,
-          customer_phone: phone,
-          ship_prefecture: shipPref,
-          ship_postal: shipPostal,
-          ship_address: shipAddress,
-          items: cart.map(i => ({ name: i.name, size: i.size, price: i.price, qty: 1, wt: i.wt })),
-          subtotal: sub,
-          shipping_fee: ship,
-          total: total,
-          points_used: pointsUsed || 0,
-          points_earned: Math.floor(total / 100),
-          points_awarded: false,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          _optimistic: true
-        };
-        // Merge with existing cache
-        const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
-        let orders = (cached && cached.userId === sbUser.id) ? (cached.orders || []) : [];
-        // Put new order at top
-        orders = [optimisticOrder, ...orders.filter(o => o.order_no !== orderNo)];
-        localStorage.setItem('bepthuy_orders_cache', JSON.stringify({
-          userId: sbUser.id, orders: orders, ts: Date.now()
-        }));
-      } catch(e) { console.warn('Optimistic cache err:', e); }
+      if (!data.success) {
+        if (data.error === 'verify_failed') {
+          // Show concrete reason
+          const detail = data.detail || {};
+          const expected = _pendingOrder.total;
+          const found = detail.extracted_amount;
+          let msg = '❌ Không xác minh được số tiền. ';
+          if (found != null) msg += `AI thấy ¥${found} nhưng cần ¥${expected}.`;
+          else msg += 'Ảnh không rõ hoặc không phải biên lai.';
+          status.innerHTML = '<span style="color:#DC2626;font-weight:600">' + msg + '</span><br><span style="color:#6B7280">Vui lòng kiểm tra số tiền đã chuyển và chọn ảnh khác.</span>';
+          // Allow retry
+          btn.disabled = false; btn.classList.remove('opacity-50');
+          btn.innerHTML = '🔄 Thử Ảnh Khác';
+          return;
+        }
+        throw new Error(data.error || 'Lỗi không xác định');
+      }
+
+      // SUCCESS — order created
+      orderNo = data.orderNo;
+      status.innerHTML = '<span style="color:#10B981;font-weight:700">✓ Đã xác minh — đơn hàng được tạo!</span>';
+
+      // Optimistic cache for member dashboard
+      if (sbUser) {
+        try {
+          const optimisticOrder = {
+            order_no: orderNo, user_id: sbUser.id,
+            customer_name: _pendingOrder.name, customer_email: _pendingOrder.email, customer_phone: _pendingOrder.phone,
+            ship_prefecture: _pendingOrder.prefecture, ship_postal: _pendingOrder.postal, ship_address: _pendingOrder.address,
+            items: _pendingOrder.cartItems, subtotal: _pendingOrder.subtotal, shipping_fee: _pendingOrder.shipping,
+            total: _pendingOrder.total, points_used: _pendingOrder.pointsUsed || 0,
+            points_earned: Math.floor(_pendingOrder.total / 100), points_awarded: false,
+            status: 'customer_paid', created_at: new Date().toISOString(), _optimistic: true
+          };
+          const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+          let orders = (cached && cached.userId === sbUser.id) ? (cached.orders || []) : [];
+          orders = [optimisticOrder, ...orders.filter(o => o.order_no !== orderNo)];
+          localStorage.setItem('bepthuy_orders_cache', JSON.stringify({ userId: sbUser.id, orders, ts: Date.now() }));
+        } catch(e) { console.warn('Optimistic cache err:', e); }
+      }
+
+      // Show success page
+      showSuccess({
+        name: _pendingOrder.name, email: _pendingOrder.email, phone: _pendingOrder.phone,
+        pref: _pendingOrder.prefecture, postal: _pendingOrder.postal, address: _pendingOrder.address,
+        sub: _pendingOrder.subtotal, ship: _pendingOrder.shipping, total: _pendingOrder.total,
+        recipientName: _pendingOrder.recipientName || null, recipientPhone: _pendingOrder.recipientPhone || null
+      });
+
+    } catch(e) {
+      console.error('Finalize err:', e);
+      status.innerHTML = '<span style="color:#DC2626;font-weight:600">❌ ' + (e.message || e) + '</span>';
+      btn.disabled = false; btn.classList.remove('opacity-50');
+      btn.innerHTML = '🔄 Thử Lại';
     }
-
-    showSuccess({name,email,phone,pref:shipPref,postal:shipPostal,address:shipAddress,sub,ship,total,
-      recipientName:useOther?recipientName:null,recipientPhone:useOther?recipientPhone:null});
   }
 
   function switchPayment(type){
@@ -1458,10 +1613,6 @@ window.addEventListener('scroll', function() {
   function showSuccess({name,email,phone,pref,postal,address,sub,ship,total,recipientName,recipientPhone}){
     document.getElementById('order-no-display').textContent = orderNo;
     document.getElementById('transfer-amount').textContent  = yen(total);
-    document.getElementById('paypay-amount-hint').textContent = yen(total);
-
-    const nameParts = name.toUpperCase().split(' ').slice(0,3).join(' ');
-    document.getElementById('transfer-name-example').textContent = orderNo + ' ' + nameParts;
 
     document.getElementById('order-receipt').innerHTML =
       `<p class="font-semibold text-gray-700 mb-2">📋 Đơn #${orderNo}</p>`+
@@ -1478,11 +1629,6 @@ window.addEventListener('scroll', function() {
     const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\nHọ tên: ${name}\n\nSản phẩm:\n${itemLines}\nPhí ship: ${yen(ship)}\nTổng: ${yen(total)}\n\nXin xác nhận đơn hàng ạ!`;
     document.getElementById('group-order-text').textContent = orderText;
     groupBox.style.display='block';
-
-    // Tạo QR PayPay
-    generatePayPayQR(total);
-    // Mặc định hiện PayPay
-    switchPayment('paypay');
 
     // Guest upsell: nếu khách chưa đăng nhập → save prefill data + show banner
     const upsellBanner = document.getElementById('guest-upsell');
