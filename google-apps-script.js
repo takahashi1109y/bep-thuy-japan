@@ -1343,9 +1343,11 @@ function sendDailyProductionReport(fromDate, toDate, recipientOverride) {
   var fromIso = fromStr + 'T00:00:00+09:00';
   var toIso   = toStr   + 'T23:59:59+09:00';
 
-  // Query non-cancelled orders for today
+  // Query PAID orders only (confirmed/shipped/delivered).
+  // Excludes: cancelled, pending (chưa báo TT), customer_paid (chưa xác nhận TT).
+  // Reason: production should only be planned for orders that are confirmed paid.
   var url = sbUrl + '/rest/v1/orders?select=order_no,items,status,total,customer_name,created_at'
-          + '&status=neq.cancelled'
+          + '&status=in.(confirmed,shipped,delivered)'
           + '&created_at=gte.' + encodeURIComponent(fromIso)
           + '&created_at=lte.' + encodeURIComponent(toIso)
           + '&order=created_at.asc';

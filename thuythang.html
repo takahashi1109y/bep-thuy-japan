@@ -1117,10 +1117,12 @@ async function loadInventory() {
 
 async function computeInventorySales30d() {
   const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  // PAID-ONLY: chỉ tính đơn đã xác nhận TT (confirmed/shipped/delivered).
+  // Loại trừ pending + customer_paid (chưa được admin xác nhận) + cancelled.
   const { data, error } = await sb.from('orders')
     .select('items, status, created_at')
     .gte('created_at', since)
-    .neq('status', 'cancelled');
+    .in('status', ['confirmed', 'shipped', 'delivered']);
   if (error) { console.warn('Sales fetch err:', error); return {}; }
 
   const totals = {};
@@ -2932,11 +2934,14 @@ async function loadCustomers() {
       unread: unreadMap[p.id] || 0
     };
   });
+  // Customer list stats — PAID orders only (confirmed/shipped/delivered).
+  const PAID_LIST = ['confirmed', 'shipped', 'delivered'];
   orders.forEach(o => {
     const c = customerMap[o.user_id];
     if (!c) return;
     if (o.customer_email && !c.email) c.email = o.customer_email;
     if (o.status === 'cancelled') { c.cancelledCount += 1; return; }
+    if (!PAID_LIST.includes(o.status)) return;   // skip pending / customer_paid
     c.orderCount += 1;
     c.totalSpent += Number(o.total) || 0;
     if (!c.lastOrder || new Date(o.created_at) > new Date(c.lastOrder)) c.lastOrder = o.created_at;
@@ -3052,8 +3057,10 @@ async function openCustomerModal(userId, focusMessage = false) {
   orders.forEach(o => { map[o.order_no] = o; });
   allOrders = Object.values(map);
 
-  // Refresh stats from fresh data (so cache-miss fallback still shows correct numbers)
-  const validOrders = orders.filter(o => o.status !== 'cancelled');
+  // Refresh stats from fresh data — PAID orders only (confirmed/shipped/delivered).
+  // pending + customer_paid + cancelled are excluded from "Tổng đơn" / "Tổng chi".
+  const PAID = ['confirmed', 'shipped', 'delivered'];
+  const validOrders = orders.filter(o => PAID.includes(o.status));
   c.orderCount = validOrders.length;
   c.cancelledCount = orders.filter(o => o.status === 'cancelled').length;
   c.totalSpent = validOrders.reduce((s, o) => s + Number(o.total || 0), 0);
@@ -3165,7 +3172,9 @@ async function openGuestModal(email) {
   list.forEach(o => { map[o.order_no] = o; });
   allOrders = Object.values(map);
 
-  const validOrders = list.filter(o => o.status !== 'cancelled');
+  // PAID orders only for customer "Tổng đơn" / "Tổng chi".
+  const PAID = ['confirmed', 'shipped', 'delivered'];
+  const validOrders = list.filter(o => PAID.includes(o.status));
   const cancelledCount = list.filter(o => o.status === 'cancelled').length;
   const totalSpent = validOrders.reduce((s, o) => s + Number(o.total || 0), 0);
   const lastOrder = validOrders[0]?.created_at;
@@ -3255,8 +3264,11 @@ let statsOrders = [];
 let productCatalog = []; // [{id, name, unit_label, unit_price, cost, ...}]
 
 async function loadStats() {
+  // PAID-ONLY: charts, prod stats, detailed report all driven by this query.
+  // Loại trừ pending + customer_paid (chưa được admin XN TT) + cancelled.
   const [ordersRes] = await Promise.all([
-    sb.from('orders').select('total, shipping_fee, status, created_at, items').neq('status', 'cancelled')
+    sb.from('orders').select('total, shipping_fee, status, created_at, items')
+      .in('status', ['confirmed', 'shipped', 'delivered'])
   ]);
   statsOrders = ordersRes.data || [];
   await loadProductCatalog();
@@ -3494,15 +3506,17 @@ function applyProdCustom() {
   renderProductionStats();
 }
 
-// Aggregate quantities by product code from orders (excluding cancelled).
+// Aggregate quantities by product code — PAID orders only.
 // Same parser as Excel export: handles both modern + legacy concatenated items.
+// PAID = confirmed / shipped / delivered (admin đã xác nhận TT).
 function computeProductionTotals(from, to) {
   const totals = {};
   PRODUCTION_ROWS.forEach(p => { totals[p.code] = 0; });
 
+  const PAID = ['confirmed', 'shipped', 'delivered'];
   const src = (Array.isArray(statsOrders) && statsOrders.length) ? statsOrders : (allOrders || []);
   src.forEach(o => {
-    if (o.status === 'cancelled') return;        // 🔑 trừ đơn đã huỷ tự động
+    if (!PAID.includes(o.status)) return;       // 🔑 chỉ tính đơn đã xác nhận TT
     const d = isoJSTDate(o.created_at);
     if (d < from || d > to) return;
     const agg = aggregateOrderItems(o);
@@ -3587,13 +3601,14 @@ function computeDailyAggregates(days) {
   const map = {};
   buckets.forEach(b => { map[b.date] = b; });
 
-  // Prefer statsOrders (loaded with dashboard, already excludes cancelled).
-  // Fallback to allOrders if user has navigated through Orders tab.
+  // Prefer statsOrders (loaded with dashboard, PAID-only after policy update).
+  // Fallback to allOrders — but here we filter PAID-only manually.
+  const PAID = ['confirmed', 'shipped', 'delivered'];
   const src = (Array.isArray(statsOrders) && statsOrders.length)
             ? statsOrders
             : (allOrders || []);
   src.forEach(o => {
-    if (o.status === 'cancelled') return;
+    if (!PAID.includes(o.status)) return;       // 🔑 chỉ đếm đơn đã xác nhận TT
     const d = isoJSTDate(o.created_at);
     if (!map[d]) return;
     map[d].count += 1;
@@ -3883,10 +3898,12 @@ async function loadAnalytics() {
   const d7  = new Date(now - 7 * 86400000).toISOString();
   const d30 = new Date(now - 30 * 86400000).toISOString();
   const d90 = new Date(now - 90 * 86400000).toISOString();
+  // PAID-only stat cards: confirmed/shipped/delivered. Loại trừ pending + customer_paid + cancelled.
+  const PAID_FILTER = ['confirmed', 'shipped', 'delivered'];
   const [r7, r30, r90, profilesAll] = await Promise.allSettled([
-    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d7).neq('status','cancelled'),
-    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d30).neq('status','cancelled'),
-    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d90).neq('status','cancelled'),
+    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d7).in('status', PAID_FILTER),
+    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d30).in('status', PAID_FILTER),
+    sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', d90).in('status', PAID_FILTER),
     sb.from('profiles').select('id', { count: 'exact', head: true })
   ]);
   const g = (r) => r.status === 'fulfilled' ? (r.value.count || 0) : 0;
