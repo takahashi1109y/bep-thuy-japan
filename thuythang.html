@@ -312,7 +312,10 @@
         </div>
         <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div style="font-size:11px;color:#9CA3AF;">Tự động trừ đơn đã huỷ. Cập nhật theo dữ liệu mới nhất.</div>
-          <button onclick="exportProdStats()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:6px 14px;font-size:12px;">📊 Xuất Excel</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button onclick="openSendReportModal()" class="btn" style="background:#3B82F6;color:white;font-weight:700;padding:6px 14px;font-size:12px;">📧 Gửi báo cáo email</button>
+            <button onclick="exportProdStats()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:6px 14px;font-size:12px;">📊 Xuất Excel</button>
+          </div>
         </div>
       </div>
 
@@ -682,6 +685,60 @@
       </p>
     </div>
 
+  </div>
+</div>
+
+<!-- SEND PRODUCTION REPORT MODAL -->
+<div id="send-report-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeSendReportModal()">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Gửi báo cáo sản xuất</div>
+        <h3 style="margin:4px 0 0;font-size:18px;">📧 Email Báo Cáo Theo Yêu Cầu</h3>
+      </div>
+      <button onclick="closeSendReportModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📅 Khoảng thời gian</label>
+        <select id="report-range-preset" class="input" onchange="onReportRangeChange(this)" style="font-size:14px;">
+          <option value="today">Hôm nay</option>
+          <option value="yesterday">Hôm qua</option>
+          <option value="last7">7 ngày gần nhất</option>
+          <option value="last30">30 ngày gần nhất</option>
+          <option value="thisMonth">Tháng này</option>
+          <option value="custom">Tuỳ chọn ngày...</option>
+        </select>
+      </div>
+
+      <div id="report-custom-range" class="hidden" style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <label style="font-size:11px;color:#6B7280;display:block;margin-bottom:2px;">Từ ngày</label>
+          <input id="report-from" type="date" class="input" style="font-size:13px;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px;color:#6B7280;display:block;margin-bottom:2px;">Đến ngày</label>
+          <input id="report-to" type="date" class="input" style="font-size:13px;">
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📩 Gửi đến email</label>
+        <input id="report-recipient" type="email" class="input" value="support@thuyjapan.com" style="font-size:14px;">
+        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Có thể đổi sang email khác (vd: gmail của anh) để nhận report</p>
+      </div>
+
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;font-size:12px;color:#1E40AF;">
+        💡 Email sẽ chứa: tổng đơn, tổng doanh thu, bảng số lượng từng sản phẩm (kg/túi/hộp). Tự động trừ đơn đã huỷ.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="closeSendReportModal()" class="btn btn-ghost">Huỷ</button>
+      <button id="send-report-btn" onclick="doSendProductionReport()" class="btn btn-primary">📧 Gửi Email Ngay</button>
+    </div>
+    <p id="send-report-status" style="font-size:12px;color:#9CA3AF;margin:10px 0 0;text-align:center;"></p>
   </div>
 </div>
 
@@ -2542,6 +2599,115 @@ async function saveOrderAddress(orderNo) {
     status.textContent = '❌ Lỗi: ' + (e.message || e);
     status.style.color = '#DC2626';
     btn.disabled = false; btn.textContent = '💾 Lưu thay đổi';
+  }
+}
+
+// ── Send Production Report on Demand ──
+function openSendReportModal() {
+  // Reset to defaults
+  document.getElementById('report-range-preset').value = 'today';
+  document.getElementById('report-custom-range').classList.add('hidden');
+  document.getElementById('report-recipient').value = 'support@thuyjapan.com';
+  document.getElementById('send-report-status').textContent = '';
+  document.getElementById('send-report-status').style.color = '';
+  // Init custom range to today
+  const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  document.getElementById('report-from').value = todayStr;
+  document.getElementById('report-to').value = todayStr;
+  document.getElementById('send-report-modal').classList.remove('hidden');
+}
+
+function closeSendReportModal() {
+  document.getElementById('send-report-modal').classList.add('hidden');
+}
+
+function onReportRangeChange(sel) {
+  const isCustom = sel.value === 'custom';
+  document.getElementById('report-custom-range').classList.toggle('hidden', !isCustom);
+}
+
+// Compute YYYY-MM-DD strings for selected preset (Asia/Tokyo)
+function computeReportDateRange() {
+  const preset = document.getElementById('report-range-preset').value;
+  // Compute "now" in JST
+  const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
+  const fmt = d => d.toISOString().slice(0, 10);
+  const todayStr = fmt(nowJst);
+
+  if (preset === 'today') return { from: todayStr, to: todayStr };
+  if (preset === 'yesterday') {
+    const y = new Date(nowJst.getTime() - 86400000);
+    const yStr = fmt(y);
+    return { from: yStr, to: yStr };
+  }
+  if (preset === 'last7') {
+    const d = new Date(nowJst.getTime() - 6 * 86400000);
+    return { from: fmt(d), to: todayStr };
+  }
+  if (preset === 'last30') {
+    const d = new Date(nowJst.getTime() - 29 * 86400000);
+    return { from: fmt(d), to: todayStr };
+  }
+  if (preset === 'thisMonth') {
+    const first = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), 1));
+    return { from: fmt(first), to: todayStr };
+  }
+  if (preset === 'custom') {
+    const from = document.getElementById('report-from').value;
+    const to   = document.getElementById('report-to').value;
+    return { from, to };
+  }
+  return { from: todayStr, to: todayStr };
+}
+
+async function doSendProductionReport() {
+  const range = computeReportDateRange();
+  const recipient = document.getElementById('report-recipient').value.trim();
+  const btn = document.getElementById('send-report-btn');
+  const status = document.getElementById('send-report-status');
+
+  if (!range.from || !range.to) {
+    status.textContent = '⚠ Vui lòng chọn đủ ngày'; status.style.color = '#DC2626'; return;
+  }
+  if (range.from > range.to) {
+    status.textContent = '⚠ Ngày bắt đầu phải ≤ ngày kết thúc'; status.style.color = '#DC2626'; return;
+  }
+  if (!recipient || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) {
+    status.textContent = '⚠ Email không hợp lệ'; status.style.color = '#DC2626'; return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Đang gửi...';
+  status.textContent = ''; status.style.color = '';
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL_CAMP, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'send_production_report',
+        fromDate: range.from,
+        toDate: range.to,
+        recipient: recipient
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Gửi thất bại');
+
+    showToast('✓ Đã gửi báo cáo qua email', 'success');
+    status.innerHTML = '<span style="color:#10B981;font-weight:600">✓ Đã gửi tới ' + recipient + '</span><br>'
+      + '<span style="color:#6B7280">📦 ' + (data.totalOrders || 0) + ' đơn · 💰 ¥'
+      + Number(data.totalRevenue || 0).toLocaleString() + ' · ' + (data.range || '') + '</span>';
+    btn.innerHTML = '📧 Gửi Email Ngay';
+    btn.disabled = false;
+    // Auto-close after 3s on success
+    setTimeout(closeSendReportModal, 3500);
+  } catch(e) {
+    console.error('doSendProductionReport err:', e);
+    status.textContent = '❌ Lỗi: ' + (e.message || e);
+    status.style.color = '#DC2626';
+    btn.innerHTML = '📧 Gửi Email Ngay';
+    btn.disabled = false;
   }
 }
 

@@ -169,6 +169,26 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'verify_receipt', result: result });
     }
 
+    // Send production report email on demand (admin clicks "📧 Gửi báo cáo")
+    if (data.type === 'send_production_report') {
+      try {
+        var pr_from = data.fromDate || '';
+        var pr_to   = data.toDate   || '';
+        var pr_to_email = data.recipient || PRODUCTION_REPORT_EMAIL;
+        var report = sendDailyProductionReport(pr_from, pr_to, pr_to_email);
+        return buildResponse({
+          success: true,
+          type: 'send_production_report',
+          totalOrders: report ? report.totalOrders : 0,
+          totalRevenue: report ? report.totalRevenue : 0,
+          recipient: pr_to_email,
+          range: report ? report.rangeLabel : ''
+        });
+      } catch(prerr) {
+        return buildResponse({ success: false, error: 'Send report err: ' + prerr.toString() });
+      }
+    }
+
     // OPTION B: Verify receipt FIRST, then create order only if AI verifies amount matches
     if (data.type === 'verify_then_create_order') {
       if (!data.receipt_base64 || typeof data.total !== 'number') {
@@ -1308,10 +1328,10 @@ var PRODUCTION_PRODUCTS = [
   { code: 'Pte',       name: 'Pa Te',                       unit: 'hộp' }
 ];
 
-function sendDailyProductionReport(fromDate, toDate) {
+function sendDailyProductionReport(fromDate, toDate, recipientOverride) {
   var sbUrl = _prop('SUPABASE_URL', '');
   var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
-  if (!sbUrl || !sbKey) { Logger.log('Supabase creds missing'); return; }
+  if (!sbUrl || !sbKey) { Logger.log('Supabase creds missing'); return null; }
 
   // Default to today (JST). Pass YYYY-MM-DD strings to override.
   var now = new Date();
@@ -1334,7 +1354,7 @@ function sendDailyProductionReport(fromDate, toDate) {
   });
   if (resp.getResponseCode() !== 200) {
     Logger.log('Production report fetch failed: ' + resp.getContentText().slice(0, 300));
-    return;
+    return null;
   }
   var orders = JSON.parse(resp.getContentText()) || [];
 
@@ -1378,12 +1398,14 @@ function sendDailyProductionReport(fromDate, toDate) {
       '<p style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center;">Tự động tổng hợp từ đơn hàng (đã trừ đơn huỷ). Bếp Thuỷ Japan · ' + new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Tokyo' }) + '</p>' +
     '</div>';
 
+  var sendTo = recipientOverride || PRODUCTION_REPORT_EMAIL;
   MailApp.sendEmail({
-    to: PRODUCTION_REPORT_EMAIL,
+    to: sendTo,
     subject: '🏭 Báo cáo sản xuất ' + rangeLabel + ' — ' + totalOrders + ' đơn (¥' + totalRevenue.toLocaleString() + ')',
     htmlBody: html
   });
-  Logger.log('Production report sent to ' + PRODUCTION_REPORT_EMAIL + ' for ' + rangeLabel);
+  Logger.log('Production report sent to ' + sendTo + ' for ' + rangeLabel);
+  return { totalOrders: totalOrders, totalRevenue: totalRevenue, rangeLabel: rangeLabel, recipient: sendTo };
 }
 
 // 🧪 Test wrapper — gọi hàm chính với date range tùy ý.
