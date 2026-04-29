@@ -83,7 +83,8 @@ function validatePayload_(data) {
   if (!data || typeof data !== 'object') return 'Payload invalid';
   // Admin/system types bypass payload validation
   var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
-                     'order_confirmed', 'order_shipped'];
+                     'order_confirmed', 'order_shipped', 'send_production_report',
+                     'verify_then_create_order'];
   if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
 
   if (data.type === 'member') {
