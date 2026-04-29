@@ -69,14 +69,18 @@ Anh có 2 lựa chọn pháp nhân:
 - Tách bạch khỏi 愛ビュティージャパン (giữ cho beauty/clothing)
 - Bank account đã có (Yucho 2168488 cá nhân)
 
-### Business model chính xác
+### Business model chính xác (UPDATED 2026-04-29)
 
 ```
-Vietnam factory (委託加工先) → 加工 → Anh nhập về Nhật (食品輸入届出) → bán EC qua thuyjapan.com
+Manufacturer ở Nhật (handmade) → giò chả pate đóng gói sẵn → Anh nhập wholesale → Bếp Thuỷ Japan bán EC
 ```
 
-- Business type: 食品の輸入販売 (通信販売)
-- KHÔNG phải 自社製造 — không cần 製造業 営業許可
+- Anh là **DISTRIBUTOR / RESELLER trong nước Nhật**, KHÔNG phải importer (không bring food across border)
+- Sản phẩm sản xuất bởi 1 đơn vị thủ công ở Nhật (anh nhập wholesale từ họ)
+- Business type: **食品の販売業（容器包装に入れられた食品の販売）** hoặc **加工食品の小売**
+- Channel: 通信販売 (EC qua thuyjapan.com)
+- KHÔNG phải 自社製造 → không cần 製造業 営業許可
+- KHÔNG phải 輸入 → không cần 食品輸入届出
 
 | Yêu cầu | Anh có? |
 |---|---|
@@ -108,19 +112,45 @@ PayPay audit check 定款 → cần 事業目的 bao gồm:
 
 ---
 
-## ⚠️ FOOD IMPORT LICENSE (KHÔNG liên quan PayPay nhưng QUAN TRỌNG)
+## ⚠️ LICENSE THỰC PHẨM (UPDATED 2026-04-29 — đơn giản hơn nhiều)
 
-Vì Bếp Thuỷ import 加工食肉品 (processed meat) từ VN vào Nhật, anh cần check 2 license sau (riêng biệt với PayPay application):
+Vì anh là **distributor nội địa** (không import + không sản xuất + không repackage), license requirement đơn giản theo **改正食品衛生法 2021**:
 
-| License | Ai cần | Lấy ở đâu | Phí | Thời gian |
-|---|---|---|---|---|
-| **食品輸入届出** (mỗi lô hàng) | Người nhập | 検疫所 (cảng/sân bay nhập) | Free | 7-30 ngày/lô |
-| **食品衛生責任者** (cho EC seller) | Người bán EC | 食品衛生協会 講習会 | ¥10,000 | 1 ngày |
-| **食品衛生法 営業許可（食肉販売業）** | Bán meat retail | 保健所 quận | ¥16,000-21,000 | 2-4 tuần |
+| License | Anh có cần? | Lý do |
+|---|---|---|
+| 食品輸入届出 | ❌ KHÔNG | Không import |
+| 食品衛生責任者 | ❌ KHÔNG | Chỉ resell food đóng gói sẵn — không sản xuất / không repackage |
+| 食品衛生法 営業許可（食肉販売業）| ❌ KHÔNG | Bán 食肉加工品 (processed) đã đóng gói, không bán raw meat |
+| 食品衛生法 製造業 営業許可 | ❌ KHÔNG | Không sản xuất |
+| **食品衛生法 営業届出** (notification) | ⚠️ **CÓ — bắt buộc** | Bán food 要冷蔵/要冷凍 qua EC trong nước |
 
-→ **Anh có 3 license này chưa?** Nếu thiếu → rủi ro pháp lý lớn (fine + đình chỉ business). Em recommend liên hệ **行政書士** (gyousei shoshi) chuyên thực phẩm để check 1 lần cho yên tâm. Phí tư vấn ~¥10-30k.
+### 営業届出 = notification, KHÔNG phải permit
 
-→ Việc này không block PayPay application nhưng anh nên handle song song.
+| 営業許可 (permit, không cần) | 営業届出 (notification, anh CẦN) |
+|---|---|
+| Phải kiểm tra shop physical | Chỉ điền form |
+| Cần 食品衛生責任者 | KHÔNG cần |
+| ¥16,000-21,000 phí | **Free** |
+| 2-4 tuần | **30 phút - 1 ngày** |
+
+→ Anh đến 保健所 quận, điền **営業届出書** với 業種 "食品の販売業（容器包装に入れられた食品の販売）" — xong.
+
+### ⚠️ Anh PHẢI confirm 2 điều với 保健所
+
+1. **Loại sản phẩm**: giò/chả/mọc/pate/nem lụi đều là 食肉加工品 — một số quận có thể yêu cầu **食肉販売業届出** riêng (vẫn là notification, không phải permit). Hỏi 保健所 cho chắc.
+
+2. **Repackage check**: nếu anh nhập wholesale (vd 5kg/hộp lớn) rồi **CHIA NHỎ** thành 0.5kg / 1kg trước khi ship cho khách → đó là 小分け作業 → cần 食品衛生責任者 + 営業許可. **Anh có chia nhỏ không?**
+
+3. **Manufacturer license**: anh nên xin **copy 営業許可証** của manufacturer (đơn vị thủ công ở Nhật làm cho anh). Nếu họ chưa có 食肉製品製造業 営業許可 mà sản xuất → anh resell sẽ liên đới rủi ro pháp lý. Best practice: trao đổi license trong contract.
+
+### 📞 Cách đơn giản nhất: gọi 保健所 quận anh
+
+Free, 10 phút. Hỏi:
+> "ベトナム加工食肉食品（手作りハム・ソーセージ等）を国内製造者から仕入れ、ECサイトで販売したい。営業届出の業種コードは何ですか？小分け作業がない場合、食品衛生責任者は不要でしょうか？"
+
+→ Họ trả lời chính xác cho khu vực anh.
+
+→ Việc này không block PayPay application nhưng anh nên làm song song để compliance.
 
 ---
 
@@ -197,8 +227,8 @@ Sau khi 開業届 đăng ký 個人事業主 "Bếp Thuỷ Japan":
 | 屋号 | **Bếp Thuỷ Japan** |
 | 代表者氏名 | タカハラ ケイイチロウ |
 | 代表者生年月日 | (ngày sinh anh) |
-| 業種 | **食品の輸入販売（通信販売）** |
-| 事業内容 | ベトナム加工食品の輸入及びECサイトでの小売販売（手作りハム・ソーセージ・パテ・ネムルイ等。委託加工はベトナム現地工場） |
+| 業種 | **食品の販売業（通信販売・加工食品の小売）** |
+| 事業内容 | ベトナム風加工食品（ハム・ソーセージ・パテ・ネムルイ等）の小売販売。製品は国内の手作り製造者から仕入れ、ECサイト（thuyjapan.com）にて販売。容器包装済み食品の販売のみ。 |
 | Website URL | https://www.thuyjapan.com |
 | 電話番号 | 080-5115-6688 |
 | Email | thanghoang1109@gmail.com |
@@ -379,7 +409,9 @@ A: Em build polling fallback — frontend poll PayPay status mỗi 3s. Hai lớp
 11. ⏳ Go live
 
 **Optional (làm song song, không block)**:
-- ⏳ Liên hệ 行政書士 để check 食品衛生責任者 + 食品輸入届出 license (¥10-30k tư vấn)
+- ⏳ Gọi 保健所 quận anh confirm 業種 + 届出 type (free, 10 phút điện thoại)
+- ⏳ Đến 保健所 nộp 営業届出書 (free, 30 phút - 1 ngày)
+- ⏳ Xin manufacturer copy 営業許可証 cho chain-of-trust (best practice)
 
 ### Em sẵn sàng:
 - ✅ Spec đã viết xong
