@@ -56,9 +56,27 @@ Tính theo mục tiêu **800 đơn/tháng × ¥3,000 trung bình = ¥2,400,000 d
 
 ---
 
-## ✅ ELIGIBILITY CHECK (UPDATED 2026-04-29 — 法人 path confirmed)
+## ✅ ELIGIBILITY CHECK (UPDATED 2026-04-29 — 個人事業主 RECOMMENDED)
 
-Anh có **愛ビュティージャパン株式会社** (Ai Beauty Japan KK) thành lập 4/2019 → **法人 path** áp dụng.
+Anh có 2 lựa chọn pháp nhân:
+- **法人**: 愛ビュティージャパン株式会社 (4/2019). Nhưng 定款 chỉ có "健康食品の販売及び輸出" + "美容雑貨" + "衣類品" — KHÔNG cover 食品輸入販売. Cần update 定款 (¥30k + 1-2 tuần) hoặc skip.
+- **個人事業主** (RECOMMEND): đăng ký 開業届 với 屋号 "Bếp Thuỷ Japan" + 業種 "食品の輸入販売" — free, ~30 phút.
+
+**Decision 2026-04-29**: Đi 個人事業主 path vì:
+- Nhanh (30 phút vs 2 tuần)
+- Free (¥0 vs ¥30k+)
+- Đúng reality của business (importer + reseller)
+- Tách bạch khỏi 愛ビュティージャパン (giữ cho beauty/clothing)
+- Bank account đã có (Yucho 2168488 cá nhân)
+
+### Business model chính xác
+
+```
+Vietnam factory (委託加工先) → 加工 → Anh nhập về Nhật (食品輸入届出) → bán EC qua thuyjapan.com
+```
+
+- Business type: 食品の輸入販売 (通信販売)
+- KHÔNG phải 自社製造 — không cần 製造業 営業許可
 
 | Yêu cầu | Anh có? |
 |---|---|
@@ -90,7 +108,38 @@ PayPay audit check 定款 → cần 事業目的 bao gồm:
 
 ---
 
-## 📋 DOCUMENT CHECKLIST cho 法人
+## ⚠️ FOOD IMPORT LICENSE (KHÔNG liên quan PayPay nhưng QUAN TRỌNG)
+
+Vì Bếp Thuỷ import 加工食肉品 (processed meat) từ VN vào Nhật, anh cần check 2 license sau (riêng biệt với PayPay application):
+
+| License | Ai cần | Lấy ở đâu | Phí | Thời gian |
+|---|---|---|---|---|
+| **食品輸入届出** (mỗi lô hàng) | Người nhập | 検疫所 (cảng/sân bay nhập) | Free | 7-30 ngày/lô |
+| **食品衛生責任者** (cho EC seller) | Người bán EC | 食品衛生協会 講習会 | ¥10,000 | 1 ngày |
+| **食品衛生法 営業許可（食肉販売業）** | Bán meat retail | 保健所 quận | ¥16,000-21,000 | 2-4 tuần |
+
+→ **Anh có 3 license này chưa?** Nếu thiếu → rủi ro pháp lý lớn (fine + đình chỉ business). Em recommend liên hệ **行政書士** (gyousei shoshi) chuyên thực phẩm để check 1 lần cho yên tâm. Phí tư vấn ~¥10-30k.
+
+→ Việc này không block PayPay application nhưng anh nên handle song song.
+
+---
+
+## 📋 DOCUMENT CHECKLIST cho 個人事業主 (RECOMMENDED)
+
+Sau khi đăng ký 開業届 → chuẩn bị các giấy tờ này cho PayPay:
+
+| # | Giấy tờ | Lấy ở đâu | Phí |
+|---|---|---|---|
+| 1 | **開業届控え** (bản đóng dấu sau khi nộp 税務署) | Có sẵn sau bước đăng ký | Free |
+| 2 | **本人確認書類** (在留カード / マイナンバーカード / 運転免許証) | Anh có sẵn | Free |
+| 3 | **マイナンバー** (12 chữ số) | Có trong 通知カード hoặc マイナンバーカード | Free |
+| 4 | **入金先口座情報** (Yucho 2168488 cá nhân) | Anh có sẵn | Free |
+
+→ **Tổng phí giấy tờ: ¥0**. Tốc độ: 30 phút - 1 ngày.
+
+---
+
+## 📋 DOCUMENT CHECKLIST cho 法人 (NẾU anh chọn update 定款)
 
 Chuẩn bị sẵn các giấy tờ này trước khi apply:
 
@@ -138,22 +187,33 @@ Hỏi: "貴社サイトの形態を教えてください" → chọn:
 
 (Không chọn Shopify/BASE/Stores vì anh dùng Vercel + custom code)
 
-### Bước 4: Điền thông tin doanh nghiệp (法人 path)
+### Bước 4: Điền thông tin (個人事業主 path — RECOMMENDED 2026-04-29)
+
+Sau khi 開業届 đăng ký 個人事業主 "Bếp Thuỷ Japan":
 
 | Field | Giá trị |
 |---|---|
-| 事業者形態 | **法人** |
-| 法人名 | **愛ビュティージャパン株式会社** |
-| 法人番号 | (12 chữ số — có trong 履歴事項全部証明書) |
-| 設立年月日 | 2019年4月... (ngày thành lập) |
-| 屋号 / サービス名 | Bếp Thuỷ Japan |
+| 事業者形態 | **個人事業主** |
+| 屋号 | **Bếp Thuỷ Japan** |
 | 代表者氏名 | タカハラ ケイイチロウ |
 | 代表者生年月日 | (ngày sinh anh) |
-| 事業内容 | ベトナム食品の販売（手作りハム・ソーセージ・パテ・ネムルイ等） |
+| 業種 | **食品の輸入販売（通信販売）** |
+| 事業内容 | ベトナム加工食品の輸入及びECサイトでの小売販売（手作りハム・ソーセージ・パテ・ネムルイ等。委託加工はベトナム現地工場） |
 | Website URL | https://www.thuyjapan.com |
 | 電話番号 | 080-5115-6688 |
 | Email | thanghoang1109@gmail.com |
-| 本店所在地 | (địa chỉ trụ sở 法人 trong 履歴事項全部証明書) |
+| 住所 | (địa chỉ ở Nhật của anh) |
+| 入金先口座 | ゆうちょ銀行 二〇八店 普通 2168488 タカハラ ケイイチロウ |
+
+### ⚠️ Lưu ý quan trọng cho 業務内容
+
+Phải mô tả **TRUTHFULLY** rằng:
+- Mặt hàng = ベトナム加工食品 (processed Vietnamese food)
+- Hình thức = 輸入販売 (import + sell), KHÔNG phải 自社製造 (in-house manufacture)
+- Channel = ECサイト (e-commerce)
+- Production = 委託加工 (outsourced to Vietnam factory)
+
+Tránh dùng từ "手作り" (handmade) trên application với PayPay vì có thể hiểu nhầm anh là 製造業 → kéo theo audit về 食品衛生法 営業許可 製造 — anh không có. Nói rõ là 輸入販売 thì không cần 製造業 license.
 
 ### Bước 5: Upload giấy tờ
 
@@ -297,23 +357,29 @@ A: Em build polling fallback — frontend poll PayPay status mỗi 3s. Hai lớp
 
 ## 🚀 NEXT STEPS
 
-### Anh cần làm:
+### Anh cần làm (UPDATED — 個人事業主 path):
 
-**Phase pre-apply (BẮT BUỘC trước khi apply)**:
+**Phase 1 — Đăng ký 個人事業主 (1 ngày)**:
 1. ✅ Đọc hướng dẫn này
-2. ⏳ **CHECK 定款 của 愛ビュティージャパン**: có 事業目的 bao gồm "食品の販売" không?
-   - ✅ Có → đi tiếp
-   - ❌ Không → quyết định: update 定款 (¥30k, 1 tuần) HOẶC đăng ký 個人事業主 với 屋号 "Bếp Thuỷ Japan"
-3. ⏳ **CHECK 法人口座**: 愛ビュティージャパン có corporate bank account chưa?
-   - ✅ Có → ghi rõ ngân hàng + số tài khoản
-   - ❌ Chưa → mở 法人口座 (1-2 tuần — Yucho hoặc bank khác)
+2. ⏳ Đăng ký 開業届 — cách 1 trong 2:
+   - **Online qua e-Tax**: cần マイナンバーカード + card reader (hoặc smartphone NFC) → submit điện tử (~20 phút)
+   - **Offline**: đến 税務署 quận anh ở → điền form → nộp (~1 giờ)
+3. ⏳ Lưu **開業届控え** (bản đóng dấu) làm proof
 
-**Phase apply**:
-4. ⏳ Đến 法務局 lấy 履歴事項全部証明書 + 印鑑証明書 (mỗi loại 2 bản, tổng ~¥2,100)
-5. ⏳ Chuẩn bị 定款 (bản gốc hoặc copy)
-6. ⏳ Apply tại https://paypay.ne.jp/store-online/ (~30 phút điền + upload)
-7. ⏳ Đợi email PayPay (3-5 ngày)
-8. ⏳ Báo em khi có credentials → em integrate (~3-5 ngày)
+**Phase 2 — Apply PayPay (30 phút)**:
+4. ⏳ Mở https://paypay.ne.jp/store-online/
+5. ⏳ Điền form theo bảng ở trên (Bước 4)
+6. ⏳ Upload 開業届控え + 本人確認書類
+7. ⏳ Submit → đợi email (3-5 ngày làm việc)
+
+**Phase 3 — Em integrate (3-5 ngày sau khi anh có credentials)**:
+8. ⏳ Anh báo em ngay khi nhận được API Key + Secret + Merchant ID
+9. ⏳ Em wire integration (Web Cashier API + webhook + UI thay receipt upload)
+10. ⏳ Test sandbox với anh
+11. ⏳ Go live
+
+**Optional (làm song song, không block)**:
+- ⏳ Liên hệ 行政書士 để check 食品衛生責任者 + 食品輸入届出 license (¥10-30k tư vấn)
 
 ### Em sẵn sàng:
 - ✅ Spec đã viết xong
