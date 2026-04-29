@@ -56,49 +56,65 @@ Tính theo mục tiêu **800 đơn/tháng × ¥3,000 trung bình = ¥2,400,000 d
 
 ---
 
-## ✅ ELIGIBILITY CHECK
+## ✅ ELIGIBILITY CHECK (UPDATED 2026-04-29 — 法人 path confirmed)
 
-Anh đủ điều kiện không?
+Anh có **愛ビュティージャパン株式会社** (Ai Beauty Japan KK) thành lập 4/2019 → **法人 path** áp dụng.
 
 | Yêu cầu | Anh có? |
 |---|---|
-| 個人事業主 (đã đăng ký 開業届) hoặc 法人 | ⏳ **Anh cần confirm** |
-| Tài khoản ngân hàng Nhật | ✅ Yucho 2168488 |
+| 法人登記 (corporation registration) | ✅ Có từ 4/2019 |
+| 履歴事項全部証明書 / 印鑑証明書 | ✅ Lấy ở 法務局 (¥600 + ¥450) |
+| 定款 với 事業目的 bao gồm "食品の販売" | ⏳ **Anh cần CONFIRM** |
+| 法人口座 (corporate bank account) | ⏳ **Anh cần CONFIRM** |
+| 代表者本人確認書類 | ✅ Có (在留カード / 免許証) |
 | Website hoạt động | ✅ thuyjapan.com |
-| Mặt hàng hợp lệ (food OK) | ✅ OK |
-| Identity verification | ✅ Có 在留カード hoặc 免許証 |
 
-→ Nếu anh **chưa đăng ký 個人事業主**, đó là blocker. Đăng ký 開業届 ở 税務署 (free, ~30 phút).
+### ⚠️ 2 BLOCKER POTENTIAL CẦN CHECK
+
+**Blocker #1: Tên công ty "愛ビュティージャパン" gợi ý Beauty, nhưng kinh doanh thực tế là Food.**
+
+PayPay audit check 定款 → cần 事業目的 bao gồm:
+- 食品の販売
+- 飲食料品の輸入及び販売
+- 加工食品の製造及び販売
+- 食料品の通信販売
+- (hoặc 前各号に附帯する一切の業務 — catch-all)
+
+→ Nếu không có → 2 options:
+- **A**: Update 定款 (¥30k + ~1 tuần ở 法務局)
+- **B**: Đăng ký 個人事業主 mới với 屋号 "Bếp Thuỷ Japan" → apply PayPay tên cá nhân (free, ~30 phút)
+
+**Blocker #2: 法人口座 — PayPay chỉ chuyển tiền vào 法人 account.**
+
+→ 法人 (Ai Beauty) cần có corporate bank account. Yucho 2168488 hiện tại có phải 法人 account hay không?
 
 ---
 
-## 📋 DOCUMENT CHECKLIST
+## 📋 DOCUMENT CHECKLIST cho 法人
 
 Chuẩn bị sẵn các giấy tờ này trước khi apply:
 
-### Bắt buộc
-1. **本人確認書類** (1 trong các giấy tờ sau):
-   - 運転免許証 (bằng lái xe)
-   - マイナンバーカード (My Number Card)
-   - 住民票 (juuminhyou — chứng nhận cư trú)
-   - 在留カード (Residence card) — nếu chưa có quốc tịch Nhật
+### Bắt buộc cho 法人 (corporation)
 
-2. **事業内容を確認できる書類** (1 trong các giấy tờ sau):
-   - **開業届** (Notification of Opening Business — file PDF từ 税務署)
-   - **確定申告書** (Tax return form — bản copy)
-   - **納税証明書** (Tax payment certificate)
-   - **店舗の内外観の写真** (ảnh shop bên trong/ngoài) — không áp dụng cho EC site
+| # | Giấy tờ | Lấy ở đâu | Phí | Validity |
+|---|---|---|---|---|
+| 1 | **履歴事項全部証明書** (登記簿謄本 — corporate registry extract) | 法務局 | ¥600/bản | 3 tháng kể từ ngày cấp |
+| 2 | **印鑑証明書** (法人 — corporate seal certificate) | 法務局 | ¥450/bản | 3 tháng kể từ ngày cấp |
+| 3 | **定款** (articles of incorporation) | Bản gốc/copy lúc thành lập | Free | — |
+| 4 | **代表者本人確認書類** (1 trong: 運転免許証, マイナンバー, 在留カード, パスポート) | Anh có sẵn | Free | — |
+| 5 | **法人口座情報** (corporate bank account in name of 愛ビュティージャパン株式会社) | Bank book / online banking screenshot | Free | — |
 
-3. **Tài khoản ngân hàng**:
-   - 銀行名: ゆうちょ銀行
-   - 支店名: 二〇八店
-   - 口座番号: 2168488
-   - 口座名義: タカハラ ケイイチロウ
+### Tip cho anh đi 法務局
+
+- Lấy **2 bản** mỗi loại (1 cho PayPay, 1 dự phòng) — chỉ tốn thêm ¥600+450 = ¥1,050
+- Online cũng được: https://www.touki.or.jp/ (登記情報提供サービス) nhưng phí cao hơn 1 chút và không phải bản gốc
+- Đi sớm sáng: ít người, lấy nhanh
 
 ### Optional (nhưng nên có)
-- Website screenshot (thuyjapan.com homepage + product page)
-- 特定商取引法 page (anh chưa có → cần tạo, em có thể làm sau)
-- Privacy Policy (anh có rồi tại /privacy)
+- Website screenshot (thuyjapan.com homepage + product page) — chứng minh business hoạt động
+- **特定商取引法 page** trên thuyjapan.com — bắt buộc cho EC site Nhật (anh chưa có → em sẽ tạo trong Phase integration)
+- Privacy Policy — anh có rồi tại `/privacy`
+- Terms of Service — anh chưa có → em tạo cùng 特商法 page
 
 ---
 
@@ -122,18 +138,22 @@ Hỏi: "貴社サイトの形態を教えてください" → chọn:
 
 (Không chọn Shopify/BASE/Stores vì anh dùng Vercel + custom code)
 
-### Bước 4: Điền thông tin doanh nghiệp
+### Bước 4: Điền thông tin doanh nghiệp (法人 path)
 
 | Field | Giá trị |
 |---|---|
-| 事業者形態 | 個人事業主 |
-| 屋号 (tên shop) | Bếp Thuỷ Japan |
+| 事業者形態 | **法人** |
+| 法人名 | **愛ビュティージャパン株式会社** |
+| 法人番号 | (12 chữ số — có trong 履歴事項全部証明書) |
+| 設立年月日 | 2019年4月... (ngày thành lập) |
+| 屋号 / サービス名 | Bếp Thuỷ Japan |
 | 代表者氏名 | タカハラ ケイイチロウ |
-| 事業内容 | ベトナム食品の販売（手作りハム・ソーセージ等） |
+| 代表者生年月日 | (ngày sinh anh) |
+| 事業内容 | ベトナム食品の販売（手作りハム・ソーセージ・パテ・ネムルイ等） |
 | Website URL | https://www.thuyjapan.com |
 | 電話番号 | 080-5115-6688 |
 | Email | thanghoang1109@gmail.com |
-| 住所 | (địa chỉ ở Nhật của anh) |
+| 本店所在地 | (địa chỉ trụ sở 法人 trong 履歴事項全部証明書) |
 
 ### Bước 5: Upload giấy tờ
 
@@ -278,12 +298,22 @@ A: Em build polling fallback — frontend poll PayPay status mỗi 3s. Hai lớp
 ## 🚀 NEXT STEPS
 
 ### Anh cần làm:
+
+**Phase pre-apply (BẮT BUỘC trước khi apply)**:
 1. ✅ Đọc hướng dẫn này
-2. ⏳ Confirm: Anh đã có 開業届 chưa? (yes/no)
-3. ⏳ Chuẩn bị documents (1 ngày)
-4. ⏳ Apply tại https://paypay.ne.jp/store-online/ (30 phút)
-5. ⏳ Đợi email PayPay (3-5 ngày)
-6. ⏳ Báo em khi có credentials
+2. ⏳ **CHECK 定款 của 愛ビュティージャパン**: có 事業目的 bao gồm "食品の販売" không?
+   - ✅ Có → đi tiếp
+   - ❌ Không → quyết định: update 定款 (¥30k, 1 tuần) HOẶC đăng ký 個人事業主 với 屋号 "Bếp Thuỷ Japan"
+3. ⏳ **CHECK 法人口座**: 愛ビュティージャパン có corporate bank account chưa?
+   - ✅ Có → ghi rõ ngân hàng + số tài khoản
+   - ❌ Chưa → mở 法人口座 (1-2 tuần — Yucho hoặc bank khác)
+
+**Phase apply**:
+4. ⏳ Đến 法務局 lấy 履歴事項全部証明書 + 印鑑証明書 (mỗi loại 2 bản, tổng ~¥2,100)
+5. ⏳ Chuẩn bị 定款 (bản gốc hoặc copy)
+6. ⏳ Apply tại https://paypay.ne.jp/store-online/ (~30 phút điền + upload)
+7. ⏳ Đợi email PayPay (3-5 ngày)
+8. ⏳ Báo em khi có credentials → em integrate (~3-5 ngày)
 
 ### Em sẵn sàng:
 - ✅ Spec đã viết xong
