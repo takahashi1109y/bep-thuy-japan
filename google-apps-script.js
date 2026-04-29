@@ -785,10 +785,8 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
       result.reason = 'Không tìm thấy số tiền hợp lệ trong ảnh. Đảm bảo bill rõ nét.';
       return result;
     }
-    // Strict: expected amount MUST appear in extracted amounts (within ¥1)
     var exactMatch = matches.find(function(n) { return Math.abs(n - expectedAmount) <= 1; });
     if (exactMatch == null) {
-      // Show closest amount for debugging
       var closest = matches.reduce(function(best, n) {
         return Math.abs(n - expectedAmount) < Math.abs(best - expectedAmount) ? n : best;
       }, matches[0]);
@@ -811,7 +809,7 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
       return result;
     }
 
-    // ── Layer 3: Duplicate hash check ──
+    // ── Layer 3: Hash duplicate check ──
     var hashBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, base64);
     var hash = hashBytes.map(function(b) { return (b < 0 ? b + 256 : b).toString(16); })
                        .map(function(s) { return s.length === 1 ? '0' + s : s; }).join('');
@@ -825,10 +823,61 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
     }
     result.checks.duplicate = true;
 
-    // ALL CHECKS PASS
+    // ── Layer 4: Source app — must be PayPay or a known Japanese bank ──
+    var sourceCheck = checkPaymentSource_(fullText);
+    result.checks.source = sourceCheck.matched;
+    if (!sourceCheck.matched) {
+      result.reason = '❌ Bill không phải từ PayPay hoặc ngân hàng Nhật được hỗ trợ.\n' +
+        'Hệ thống nhận: PayPay, ゆうちょ, Mizuho, MUFG, SMBC, りそな, セブン, ソニー, SBI, 楽天, PayPay銀行, ジャパンネット, ジブン, GMO, AEON, etc. ' +
+        'Vui lòng upload đúng screenshot từ app thanh toán hoặc app ngân hàng.';
+      return result;
+    }
+    result.detected_source = sourceCheck.matched_keyword;
+
+    // ── Layer 5: Completion keyword (must indicate transaction success) ──
+    var completionCheck = checkCompletionKeyword_(fullText);
+    result.checks.completion = completionCheck.matched;
+    if (!completionCheck.matched) {
+      result.reason = '❌ Bill chưa thể hiện giao dịch hoàn tất.\n' +
+        'Cần screenshot lúc giao dịch ĐÃ THÀNH CÔNG (có chữ "完了" / "送金" / "振込" / "支払").';
+      return result;
+    }
+
+    // ── Layer 6: Date in OCR text within last 48 hours ──
+    var dateCheck = checkRecentDate_(fullText);
+    result.checks.date = dateCheck.recent;
+    result.detected_date = dateCheck.detected_date;
+    if (dateCheck.detected_date && !dateCheck.recent) {
+      result.reason = '❌ Bill có vẻ là giao dịch CŨ (' + dateCheck.detected_date + ').\n' +
+        'Vui lòng dùng bill được tạo trong vòng 48 giờ. Nếu mới chuyển nhưng bill vẫn báo cũ — kiểm tra timezone trên điện thoại.';
+      return result;
+    }
+    // If date can't be detected → don't reject (some bills don't show full date prominently)
+
+    // ── Layer 7: Transaction reference ID (取引ID 17 digits or 受付番号) ──
+    var refCheck = checkTransactionRef_(fullText);
+    result.checks.transaction_ref = refCheck.matched;
+    if (!refCheck.matched) {
+      result.reason = '❌ Bill thiếu mã giao dịch (取引ID hoặc 受付番号).\n' +
+        'Bill thật từ PayPay/ngân hàng luôn có mã giao dịch dài. Có thể bill đã bị crop hoặc chỉnh sửa.';
+      return result;
+    }
+    result.detected_ref = refCheck.matched_value;
+
+    // ── Layer 8: Photoshop / image-editor signature in EXIF ──
+    var editCheck = checkImageEditorSignature_(base64);
+    result.checks.no_editor_signature = !editCheck.detected_editor;
+    if (editCheck.detected_editor) {
+      result.reason = '❌ Phát hiện ảnh có thể đã bị chỉnh sửa bằng phần mềm: ' + editCheck.detected_editor + '.\n' +
+        'Vui lòng upload screenshot GỐC từ app — không qua Photoshop / GIMP / app chỉnh ảnh.';
+      return result;
+    }
+
+    // ALL 8 CHECKS PASS
     result.match = true;
     result.reason = '✓ Khớp ¥' + exactMatch.toLocaleString()
-                  + ' · Người nhận: ' + recipientCheck.matched_keyword
+                  + ' · ' + recipientCheck.matched_keyword
+                  + ' · ' + sourceCheck.matched_keyword
                   + ' · Hash unique';
     return result;
   } catch(err) {
@@ -861,6 +910,151 @@ function checkRecipientName_(text) {
     }
   }
   return { matched: false };
+}
+
+// Layer 4: Source app — must be PayPay or a known Japanese bank
+function checkPaymentSource_(text) {
+  var sources = [
+    { regex: /paypay|ペイペイ|ペイぺイ/i,                   name: 'PayPay' },
+    { regex: /ゆうちょ|ゆう ちょ|JP\s*BANK|Japan\s*Post\s*Bank/i, name: 'ゆうちょ銀行' },
+    { regex: /三菱\s*UFJ|MUFG|Mitsubishi\s*UFJ/i,         name: '三菱UFJ' },
+    { regex: /三井住友|SMBC|Mitsui\s*Sumitomo/i,           name: '三井住友銀行' },
+    { regex: /みずほ|Mizuho/i,                            name: 'みずほ銀行' },
+    { regex: /りそな|Resona/i,                            name: 'りそな銀行' },
+    { regex: /セブン銀行|Seven\s*Bank/i,                   name: 'セブン銀行' },
+    { regex: /ソニー銀行|Sony\s*Bank/i,                    name: 'ソニー銀行' },
+    { regex: /SBI(\s*ネット)?|SBI\s*Net/i,                 name: 'SBI銀行' },
+    { regex: /楽天銀行|Rakuten\s*Bank/i,                   name: '楽天銀行' },
+    { regex: /PayPay\s*銀行|ジャパンネット/i,              name: 'PayPay銀行' },
+    { regex: /ジブン銀行|au\s*じぶん/i,                    name: 'auじぶん銀行' },
+    { regex: /GMO\s*あおぞら|aozora/i,                     name: 'GMOあおぞらネット銀行' },
+    { regex: /イオン銀行|AEON\s*Bank/i,                    name: 'イオン銀行' },
+    { regex: /住信SBI|住信\s*SBI/i,                        name: '住信SBIネット銀行' },
+    { regex: /LINE\s*Pay|ラインペイ/i,                     name: 'LINE Pay' },
+    { regex: /d\s*払い|au\s*PAY|メルペイ|メルカリ/i,        name: 'Mobile Pay' }
+  ];
+  for (var i = 0; i < sources.length; i++) {
+    if (sources[i].regex.test(text)) return { matched: true, matched_keyword: sources[i].name };
+  }
+  return { matched: false };
+}
+
+// Layer 5: Completion keyword — bill must indicate successful transaction
+function checkCompletionKeyword_(text) {
+  // 完了 = completed; 送金 = remit; 振込 = transfer; 支払 = payment; 領収 = receipt
+  // Also accept 成功 / done / success for international bills
+  var keywords = /完了|送金|振込|お振込|支払|お支払|領収|決済|送付|成功|済|success|completed|paid/i;
+  return { matched: keywords.test(text) };
+}
+
+// Layer 6: Date in OCR text within last 48 hours
+// Tries common Japanese / international date formats
+function checkRecentDate_(text) {
+  var now = new Date();
+  var cutoff = now.getTime() - (48 * 60 * 60 * 1000); // 48 hours ago
+  var detected = null;
+
+  var patterns = [
+    // 2026/04/29  2026-04-29  2026.04.29
+    /(20\d{2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/g,
+    // 2026年4月29日
+    /(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+    // 04/29/2026 (less common in Japan)
+    /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](20\d{2})/g
+  ];
+
+  for (var p = 0; p < patterns.length; p++) {
+    var rgx = patterns[p];
+    var m;
+    while ((m = rgx.exec(text)) !== null) {
+      var y, mo, d;
+      if (m[1].length === 4) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+      else { y = +m[3]; mo = +m[1]; d = +m[2]; }
+      if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2024 || y > 2030) continue;
+      var dt = new Date(y, mo - 1, d);
+      if (!isNaN(dt.getTime())) {
+        // Pick the latest (most likely the actual transaction date)
+        if (!detected || dt > detected) detected = dt;
+      }
+    }
+  }
+
+  if (!detected) return { recent: true, detected_date: null }; // unknown — don't penalize
+
+  var detectedTs = detected.getTime();
+  // Future dates (timezone errors): allow up to 1 day in future
+  if (detectedTs > now.getTime() + 24 * 60 * 60 * 1000) {
+    return { recent: false, detected_date: Utilities.formatDate(detected, 'Asia/Tokyo', 'yyyy/MM/dd') };
+  }
+  return {
+    recent: detectedTs >= cutoff,
+    detected_date: Utilities.formatDate(detected, 'Asia/Tokyo', 'yyyy/MM/dd')
+  };
+}
+
+// Layer 7: Transaction reference ID
+// PayPay 取引ID = 17 digits; bank 受付番号 = alphanumeric
+function checkTransactionRef_(text) {
+  // 取引ID followed by 12-20 digits
+  var paypayId = /取引[\s]*ID[\s:：]*([A-Za-z0-9]{12,20})/i.exec(text);
+  if (paypayId) return { matched: true, matched_value: paypayId[1] };
+
+  // 受付番号 / 振込番号 / 整理番号
+  var bankRef = /(?:受付番号|受付\s*No|振込番号|整理番号|お取扱番号|認証番号|参照番号)[\s:：]*([A-Z0-9]{6,20})/i.exec(text);
+  if (bankRef) return { matched: true, matched_value: bankRef[1] };
+
+  // Loose: any standalone 15-20 digit number (PayPay transaction IDs are exactly this format)
+  var loose = /\b(\d{15,20})\b/.exec(text);
+  if (loose) return { matched: true, matched_value: loose[1] };
+
+  // Loose: alphanumeric ref like RT0M1234567 (Yucho format)
+  var alpha = /\b([A-Z]{2,4}\d{6,12})\b/.exec(text);
+  if (alpha) return { matched: true, matched_value: alpha[1] };
+
+  return { matched: false };
+}
+
+// Layer 8: Image editor signature (Photoshop / GIMP / etc.)
+// Reads JPEG EXIF "Software" tag from the first 64KB of base64 data.
+// Returns { detected_editor: string|null }
+function checkImageEditorSignature_(base64) {
+  try {
+    // Decode first ~96KB (covers EXIF block in most JPEGs)
+    var sample = base64.slice(0, 130000);
+    var bytes = Utilities.base64Decode(sample);
+    // Search for ASCII text in the first chunk — EXIF "Software" tag stores plain ASCII
+    var text = '';
+    for (var i = 0; i < Math.min(bytes.length, 96000); i++) {
+      var b = bytes[i];
+      // Printable ASCII range (extended a bit for accented chars and common symbols)
+      if ((b >= 32 && b <= 126) || b === 0) {
+        text += b === 0 ? ' ' : String.fromCharCode(b);
+      } else {
+        text += ' ';
+      }
+    }
+    var editorPatterns = [
+      { regex: /Adobe\s*Photoshop/i,        name: 'Adobe Photoshop' },
+      { regex: /GIMP/,                       name: 'GIMP' },
+      { regex: /Pixelmator/i,                name: 'Pixelmator' },
+      { regex: /Affinity\s*Photo/i,          name: 'Affinity Photo' },
+      { regex: /Snapseed/i,                  name: 'Snapseed' },
+      { regex: /Photo\s*Editor/i,            name: 'Photo Editor' },
+      { regex: /Picsart/i,                   name: 'PicsArt' },
+      { regex: /Lightroom/i,                 name: 'Lightroom' },
+      { regex: /CorelDRAW/i,                 name: 'CorelDRAW' },
+      { regex: /Paint\.NET/i,                name: 'Paint.NET' }
+    ];
+    for (var j = 0; j < editorPatterns.length; j++) {
+      if (editorPatterns[j].regex.test(text)) {
+        return { detected_editor: editorPatterns[j].name };
+      }
+    }
+    return { detected_editor: null };
+  } catch(e) {
+    Logger.log('checkImageEditorSignature_ err: ' + e);
+    return { detected_editor: null }; // fail-open
+  }
 }
 
 // Check if a screenshot hash already exists in payment_confirmations.
