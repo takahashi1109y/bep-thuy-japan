@@ -1536,15 +1536,16 @@ window.addEventListener('scroll', function() {
 
       if (!data.success) {
         if (data.error === 'verify_failed') {
-          // Show concrete reason
+          // Backend's verifyReceiptStandalone_ already returns a friendly Vietnamese reason
+          // covering: amount mismatch / missing recipient name / duplicate hash / OCR fail
           const detail = data.detail || {};
-          const expected = _pendingOrder.total;
-          const found = detail.extracted_amount;
-          let msg = '❌ Không xác minh được số tiền. ';
-          if (found != null) msg += `AI thấy ¥${found} nhưng cần ¥${expected}.`;
-          else msg += 'Ảnh không rõ hoặc không phải biên lai.';
-          status.innerHTML = '<span style="color:#DC2626;font-weight:600">' + msg + '</span><br><span style="color:#6B7280">Vui lòng kiểm tra số tiền đã chuyển và chọn ảnh khác.</span>';
-          // Allow retry
+          const reason = detail.reason || 'Không xác minh được biên lai';
+          // Convert \n to <br> for multiline reasons
+          const reasonHtml = String(reason).replace(/\n/g, '<br>');
+          status.innerHTML = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:8px;padding:10px;color:#991B1B;font-weight:500;text-align:left;font-size:13px;line-height:1.5">'
+            + reasonHtml
+            + '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #FCA5A5;color:#7F1D1D;font-size:12px">💡 Vui lòng chọn ảnh biên lai khác và thử lại.</div>'
+            + '</div>';
           btn.disabled = false; btn.classList.remove('opacity-50');
           btn.innerHTML = '🔄 Thử Ảnh Khác';
           return;

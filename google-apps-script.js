@@ -190,6 +190,7 @@ function doPost(e) {
       data.status = 'customer_paid';
       data.ai_verify_passed = true;
       data.ai_detected_amount = verifyRes.detected_amount;
+      data.ai_screenshot_hash = verifyRes.hash;
 
       var orderNo2 = getNextOrderNo(ss);
       saveOrder(ss, orderNo2, data);
@@ -723,7 +724,17 @@ function sendPaymentReceivedNotification_(data) {
 
 // Standalone verify — for verify_then_create_order (no DB / no confirmation_id yet)
 // Input: base64 image data + expected amount
-// Output: { match: bool, detected_amount, reason, raw_text }
+// Output: { match: bool, detected_amount, reason, raw_text, checks, hash }
+//
+// THREE-LAYER VERIFY (all must pass to return match=true):
+//  1. EXACT amount match (within ¥1)
+//  2. Recipient name appears in text (Thanghoang / タカハラ / 口座番号 2168488 / 記号番号)
+//  3. SHA-256 duplicate check against payment_confirmations.screenshot_hash
+//
+// Designed to reject:
+//  - Random images (no matching amount)
+//  - Bills from other shops with coincidentally matching amount (no recipient)
+//  - Re-uploaded old bills from same customer (hash already used)
 function verifyReceiptStandalone_(base64, expectedAmount) {
   var apiKey = _prop('GOOGLE_VISION_KEY', '');
   if (!apiKey) {
@@ -731,15 +742,18 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
     return { match: false, reason: 'AI chưa được cấu hình. Liên hệ Thuỷ.' };
   }
   expectedAmount = Number(expectedAmount) || 0;
-  var result = { match: false, detected_amount: null, reason: '', raw_text: '' };
+  var result = {
+    match: false, detected_amount: null, reason: '', raw_text: '',
+    checks: { amount: false, recipient: false, duplicate: null },
+    hash: null
+  };
 
   try {
+    // ── Layer 0: OCR ──
     var visionResp = UrlFetchApp.fetch(
       'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
       {
-        method: 'post',
-        contentType: 'application/json',
-        muteHttpExceptions: true,
+        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
         payload: JSON.stringify({
           requests: [{
             image: { content: base64 },
@@ -759,7 +773,7 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
     result.raw_text = fullText;
     if (!fullText) { result.reason = 'AI không đọc được text trong ảnh (ảnh mờ hoặc không có chữ)'; return result; }
 
-    // Extract amounts (¥12,500 / 12,500円 / 12500 / etc.)
+    // ── Layer 1: EXACT amount match ──
     var amountRegex = /(?:¥|￥|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円)?/g;
     var matches = [];
     var m;
@@ -767,26 +781,113 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
       var n = parseInt(m[1].replace(/[,，]/g, ''), 10);
       if (n >= 100 && n <= 10000000) matches.push(n);
     }
-    if (matches.length === 0) { result.reason = 'Không tìm thấy số tiền hợp lệ trong ảnh'; return result; }
-
-    // Prefer exact match; otherwise largest amount
-    var exact = matches.indexOf(expectedAmount) >= 0 ? expectedAmount : null;
-    var detected = exact !== null ? exact : Math.max.apply(null, matches);
-    result.detected_amount = detected;
-
-    var diff = Math.abs(detected - expectedAmount);
-    if (diff <= 1) {
-      result.match = true;
-      result.reason = 'Khớp ¥' + detected.toLocaleString();
-    } else {
-      result.match = false;
-      result.reason = 'AI đọc ¥' + detected.toLocaleString() + ' nhưng cần ¥' + expectedAmount.toLocaleString();
+    if (matches.length === 0) {
+      result.reason = 'Không tìm thấy số tiền hợp lệ trong ảnh. Đảm bảo bill rõ nét.';
+      return result;
     }
+    // Strict: expected amount MUST appear in extracted amounts (within ¥1)
+    var exactMatch = matches.find(function(n) { return Math.abs(n - expectedAmount) <= 1; });
+    if (exactMatch == null) {
+      // Show closest amount for debugging
+      var closest = matches.reduce(function(best, n) {
+        return Math.abs(n - expectedAmount) < Math.abs(best - expectedAmount) ? n : best;
+      }, matches[0]);
+      result.detected_amount = closest;
+      result.reason = '❌ Số tiền không khớp. Bill có ¥' + closest.toLocaleString()
+                    + ' nhưng đơn cần ¥' + expectedAmount.toLocaleString()
+                    + '. Vui lòng kiểm tra số tiền đã chuyển.';
+      return result;
+    }
+    result.detected_amount = exactMatch;
+    result.checks.amount = true;
+
+    // ── Layer 2: Recipient name check ──
+    var recipientCheck = checkRecipientName_(fullText);
+    result.checks.recipient = recipientCheck.matched;
+    if (!recipientCheck.matched) {
+      result.reason = '❌ Bill không có tên người nhận đúng.\n' +
+        'Bill phải có 1 trong: "Thanghoang" (PayPay) / "タカハラ ケイイチロウ" / số tài khoản 2168488. ' +
+        'Đảm bảo anh/chị chụp đầy đủ thông tin người nhận trong biên lai.';
+      return result;
+    }
+
+    // ── Layer 3: Duplicate hash check ──
+    var hashBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, base64);
+    var hash = hashBytes.map(function(b) { return (b < 0 ? b + 256 : b).toString(16); })
+                       .map(function(s) { return s.length === 1 ? '0' + s : s; }).join('');
+    result.hash = hash;
+    var dup = checkScreenshotDuplicate_(hash);
+    if (dup.duplicate) {
+      result.checks.duplicate = false;
+      result.reason = '❌ Biên lai này đã được dùng cho đơn #' + dup.existing_order
+                    + ' trước đó. Mỗi biên lai chỉ dùng cho 1 đơn.';
+      return result;
+    }
+    result.checks.duplicate = true;
+
+    // ALL CHECKS PASS
+    result.match = true;
+    result.reason = '✓ Khớp ¥' + exactMatch.toLocaleString()
+                  + ' · Người nhận: ' + recipientCheck.matched_keyword
+                  + ' · Hash unique';
     return result;
   } catch(err) {
     result.reason = 'Lỗi: ' + err.toString().slice(0, 200);
     Logger.log('verifyReceiptStandalone_ error: ' + err);
     return result;
+  }
+}
+
+// Recipient-name fingerprint check.
+// Returns { matched: bool, matched_keyword: string }
+function checkRecipientName_(text) {
+  // Patterns covering PayPay name, full-width / half-width katakana, romaji, account/symbol numbers
+  var patterns = [
+    { regex: /thanghoang/i,                    name: 'Thanghoang' },
+    { regex: /thang\s*hoang/i,                 name: 'Thang Hoang' },
+    { regex: /タカハラ/,                        name: 'タカハラ' },
+    { regex: /ﾀｶﾊﾗ/,                           name: 'ﾀｶﾊﾗ' },
+    { regex: /takahara/i,                      name: 'Takahara' },
+    { regex: /ケイイチロウ/,                    name: 'ケイイチロウ' },
+    { regex: /ｹｲｲﾁﾛｳ/,                         name: 'ｹｲｲﾁﾛｳ' },
+    { regex: /keiichiro/i,                     name: 'Keiichiro' },
+    { regex: /2168488/,                        name: 'Tài khoản 2168488' },
+    { regex: /12030[\-\s]?21684881/,           name: '記号番号 12030-21684881' },
+    { regex: /二〇八店|208店/,                  name: '支店 208' }
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    if (patterns[i].regex.test(text)) {
+      return { matched: true, matched_keyword: patterns[i].name };
+    }
+  }
+  return { matched: false };
+}
+
+// Check if a screenshot hash already exists in payment_confirmations.
+// Returns { duplicate: bool, existing_order: string|null }
+function checkScreenshotDuplicate_(hash) {
+  if (!hash || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) return { duplicate: false };
+  try {
+    var url = SUPABASE_URL + '/rest/v1/payment_confirmations'
+            + '?screenshot_hash=eq.' + encodeURIComponent(hash)
+            + '&select=order_no&limit=1';
+    var res = UrlFetchApp.fetch(url, {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) return { duplicate: false };
+    var arr = JSON.parse(res.getContentText() || '[]');
+    if (Array.isArray(arr) && arr.length > 0) {
+      return { duplicate: true, existing_order: arr[0].order_no };
+    }
+    return { duplicate: false };
+  } catch (e) {
+    Logger.log('checkScreenshotDuplicate_ err: ' + e);
+    return { duplicate: false };
   }
 }
 
@@ -822,13 +923,14 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
   }
   var pubUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(path);
 
-  // 2) Create payment_confirmations row
+  // 2) Create payment_confirmations row (include screenshot_hash for future dedup)
   var confPayload = {
     order_no: orderNo,
     user_id: data.userId || null,
     amount: data.total,
     method: 'auto_verified',
     image_url: pubUrl,
+    screenshot_hash: data.ai_screenshot_hash || null,
     notes: 'Auto-verified at checkout. AI detected ¥' + (data.ai_detected_amount || data.total).toLocaleString(),
     ai_status: 'matched',
     ai_detected_amount: data.ai_detected_amount || data.total,
