@@ -2390,12 +2390,12 @@ async function openOrderModal(orderNo) {
         <div>✉️ ${escapeHtml(o.customer_email || '-')}</div>
       </div>
     </div>
-    ${o.recipient_name ? `<div class="card" style="margin-bottom: 12px;">
-      <h4 style="margin: 0 0 8px; font-size: 14px;">🎁 Người nhận (khác)</h4>
-      <div style="font-size: 13px;">${escapeHtml(o.recipient_name)} · ${escapeHtml(o.recipient_phone || '')}</div>
-    </div>` : ''}
-    <div class="card" style="margin-bottom: 12px;">
-      <h4 style="margin: 0 0 8px; font-size: 14px;">📍 Địa chỉ giao hàng</h4>
+    <div id="addr-card-section" class="card" style="margin-bottom: 12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h4 style="margin: 0; font-size: 14px;">📍 Địa chỉ giao hàng</h4>
+        <button onclick="editOrderAddress('${o.order_no}')" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;">✏️ Sửa</button>
+      </div>
+      ${o.recipient_name ? `<div style="font-size:12px;color:#6B7280;background:#FEF3C7;padding:6px 10px;border-radius:6px;margin-bottom:6px;">🎁 Người nhận: <strong>${escapeHtml(o.recipient_name)}</strong> · ${escapeHtml(o.recipient_phone || '')}</div>` : ''}
       <div style="font-size: 13px;">〒${escapeHtml(o.ship_postal || '')} ${escapeHtml(o.ship_prefecture || '')} ${escapeHtml(o.ship_address || '')}</div>
       ${o.ship_mailbox ? `<div style="font-size: 12px; color: #6B7280;">📮 ${escapeHtml(o.ship_mailbox)}</div>` : ''}
     </div>
@@ -2431,6 +2431,129 @@ async function openOrderModal(orderNo) {
 }
 
 function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+
+// ── Edit shipping address inline in order modal ──
+function editOrderAddress(orderNo) {
+  // Pull current order from cached allOrders (loaded by loadOrders)
+  const o = (allOrders || []).find(x => x.order_no === orderNo);
+  if (!o) { alert('Không tìm thấy đơn'); return; }
+
+  const card = document.getElementById('addr-card-section');
+  if (!card) return;
+
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h4 style="margin:0;font-size:14px;color:#C8102E;">✏️ Sửa địa chỉ giao hàng</h4>
+      <button onclick="cancelEditOrderAddress('${orderNo}')" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;">✕ Huỷ</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+      <div>
+        <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">🎁 Tên người nhận (để trống nếu giao cho chính khách)</label>
+        <input id="edit-recipient-name" class="input" style="font-size:13px;padding:6px 10px;" value="${escapeAttr(o.recipient_name || '')}" placeholder="(trống nếu giao cho chính khách)">
+      </div>
+      <div>
+        <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">📞 SĐT người nhận</label>
+        <input id="edit-recipient-phone" class="input" style="font-size:13px;padding:6px 10px;" value="${escapeAttr(o.recipient_phone || '')}" placeholder="(trống nếu giao cho chính khách)">
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;">
+        <div>
+          <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">〒 Mã bưu điện *</label>
+          <input id="edit-postal" class="input" style="font-size:13px;padding:6px 10px;" value="${escapeAttr(o.ship_postal || '')}" placeholder="123-4567">
+        </div>
+        <div>
+          <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">都道府県 *</label>
+          <input id="edit-prefecture" class="input" style="font-size:13px;padding:6px 10px;" value="${escapeAttr(o.ship_prefecture || '')}" placeholder="東京都">
+        </div>
+      </div>
+      <div>
+        <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">📍 Địa chỉ chi tiết *</label>
+        <textarea id="edit-address" class="input" rows="2" style="font-size:13px;padding:6px 10px;resize:vertical;">${escapeHtml(o.ship_address || '')}</textarea>
+      </div>
+      <div>
+        <label style="font-weight:600;color:#6B7280;display:block;margin-bottom:2px;">📮 宅配BOX (optional)</label>
+        <input id="edit-mailbox" class="input" style="font-size:13px;padding:6px 10px;" value="${escapeAttr(o.ship_mailbox || '')}" placeholder="(trống nếu không có)">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button onclick="cancelEditOrderAddress('${orderNo}')" class="btn btn-ghost">Huỷ</button>
+      <button id="save-addr-btn" onclick="saveOrderAddress('${orderNo}')" class="btn btn-primary">💾 Lưu thay đổi</button>
+    </div>
+    <p id="edit-addr-status" style="font-size:11px;color:#9CA3AF;margin:6px 0 0;text-align:right;"></p>
+  `;
+}
+
+function cancelEditOrderAddress(orderNo) {
+  // Re-render modal from cache
+  openOrderModal(orderNo);
+}
+
+async function saveOrderAddress(orderNo) {
+  const postal     = document.getElementById('edit-postal').value.trim();
+  const prefecture = document.getElementById('edit-prefecture').value.trim();
+  const address    = document.getElementById('edit-address').value.trim();
+  const mailbox    = document.getElementById('edit-mailbox').value.trim();
+  const recName    = document.getElementById('edit-recipient-name').value.trim();
+  const recPhone   = document.getElementById('edit-recipient-phone').value.trim();
+  const status     = document.getElementById('edit-addr-status');
+  const btn        = document.getElementById('save-addr-btn');
+
+  if (!postal)     { status.textContent = '⚠ 〒 không được trống'; status.style.color = '#DC2626'; return; }
+  if (!prefecture) { status.textContent = '⚠ 都道府県 không được trống'; status.style.color = '#DC2626'; return; }
+  if (!address)    { status.textContent = '⚠ Địa chỉ không được trống'; status.style.color = '#DC2626'; return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
+  status.textContent = ''; status.style.color = '';
+
+  try {
+    const { data, error } = await sb.rpc('admin_update_order_address', {
+      p_order_no: orderNo,
+      p_ship_postal: postal,
+      p_ship_prefecture: prefecture,
+      p_ship_address: address,
+      p_ship_mailbox: mailbox,
+      p_recipient_name: recName,
+      p_recipient_phone: recPhone
+    });
+    if (error) throw error;
+    if (data && data.ok === false) {
+      throw new Error(data.error === 'not_admin' ? 'Bạn không phải admin' : (data.error || 'Update failed'));
+    }
+
+    // Update local cache so re-open shows new data without re-fetch
+    const idx = allOrders.findIndex(x => x.order_no === orderNo);
+    if (idx >= 0) {
+      allOrders[idx].ship_postal     = data.ship_postal;
+      allOrders[idx].ship_prefecture = data.ship_prefecture;
+      allOrders[idx].ship_address    = data.ship_address;
+      allOrders[idx].ship_mailbox    = data.ship_mailbox;
+      allOrders[idx].recipient_name  = data.recipient_name;
+      allOrders[idx].recipient_phone = data.recipient_phone;
+    }
+
+    showToast('✓ Đã cập nhật địa chỉ', 'success');
+    // Re-render the modal with fresh data
+    await openOrderModal(orderNo);
+    // Also refresh the orders table (filter re-runs and re-renders the table)
+    if (typeof filterOrders === 'function') filterOrders();
+  } catch(e) {
+    console.error('saveOrderAddress err:', e);
+    status.textContent = '❌ Lỗi: ' + (e.message || e);
+    status.style.color = '#DC2626';
+    btn.disabled = false; btn.textContent = '💾 Lưu thay đổi';
+  }
+}
+
+// Helper for safe attribute interpolation (escapes quotes for HTML attr context)
+function escapeAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 // ============ PENDING PAYMENTS MODAL ============
 async function openPendingPaymentsModal() {
