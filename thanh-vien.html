@@ -1784,14 +1784,19 @@ async function saveProfile() {
 
   const name = document.getElementById('prof-name').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
-  const gender = document.getElementById('prof-gender')?.value || null;
-  const birthday = document.getElementById('prof-birthday')?.value || null;
   if (!name) { showMsg('prof-msg', 'Vui lòng nhập họ tên.', false); return; }
 
+  // Only update fields the user actually edited — never overwrite existing
+  // gender/birthday with empty form values (e.g., DB returns a date format the
+  // <input type="date"> can't parse, leaving the field blank).
+  const payload = { display_name: name, phone: phone };
+  const genderEl = document.getElementById('prof-gender');
+  if (genderEl && genderEl.value) payload.gender = genderEl.value;
+  const birthEl = document.getElementById('prof-birthday');
+  if (birthEl && !birthEl.disabled && birthEl.value) payload.birthday = birthEl.value;
+
   try {
-    const { error } = await sb.from('profiles').update({
-      display_name: name, phone: phone, gender: gender, birthday: birthday
-    }).eq('id', currentUser.id);
+    const { error } = await sb.from('profiles').update(payload).eq('id', currentUser.id);
     if (error) { showMsg('prof-msg', 'Lỗi: ' + error.message, false); return; }
   } catch (e) {
     showMsg('prof-msg', 'Lỗi kết nối: ' + (e.message || e), false); return;
