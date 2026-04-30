@@ -32,6 +32,7 @@ SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
   v_user_id uuid;
+  v_user_email text;
   v_already timestamptz;
   v_points int := 100;
 BEGIN
@@ -40,9 +41,12 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'not_authenticated');
   END IF;
 
-  -- Đảm bảo profile tồn tại (rare: khách click trước khi handle_new_user trigger chạy)
-  INSERT INTO public.profiles (id)
-  VALUES (v_user_id)
+  -- Đảm bảo profile tồn tại (rare: khách click trước khi handle_new_user trigger chạy).
+  -- display_name có NOT NULL constraint — Postgres check trước ON CONFLICT, nên phải
+  -- cung cấp giá trị placeholder. Nếu profile đã tồn tại (case thường) → ON CONFLICT skip.
+  SELECT email INTO v_user_email FROM auth.users WHERE id = v_user_id;
+  INSERT INTO public.profiles (id, display_name)
+  VALUES (v_user_id, COALESCE(v_user_email, 'Thành viên'))
   ON CONFLICT (id) DO NOTHING;
 
   -- Atomic test-and-set: chỉ UPDATE nếu chưa claim
