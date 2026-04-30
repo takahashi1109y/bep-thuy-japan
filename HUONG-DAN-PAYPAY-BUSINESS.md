@@ -56,18 +56,39 @@ Tính theo mục tiêu **800 đơn/tháng × ¥3,000 trung bình = ¥2,400,000 d
 
 ---
 
-## ✅ ELIGIBILITY CHECK (UPDATED 2026-04-29 — 個人事業主 RECOMMENDED)
+## ✅ ELIGIBILITY CHECK (UPDATED 2026-04-30 — UPDATE 定款 RECOMMENDED)
 
-Anh có 2 lựa chọn pháp nhân:
-- **法人**: 愛ビュティージャパン株式会社 (4/2019). Nhưng 定款 chỉ có "健康食品の販売及び輸出" + "美容雑貨" + "衣類品" — KHÔNG cover 食品輸入販売. Cần update 定款 (¥30k + 1-2 tuần) hoặc skip.
-- **個人事業主** (RECOMMEND): đăng ký 開業届 với 屋号 "Bếp Thuỷ Japan" + 業種 "食品の輸入販売" — free, ~30 phút.
+**Critical context**: Anh đang **GỘP báo cáo thuế và doanh thu** của Bếp Thuỷ vào 愛ビュティージャパン株式会社. Đây là cơ sở để decide path.
 
-**Decision 2026-04-29**: Đi 個人事業主 path vì:
-- Nhanh (30 phút vs 2 tuần)
-- Free (¥0 vs ¥30k+)
-- Đúng reality của business (importer + reseller)
-- Tách bạch khỏi 愛ビュティージャパン (giữ cho beauty/clothing)
-- Bank account đã có (Yucho 2168488 cá nhân)
+**Decision 2026-04-30**: Update 定款 thay vì đăng ký 個人事業主 mới.
+
+### Tại sao KHÔNG đi 個人事業主 path nữa:
+- Doanh thu Bếp Thuỷ đã chảy qua 法人 → tách ra sẽ phức tạp accounting
+- Khai thuế phải làm 2 lần (法人 + 個人 確定申告)
+- Income shift từ 法人 → 個人 có thể trigger 税務署 audit ("tax avoidance" suspicion)
+- Mâu thuẫn với reality of operations
+
+### Path đúng = Update 定款 của 法人 hiện tại
+
+Add vào 事業目的:
+```
+食品（加工食肉品を含む）の販売及び通信販売
+飲食料品の輸入及び販売
+前各号に附帯又は関連する一切の業務
+```
+
+→ 法人 sẽ cover cả TPCN, cosmetic, clothing, **food (Bếp Thuỷ giò chả)**.
+
+### Cost / Time
+- ¥30,000 登録免許税 + ¥450 印鑑証明 + (optional) ¥10k 公証役場
+- 1-2 tuần ở 法務局
+- Sau đó apply PayPay với 履歴事項全部証明書 mới (~3-5 ngày approval cao 95%+)
+- Multi-store registration với PayPay: 1 account, 2+ stores (aibeauty-supplement.jp + thuyjapan.com)
+
+### TPCN business (separate concept anh đề cập)
+Anh có hỏi về TPCN business — nếu anh launch trang TPCN mới song song:
+- 健康食品 đã có sẵn trong 定款 → apply PayPay rất dễ
+- Em recommend kết hợp: update 定款 thêm "食品" → cover cả TPCN + Bếp Thuỷ → 1 PayPay merchant account, 2 stores
 
 ### Business model chính xác (UPDATED 2026-04-29)
 
