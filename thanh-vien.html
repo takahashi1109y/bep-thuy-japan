@@ -920,6 +920,7 @@ async function init() {
     // Kiem tra link kich hoat tu welcome email
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('claim') === 'welcome') {
+      showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
       await tryClaimWelcomeBonus();
       history.replaceState({}, '', '/thanh-vien');
     }
@@ -1012,7 +1013,27 @@ async function tryClaimWelcomeBonus(opts = {}) {
   }
 }
 
+function showWelcomeClaimPending() {
+  // Idempotent — remove existing pending banner if any
+  const existing = document.getElementById('welcome-claim-pending');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'welcome-claim-pending';
+  banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FEF3C7,#FFF8F0);border:2px solid #D4A017;border-radius:14px;padding:14px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:9999;max-width:90%;text-align:center;min-width:260px';
+  banner.innerHTML = '<div style="font-size:24px;margin-bottom:4px"><span class="spin" style="display:inline-block">⏳</span></div>' +
+    '<p style="margin:0;color:#8B3A0F;font-weight:bold;font-size:15px">Đang kích hoạt 100 điểm thưởng...</p>' +
+    '<p style="margin:4px 0 0;color:#92400E;font-size:12px">Chờ 1-2 giây nhé anh/chị 🎁</p>';
+  document.body.appendChild(banner);
+}
+
+function removeWelcomeClaimPending() {
+  const el = document.getElementById('welcome-claim-pending');
+  if (el) el.remove();
+}
+
 function showWelcomeClaimError(msg) {
+  removeWelcomeClaimPending();
   const banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#FEE2E2;border:2px solid #DC2626;border-radius:12px;padding:16px 22px;z-index:9999;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,0.15)';
   banner.innerHTML = '<p style="margin:0 0 8px;color:#7F1D1D;font-weight:bold">⚠️ Không nhận được điểm</p>' +
@@ -1022,6 +1043,7 @@ function showWelcomeClaimError(msg) {
 }
 
 function showWelcomeClaimSuccess(pts) {
+  removeWelcomeClaimPending();
   const banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:3px solid #D4A017;border-radius:16px;padding:20px 28px;box-shadow:0 12px 32px rgba(0,0,0,0.15);z-index:9999;max-width:90%;text-align:center;animation:fadeInDown 0.4s ease';
   banner.innerHTML = '<div style="font-size:40px;margin-bottom:8px">🎉</div>' +
@@ -1033,6 +1055,7 @@ function showWelcomeClaimSuccess(pts) {
 }
 
 function showWelcomeClaimAlreadyClaimed() {
+  removeWelcomeClaimPending();
   const banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#FEE2E2;border:2px solid #FCA5A5;border-radius:12px;padding:14px 22px;z-index:9999;max-width:90%;text-align:center';
   banner.innerHTML = '<p style="margin:0;color:#991B1B;font-size:14px">ℹ️ Thưởng chào mừng đã được nhận trước đó. Xem điểm hiện tại ở Dashboard bên dưới.</p>';
@@ -1175,6 +1198,7 @@ async function doLogin() {
   try {
     if (sessionStorage.getItem('pending_welcome_claim') === '1') {
       sessionStorage.removeItem('pending_welcome_claim');
+      showWelcomeClaimPending();  // Immediate visual feedback before RPC
       await tryClaimWelcomeBonus();
     }
   } catch(e) {}
