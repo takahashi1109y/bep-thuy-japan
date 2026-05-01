@@ -331,7 +331,6 @@
         <span class="text-white text-3xl font-bold" id="dash-points-big">0</span>
         <span class="text-white text-xs font-semibold opacity-80">ĐIỂM</span>
       </div>
-      <button id="claim-welcome-btn" onclick="onClaimWelcomeClick()" class="hidden mb-3 bg-brand-red text-white font-bold rounded-xl px-5 py-3 shadow hover:bg-brand-red-dark transition">🎁 Nhận 100 điểm thưởng chào mừng</button>
       <p class="text-gray-400 text-xs mt-2">Cứ ¥100 mua hàng = 1 điểm · Dùng tại checkout theo bội số 50 (50, 100, 150…)</p>
     </div>
 
@@ -1013,26 +1012,6 @@ async function tryClaimWelcomeBonus(opts = {}) {
   }
 }
 
-async function onClaimWelcomeClick() {
-  const btn = document.getElementById('claim-welcome-btn');
-  if (!btn) return;
-  const original = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin">⏳</span> Đang xử lý...';
-  const res = await tryClaimWelcomeBonus();
-  if (res && (res.ok || res.alreadyClaimed)) {
-    btn.classList.add('hidden');
-    if (res.ok) {
-      const cur = parseInt(localStorage.getItem('bepthuy_points') || '0', 10);
-      const el = document.getElementById('dash-points-big');
-      if (el) el.textContent = cur.toLocaleString();
-    }
-  } else {
-    btn.disabled = false;
-    btn.innerHTML = original;
-  }
-}
-
 function showWelcomeClaimError(msg) {
   const banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#FEE2E2;border:2px solid #DC2626;border-radius:12px;padding:16px 22px;z-index:9999;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,0.15)';
@@ -1668,30 +1647,6 @@ async function _loadDashboardImpl(retryAttempt) {
   const totalPoints = balRes.data?.total_points || 0;
   document.getElementById('dash-points-big').textContent = totalPoints.toLocaleString();
   try { localStorage.setItem('bepthuy_points', String(totalPoints)); } catch(e) {}
-
-  // Layer 1+2: Welcome bonus auto-claim & button visibility (idempotent fallback
-  // for users who land on /thanh-vien without ?claim=welcome — e.g. after email
-  // confirmation redirect, or whose URL-trigger silently failed).
-  try {
-    const claimBtn = document.getElementById('claim-welcome-btn');
-    if (!profile?.welcome_claimed_at) {
-      const res = await tryClaimWelcomeBonus({ silent: true });
-      if (res && res.ok) {
-        const newTotal = totalPoints + (res.points || 100);
-        document.getElementById('dash-points-big').textContent = newTotal.toLocaleString();
-        try { localStorage.setItem('bepthuy_points', String(newTotal)); } catch(e) {}
-        showWelcomeClaimSuccess(res.points || 100);
-        if (claimBtn) claimBtn.classList.add('hidden');
-      } else if (res && res.alreadyClaimed) {
-        if (claimBtn) claimBtn.classList.add('hidden');
-      } else {
-        // RPC failed (network/missing function) — surface a manual button so user can retry
-        if (claimBtn) claimBtn.classList.remove('hidden');
-      }
-    } else {
-      if (claimBtn) claimBtn.classList.add('hidden');
-    }
-  } catch(e) { console.warn('[welcome-claim] auto-claim error:', e); }
 
   // Show redeem box if enough points
   document.getElementById('redeem-box').classList.toggle('hidden', totalPoints < 500);
