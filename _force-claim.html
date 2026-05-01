@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Force Claim · Bếp Thuỷ</title>
+<style>
+  body{margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;font-size:15px}
+  .card{max-width:560px;margin:0 auto;background:#1e293b;border:1px solid #334155;border-radius:14px;padding:22px}
+  h1{margin:0 0 16px;font-size:20px;color:#f8fafc}
+  pre{background:#020617;border:1px solid #334155;border-radius:8px;padding:14px;overflow-x:auto;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px}
+  .ok{color:#22c55e}
+  .err{color:#ef4444}
+  .warn{color:#f59e0b}
+  .muted{color:#64748b;font-size:13px}
+  .btn{background:#22c55e;color:white;border:0;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin-top:12px}
+  .btn:hover{background:#16a34a}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔧 Force Claim Welcome Bonus</h1>
+  <p class="muted">Trang này bypass tất cả UI cache, gọi RPC trực tiếp và show kết quả thô. Dùng để chẩn đoán khi luồng claim bình thường không hoạt động.</p>
+  <pre id="output">Đang load...</pre>
+  <button class="btn" onclick="run()">▶ Chạy lại</button>
+</div>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL = 'https://curcsvwvjkjewtonkhnr.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: true, storageKey: 'sb-curcsvwvjkjewtonkhnr-auth-token' }});
+const out = document.getElementById('output');
+
+function log(line, cls='') {
+  const span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = line + '\n';
+  out.appendChild(span);
+}
+
+async function run() {
+  out.textContent = '';
+  log('━━━ FORCE CLAIM ━━━', 'muted');
+
+  // 1. Who am I?
+  const { data: { user }, error: uErr } = await sb.auth.getUser();
+  if (uErr || !user) {
+    log('❌ CHƯA ĐĂNG NHẬP', 'err');
+    log('Vào ' + location.origin + '/thanh-vien để đăng nhập trước.', 'warn');
+    return;
+  }
+  log('✅ Đăng nhập với account:', 'ok');
+  log('   email = ' + user.email);
+  log('   uid   = ' + user.id);
+  log('');
+
+  // 2. Profile check
+  const { data: prof, error: pErr } = await sb.from('profiles').select('display_name, welcome_claimed_at').eq('id', user.id).single();
+  if (pErr) {
+    log('⚠️ Không đọc được profile: ' + pErr.message, 'warn');
+  } else {
+    log('Profile state TRƯỚC khi claim:');
+    log('   display_name        = ' + prof.display_name);
+    log('   welcome_claimed_at  = ' + (prof.welcome_claimed_at || 'NULL'));
+    log('');
+  }
+
+  // 3. Call RPC
+  log('Đang gọi sb.rpc("claim_welcome_bonus")...', 'muted');
+  const { data, error } = await sb.rpc('claim_welcome_bonus');
+  log('');
+  if (error) {
+    log('❌ RPC LỖI:', 'err');
+    log(JSON.stringify(error, null, 2));
+    return;
+  }
+  log('📬 RPC response:', 'ok');
+  log(JSON.stringify(data, null, 2));
+  log('');
+
+  // 4. Verdict
+  if (data?.ok) {
+    log('🎉 THÀNH CÔNG! Đã thưởng ' + data.points + ' điểm cho account này.', 'ok');
+    log('Quay lại /thanh-vien để xem điểm.', 'ok');
+  } else if (data?.error === 'already_claimed') {
+    log('ℹ️ Account này ĐÃ CLAIM trước đó lúc: ' + data.claimed_at, 'warn');
+    log('Nếu balance vẫn 0 → đây là account khác với account anh muốn nhận điểm.', 'warn');
+  } else if (data?.error === 'not_authenticated') {
+    log('❌ Server không nhận diện được auth — bug auth, liên hệ admin.', 'err');
+  } else {
+    log('? Phản hồi không rõ: ' + JSON.stringify(data), 'warn');
+  }
+
+  // 5. Balance after
+  const { data: bal } = await sb.from('points_balance').select('total_points').eq('user_id', user.id).single();
+  log('');
+  log('Balance hiện tại: ' + (bal?.total_points || 0) + ' điểm');
+}
+
+window.run = run;
+run();
+</script>
+</body>
+</html>
