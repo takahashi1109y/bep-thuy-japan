@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "28HK7BCMP5.com.thuyjapan.app",
+        "paths": [
+          "/",
+          "/thanh-vien",
+          "/thanh-vien/*",
+          "/order",
+          "/order/*",
+          "/huong-dan-*",
+          "/bang-phi-ship",
+          "/privacy",
+          "/_force-claim.html"
+        ]
+      }
+    ]
+  }
+}
