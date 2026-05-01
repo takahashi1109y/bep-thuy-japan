@@ -15,6 +15,20 @@ ALTER TABLE public.points_transactions
   ALTER COLUMN order_no DROP NOT NULL,
   ALTER COLUMN order_total DROP NOT NULL;
 
+-- 1b) CHECK constraint trên cột type phải bao gồm 'welcome'
+--     Nếu không, INSERT trong RPC raise SQLSTATE 23514 (check_violation)
+--     và toàn bộ RPC rollback → khách không nhận điểm + không có log lỗi
+--     ở frontend (chỉ thấy "Phản hồi không hợp lệ"). Lesson learned: khi
+--     thêm type mới vào enum-like column phải update constraint TRƯỚC.
+ALTER TABLE public.points_transactions
+  DROP CONSTRAINT IF EXISTS points_transactions_type_check;
+ALTER TABLE public.points_transactions
+  ADD CONSTRAINT points_transactions_type_check
+  CHECK (type IN (
+    'earn', 'redeem', 'expire', 'manual', 'adjustment',
+    'welcome', 'birthday', 'referral', 'order', 'refund'
+  ));
+
 -- 2) Thêm cột welcome_claimed_at vào profiles
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS welcome_claimed_at timestamptz;
