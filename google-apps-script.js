@@ -1033,21 +1033,34 @@ function checkRecentDate_(text) {
 }
 
 // Layer 7: Transaction reference ID
-// PayPay 取引ID = 17 digits; bank 受付番号 = alphanumeric
+// PayPay 取引番号/取引ID can be 17-22 digits (with or without spaces)
+// Bank 受付番号 = alphanumeric. Strip whitespace for matching.
 function checkTransactionRef_(text) {
-  // 取引ID followed by 12-20 digits
-  var paypayId = /取引[\s]*ID[\s:：]*([A-Za-z0-9]{12,20})/i.exec(text);
-  if (paypayId) return { matched: true, matched_value: paypayId[1] };
+  // Strip text for digit-pattern matching (PayPay sometimes splits ID with spaces in UI)
+  var textStripped = text.replace(/[\s]+/g, '');
 
-  // 受付番号 / 振込番号 / 整理番号
-  var bankRef = /(?:受付番号|受付\s*No|振込番号|整理番号|お取扱番号|認証番号|参照番号)[\s:：]*([A-Z0-9]{6,20})/i.exec(text);
-  if (bankRef) return { matched: true, matched_value: bankRef[1] };
+  // 1. PayPay: 取引番号 OR 取引ID OR トランザクションID + 12-25 alphanumeric chars
+  var paypayId = /取引[\s]*(?:番号|ID|No)[\s:：]*([A-Za-z0-9\s]{12,30})/i.exec(text);
+  if (paypayId) {
+    var cleaned = paypayId[1].replace(/[\s]+/g, '');
+    if (cleaned.length >= 12) return { matched: true, matched_value: cleaned };
+  }
+  // Same on stripped text
+  var paypayIdStripped = /取引(?:番号|ID|No)([A-Za-z0-9]{12,30})/i.exec(textStripped);
+  if (paypayIdStripped) return { matched: true, matched_value: paypayIdStripped[1] };
 
-  // Loose: any standalone 15-20 digit number (PayPay transaction IDs are exactly this format)
-  var loose = /\b(\d{15,20})\b/.exec(text);
+  // 2. 銀行 reference numbers
+  var bankRef = /(?:受付番号|受付\s*No|振込番号|整理番号|お取扱番号|認証番号|参照番号|ご依頼人番号)[\s:：]*([A-Z0-9\s]{6,25})/i.exec(text);
+  if (bankRef) {
+    var cleaned2 = bankRef[1].replace(/[\s]+/g, '');
+    if (cleaned2.length >= 6) return { matched: true, matched_value: cleaned2 };
+  }
+
+  // 3. Loose: any standalone 12+ digit number after stripping spaces (PayPay/bank fallback)
+  var loose = /(\d{12,25})/.exec(textStripped);
   if (loose) return { matched: true, matched_value: loose[1] };
 
-  // Loose: alphanumeric ref like RT0M1234567 (Yucho format)
+  // 4. Loose: alphanumeric ref like RT0M1234567 (Yucho format)
   var alpha = /\b([A-Z]{2,4}\d{6,12})\b/.exec(text);
   if (alpha) return { matched: true, matched_value: alpha[1] };
 
