@@ -1234,9 +1234,10 @@ function renderOrdersToUI(orders) {
       actions.push(`<button onclick="openPaymentUpload('${orderNoSafe}', ${Number(o.total) || 0}, '${customerNameSafe}')" class="${outlineGrayCls}">📸 Gửi biên lai khác</button>`);
     }
 
-    // 3. Track shipping (outline blue) — only if tracking_number exists; opens in-app modal
-    if (o.tracking_number) {
-      actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">📍 Tình trạng vận chuyển</button>`);
+    // 3. Track shipping — show for confirmed/shipped/delivered orders (modal handles empty tracking gracefully)
+    if (o.status === 'confirmed' || o.status === 'shipped' || o.status === 'delivered' || o.tracking_number) {
+      const trackLabel = o.tracking_number ? '📍 Tình trạng vận chuyển' : '📍 Tình trạng đơn';
+      actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">${trackLabel}</button>`);
     }
 
     // 4. Contact shop via Zalo (outline gray)
