@@ -2481,6 +2481,262 @@ function testSaveYamato() {
   Logger.log('testSaveYamato: DONE - kiem tra sheet Yamato');
 }
 
+// ============================================================
+// BACKFILL YAMATO - Day cac don bi miss tu Supabase sang Yamato sheet
+// Chay 1 lan tu Apps Script Editor sau khi redeploy
+// An toan: skip don da co trong Yamato (idempotent)
+// ============================================================
+//
+// Cach dung:
+//   1) Chay testBackfillDryRun() truoc -> xem Logger se day bao nhieu don
+//   2) Neu OK, chay backfillYamatoOrders() de thuc su day vao Yamato sheet
+//   3) Mo Yamato spreadsheet (ID: YAMATO_SS_ID) -> tab "外部データ取り込み基本レイアウト" de verify
+//
+// Logic:
+//   - Lay don tu Supabase orders (status IN: confirmed, shipped, delivered, customer_paid)
+//   - Lay order_no da co trong Yamato sheet (cot A)
+//   - Voi moi don thieu, build data object va goi saveYamato(orderNo, data)
+//
+// Status loai tru: pending (chua tra), cancelled (da huy)
+// ============================================================
+
+// ---- Helper: lay danh sach don confirmed/shipped/delivered/customer_paid tu Supabase ----
+function _fetchYamatoEligibleOrdersFromSupabase_() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('ERROR: Thieu SUPABASE_URL hoac SUPABASE_SERVICE_KEY trong Script Properties');
+    return [];
+  }
+  // Status eligible cho Yamato: confirmed, shipped, delivered, customer_paid
+  // Loai pending (chua TT) va cancelled (da huy)
+  var statusFilter = 'in.(confirmed,shipped,delivered,customer_paid)';
+  var url = SUPABASE_URL + '/rest/v1/orders'
+    + '?select=order_no,status,customer_name,customer_phone,customer_email,'
+    + 'recipient_name,recipient_phone,ship_postal,ship_prefecture,ship_address,ship_mailbox,'
+    + 'items,note,delivery_time,total,subtotal,shipping_fee,created_at'
+    + '&status=' + encodeURIComponent(statusFilter)
+    + '&order=order_no.asc'
+    + '&limit=10000';
+  try {
+    var res = UrlFetchApp.fetch(url, {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    var text = res.getContentText() || '[]';
+    Logger.log('Fetch Supabase orders HTTP ' + code + ' (' + text.length + ' chars)');
+    if (code >= 300) {
+      Logger.log('Fetch err body (first 500): ' + text.substring(0, 500));
+      return [];
+    }
+    var arr = JSON.parse(text);
+    if (!Array.isArray(arr)) {
+      Logger.log('CANH BAO: response khong phai array');
+      return [];
+    }
+    return arr;
+  } catch (e) {
+    Logger.log('ERROR fetch Supabase orders: ' + e);
+    return [];
+  }
+}
+
+// ---- Helper: lay danh sach order_no da co trong Yamato sheet (cot A) ----
+function _fetchExistingYamatoOrderNos_() {
+  var existing = {};
+  try {
+    var yamatoSS = SpreadsheetApp.openById(YAMATO_SS_ID);
+    var yamatoSheet = yamatoSS.getSheetByName(YAMATO_SHEET);
+    if (!yamatoSheet) {
+      Logger.log('ERROR: Yamato sheet "' + YAMATO_SHEET + '" khong ton tai. Tabs co san: '
+        + yamatoSS.getSheets().map(function(s) { return s.getName(); }).join(', '));
+      return existing;
+    }
+    var lastRow = yamatoSheet.getLastRow();
+    if (lastRow < 2) {
+      Logger.log('Yamato sheet rong (chi co header). 0 don da ton tai.');
+      return existing;
+    }
+    // Cot A = so thu tu (order_no). Doc tu hang 2 (skip header)
+    var values = yamatoSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    values.forEach(function(row) {
+      var raw = row[0];
+      if (raw === null || raw === undefined || raw === '') return;
+      var key = String(raw).trim();
+      if (!key) return;
+      existing[key] = true;
+      // Cung luu phien ban pad 4-digit de match (vi sheet co the luu "42" hay 42 trong khi DB luu "0042")
+      if (/^\d+$/.test(key)) existing[key.padStart(4, '0')] = true;
+    });
+    Logger.log('Da co ' + Object.keys(existing).length + ' order_no trong Yamato sheet (ke ca pad variants)');
+  } catch (e) {
+    Logger.log('ERROR fetch existing Yamato order_nos: ' + e);
+  }
+  return existing;
+}
+
+// ---- Helper: build data object tu Supabase order row, dung shape ma saveYamato can ----
+function _supabaseOrderToYamatoData_(o) {
+  // saveYamato expects: { name, phone, postal, prefecture, address, note, deliveryTime, cartItems }
+  // - phone -> recipient_phone uu tien, fallback customer_phone
+  // - name  -> recipient_name  uu tien, fallback customer_name
+  // - note  -> ship_mailbox + note (ten toa nha + ghi chu)
+  // - cartItems -> items array (luu y: items la JSONB trong DB)
+  var name = (o.recipient_name && String(o.recipient_name).trim())
+    || (o.customer_name && String(o.customer_name).trim())
+    || '';
+  var phone = (o.recipient_phone && String(o.recipient_phone).trim())
+    || (o.customer_phone && String(o.customer_phone).trim())
+    || '';
+  // Note ghi vao Yamato la "ten toa nha" - uu tien ship_mailbox
+  // Neu khong co ship_mailbox, fall back order note (vi nhieu khi note co dia chi phong)
+  var noteParts = [];
+  if (o.ship_mailbox) noteParts.push(String(o.ship_mailbox).trim());
+  if (o.note) noteParts.push(String(o.note).trim());
+  var noteCombined = noteParts.filter(function(s) { return !!s; }).join(' ');
+
+  var items = o.items;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (e) { items = []; }
+  }
+  if (!Array.isArray(items)) items = [];
+
+  return {
+    name: name,
+    phone: phone,
+    postal: String(o.ship_postal || '').trim(),
+    prefecture: String(o.ship_prefecture || '').trim(),
+    address: String(o.ship_address || '').trim(),
+    note: noteCombined,
+    deliveryTime: String(o.delivery_time || '0812').trim() || '0812',
+    cartItems: items,
+    status: o.status || ''
+  };
+}
+
+// ---- DRY RUN: chi log nhung gi SE duoc insert, KHONG goi saveYamato ----
+function testBackfillDryRun() {
+  Logger.log('=== DRY RUN: BACKFILL YAMATO (preview only) ===');
+  Logger.log('Khong day du lieu thuc te. Chi log de xem truoc.');
+  Logger.log('');
+
+  var supabaseOrders = _fetchYamatoEligibleOrdersFromSupabase_();
+  Logger.log('Tong don eligible tu Supabase: ' + supabaseOrders.length);
+
+  var existing = _fetchExistingYamatoOrderNos_();
+
+  var missing = [];
+  supabaseOrders.forEach(function(o) {
+    var orderNo = String(o.order_no || '').trim();
+    if (!orderNo) return;
+    var orderNoPadded = /^\d+$/.test(orderNo) ? orderNo.padStart(4, '0') : orderNo;
+    if (existing[orderNo] || existing[orderNoPadded]) return;
+    missing.push(o);
+  });
+
+  Logger.log('');
+  Logger.log('=== KET QUA DRY RUN ===');
+  Logger.log('Tong don eligible:        ' + supabaseOrders.length);
+  Logger.log('Da co trong Yamato:       ' + (supabaseOrders.length - missing.length));
+  Logger.log('Don THIEU (se duoc day):  ' + missing.length);
+  Logger.log('');
+
+  if (missing.length === 0) {
+    Logger.log('Khong co don nao thieu. Yamato sheet da day du.');
+    return;
+  }
+
+  Logger.log('--- Chi tiet ' + Math.min(missing.length, 50) + ' don dau tien ---');
+  missing.slice(0, 50).forEach(function(o, idx) {
+    var d = _supabaseOrderToYamatoData_(o);
+    var summary = buildProductSummary(d.cartItems);
+    Logger.log((idx + 1) + '. #' + o.order_no
+      + ' [' + (o.status || '?') + ']'
+      + ' name=' + d.name
+      + ' phone=' + d.phone
+      + ' postal=' + d.postal
+      + ' pref=' + d.prefecture
+      + ' addr=' + (d.address || '').substring(0, 40)
+      + ' note=' + (d.note || '').substring(0, 30)
+      + ' time=' + d.deliveryTime
+      + ' items=' + (Array.isArray(d.cartItems) ? d.cartItems.length : 0)
+      + ' summary=' + summary);
+  });
+  if (missing.length > 50) {
+    Logger.log('... va ' + (missing.length - 50) + ' don nua (an di trong dry run)');
+  }
+  Logger.log('');
+  Logger.log('De thuc su day du lieu, chay: backfillYamatoOrders()');
+}
+
+// ---- THUC SU day cac don thieu vao Yamato sheet ----
+function backfillYamatoOrders() {
+  Logger.log('=== BACKFILL YAMATO ORDERS - START ===');
+  var supabaseOrders = _fetchYamatoEligibleOrdersFromSupabase_();
+  if (supabaseOrders.length === 0) {
+    Logger.log('Khong co don eligible nao tu Supabase. Dung.');
+    return;
+  }
+
+  var existing = _fetchExistingYamatoOrderNos_();
+
+  var stats = { totalEligible: supabaseOrders.length, alreadyExist: 0, missing: 0,
+                processed: 0, skipped: 0, errors: 0 };
+  var missingOrders = [];
+
+  supabaseOrders.forEach(function(o) {
+    var orderNo = String(o.order_no || '').trim();
+    if (!orderNo) { stats.skipped++; return; }
+    var orderNoPadded = /^\d+$/.test(orderNo) ? orderNo.padStart(4, '0') : orderNo;
+    if (existing[orderNo] || existing[orderNoPadded]) {
+      stats.alreadyExist++;
+      return;
+    }
+    missingOrders.push(o);
+  });
+  stats.missing = missingOrders.length;
+
+  Logger.log('Tong don eligible:    ' + stats.totalEligible);
+  Logger.log('Da co trong Yamato:   ' + stats.alreadyExist);
+  Logger.log('Skip (no order_no):   ' + stats.skipped);
+  Logger.log('Don THIEU se day:     ' + stats.missing);
+  Logger.log('');
+
+  if (missingOrders.length === 0) {
+    Logger.log('Khong co don nao thieu. Yamato sheet da day du. Dung.');
+    return;
+  }
+
+  // Xu ly tung don. saveYamato append 1 row moi lan -> ko bi tranh chap row index.
+  for (var i = 0; i < missingOrders.length; i++) {
+    var o = missingOrders[i];
+    var orderNo = String(o.order_no || '').trim();
+    var orderNoForYamato = /^\d+$/.test(orderNo) ? orderNo.padStart(4, '0') : orderNo;
+    try {
+      var data = _supabaseOrderToYamatoData_(o);
+      Logger.log('[' + (i + 1) + '/' + missingOrders.length + '] Pushing #' + orderNoForYamato
+        + ' name=' + data.name + ' status=' + (o.status || '?'));
+      saveYamato(orderNoForYamato, data);
+      stats.processed++;
+      // Throttle nhe de tranh hit quota
+      if ((i + 1) % 10 === 0) Utilities.sleep(300);
+    } catch (err) {
+      stats.errors++;
+      Logger.log('ERROR don #' + orderNo + ': ' + err);
+    }
+  }
+
+  Logger.log('');
+  Logger.log('=== BACKFILL YAMATO ORDERS - DONE ===');
+  Logger.log('Found ' + stats.missing + ' missing orders. '
+    + 'Processed ' + stats.processed + '. '
+    + 'Skipped ' + (stats.alreadyExist + stats.skipped) + '. '
+    + 'Errors ' + stats.errors + '.');
+}
+
 // ---- Helper: tao JSON response ----
 function buildResponse(obj) {
   return ContentService

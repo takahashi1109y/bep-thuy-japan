@@ -1,0 +1,250 @@
+<!--
+================================================================================
+EMAIL 3 — ĐÃ SHIP + TRACKING NUMBER
+================================================================================
+
+[ SUBJECT LINE — paste vào ô Subject của GetResponse ]
+🚚 [[name]] ơi, đơn của anh/chị đã lên đường!
+
+[ ALTERNATIVE SUBJECTS — anh chọn 1 cái nhé ]
+- Đơn Bếp Thuỷ đã giao Yamato — sắp tới nhà rồi! 🚚
+- Giò chả của anh/chị đang trên đường — mã vận đơn bên trong
+- 1-2 ngày nữa tới nhà — mã tracking Yamato của anh/chị 📦
+
+[ PREVIEW TEXT — paste vào ô "Preview text" của GetResponse ]
+Mã vận đơn Yamato + cách track + chuẩn bị tủ lạnh ngăn mát đón hàng nhé 🍜
+
+================================================================================
+HƯỚNG DẪN ANH THẮNG CÁCH DÙNG [[customfield1]] ĐỂ GỬI TRACKING NUMBER RIÊNG
+================================================================================
+
+Có 2 cách gửi tracking number cá nhân cho từng khách:
+
+CÁCH 1 (KHUYẾN NGHỊ): DÙNG CUSTOM FIELD CỦA GETRESPONSE
+─────────────────────────────────────────────────────────
+Bước 1: Vào GetResponse → Contacts → Custom Fields → "Add Custom Field"
+        - Field name: tracking_number
+        - Field type: Text
+        - Sau khi tạo, GetResponse cấp ID dạng [[customfield_xxxxx]] hoặc
+          [[customfield1]] tuỳ slot
+
+Bước 2: Trước khi gửi email này, anh export danh sách khách trong batch ra CSV
+        gồm 2 cột: Email + tracking_number (mã Yamato 12 chữ số dạng
+        1234-5678-9012)
+
+Bước 3: Vào GetResponse → Contacts → Import từ CSV → map cột "tracking_number"
+        sang custom field vừa tạo. GetResponse sẽ tự update từng contact.
+
+Bước 4: Gửi email này (Broadcast hoặc tạo segment "shipped today"). Mỗi khách
+        sẽ nhận được tracking riêng của họ ở chỗ [[customfield1]] trong email.
+
+Bước 5: Sau khi gửi xong, có thể clear field tracking_number để batch sau dùng
+        lại (hoặc đổi tên field thành tracking_current_batch).
+
+CÁCH 2 (ĐƠN GIẢN HƠN): GỬI EMAIL CHUNG + TRACKING QUA SMS/ZALO
+──────────────────────────────────────────────────────────────
+- Gửi email này dạng broadcast cho TẤT CẢ khách trong batch — KHÔNG cần custom
+  field. Chỗ [[customfield1]] em đã viết kèm fallback "(xem SMS/Zalo Thuỷ vừa
+  gửi anh/chị)" — vẫn đọc được nếu field trống.
+- Sau đó anh dùng Apps Script tự động (đã có sẵn ở Phase B) hoặc gửi tay qua
+  Zalo/SMS từng người với template ngắn:
+    "Anh/chị [tên] ơi, mã vận đơn Yamato của anh/chị: 1234-5678-9012.
+     Track ở: https://toi.kuronekoyamato.co.jp/cgi-bin/tneko — Thuỷ"
+
+CÁCH 3 (HYBRID — TỐT NHẤT VỀ TRẢI NGHIỆM): YAMATO TỰ ĐỘNG GỬI EMAIL
+────────────────────────────────────────────────────────────────────
+Khi anh tạo đơn Yamato B2 trên Kuroneko Members, NẾU điền email khách lúc tạo
+đơn → Yamato sẽ tự động gửi email tracking cho khách. Email Bếp Thuỷ này chỉ
+cần thông báo "đã lên đường" + hướng dẫn track, KHÔNG cần tracking number cụ
+thể. Đây là cách em viết template hiện tại — anh xoá [[customfield1]] cũng
+được, email vẫn hoàn chỉnh.
+
+KHUYẾN NGHỊ CỦA EM: Dùng Cách 3 cho lần đầu (đơn giản nhất), khi nào quen
+GetResponse hơn thì chuyển sang Cách 1 cho cá nhân hoá đầy đủ.
+
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Bếp Thuỷ — Đơn của anh/chị đã lên đường!</title>
+</head>
+<body style="margin:0;padding:0;background:#FFF8F0;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+
+<!-- Preheader (hidden, hiện trong inbox preview) -->
+<div style="display:none;font-size:1px;color:#FFF8F0;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  Mã vận đơn Yamato + cách track + chuẩn bị tủ lạnh ngăn mát đón hàng nhé 🍜
+</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFF8F0;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+
+      <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#2C1A0E;background:linear-gradient(135deg,#2C1A0E 0%,#8B3A0F 50%,#C8102E 100%);padding:32px 24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-family:Georgia,serif;font-size:26px;font-weight:bold;letter-spacing:0.5px;">Bếp Thuỷ Japan</h1>
+            <p style="color:#FEF3C7;margin:6px 0 0;font-size:13px;font-style:italic;">"Hạnh phúc là được ăn ngon"</p>
+          </td>
+        </tr>
+
+        <!-- Hero -->
+        <tr>
+          <td style="padding:32px 24px 12px;text-align:center;">
+            <div style="font-size:54px;line-height:1;margin-bottom:8px;">🚚</div>
+            <h2 style="color:#C8102E;margin:0;font-size:22px;font-weight:bold;line-height:1.3;">Đơn của anh/chị<br>đã lên đường!</h2>
+            <div style="width:60px;height:3px;background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017);margin:14px auto 0;border-radius:2px;"></div>
+          </td>
+        </tr>
+
+        <!-- Body intro -->
+        <tr>
+          <td style="padding:24px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              <strong>[[name]] thân mến 🌸</strong>
+            </p>
+            <p style="margin:0 0 16px;">
+              Tin vui nóng hổi! Đơn giò chả của anh/chị vừa được Bếp Thuỷ <strong>giao cho Yamato Cool 宅急便 chiều nay</strong> — và đang trên đường tới tận nhà mình rồi đấy!
+            </p>
+            <p style="margin:0 0 20px;">
+              Cảm ơn anh/chị đã <strong>kiên nhẫn chờ đợi</strong>. Bây giờ thì giò chả Hà Nội thật sự, làm thủ công sáng nay, đang ngồi trong xe đông lạnh chuyên dụng — chỉ <em>1-2 ngày nữa</em> là tới tay gia đình mình rồi 🍜✨
+            </p>
+          </td>
+        </tr>
+
+        <!-- Tracking number highlight box -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;border:2px solid #D4A017;">
+              <tr>
+                <td style="padding:22px 22px;text-align:center;">
+                  <p style="margin:0 0 8px;color:#78350F;font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">📦 Mã vận đơn Yamato của anh/chị</p>
+                  <p style="margin:0 0 14px;color:#C8102E;font-size:24px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:2px;">[[customfield1]]</p>
+                  <p style="margin:0;color:#78350F;font-size:12px;font-style:italic;">(Nếu chỗ này trống, anh/chị xem mã trong SMS hoặc tin nhắn Zalo Thuỷ vừa gửi nhé)</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- How to track section -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#D1FAE5;border-radius:10px;border:1px solid #6EE7B7;">
+              <tr>
+                <td style="padding:20px 22px;">
+                  <h3 style="color:#065F46;margin:0 0 14px;font-size:17px;font-weight:bold;">🔍 Cách theo dõi đơn hàng</h3>
+                  <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#10B981;font-weight:bold;">①</span> Truy cập trang tracking chính thức của Yamato:
+                  </p>
+                  <p style="margin:0 0 14px;text-align:center;">
+                    <a href="https://toi.kuronekoyamato.co.jp/cgi-bin/tneko" style="display:inline-block;background:#065F46;color:#ffffff;text-decoration:none;padding:10px 22px;border-radius:6px;font-size:14px;font-weight:bold;">→ toi.kuronekoyamato.co.jp</a>
+                  </p>
+                  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#10B981;font-weight:bold;">②</span> Nhập <strong>mã vận đơn</strong> ở trên vào ô "お問い合わせ伝票番号"
+                  </p>
+                  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#10B981;font-weight:bold;">③</span> Bấm "問い合わせスタート" — thấy ngay vị trí gói hàng theo thời gian thực!
+                  </p>
+                  <p style="margin:0;font-size:13px;line-height:1.6;color:#065F46;font-style:italic;padding-top:6px;border-top:1px dashed #6EE7B7;margin-top:14px;padding-top:14px;">
+                    💡 Yamato cũng sẽ tự động gửi email/SMS thông báo cho anh/chị khi gói hàng sắp giao tới — yên tâm không lỡ nhé!
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ETA section -->
+        <tr>
+          <td style="padding:0 24px 16px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 12px;">
+              <strong style="color:#C8102E;font-size:16px;">⏰ Dự kiến thời gian giao hàng</strong>
+            </p>
+            <p style="margin:0 0 8px;font-size:14px;padding-left:8px;">🏙️ <strong>Tokyo, Kanagawa, Saitama, Chiba, Osaka, Aichi:</strong> 1 ngày (giao ngày mai)</p>
+            <p style="margin:0 0 8px;font-size:14px;padding-left:8px;">🌆 <strong>Các tỉnh thành phố lớn khác:</strong> 1-2 ngày</p>
+            <p style="margin:0 0 8px;font-size:14px;padding-left:8px;">🏔️ <strong>Hokkaido, Okinawa, vùng xa, đảo:</strong> 2-3 ngày</p>
+            <p style="margin:0 0 16px;font-size:13px;color:#6B7280;font-style:italic;padding-left:8px;">* Thời gian thực tế hiển thị chính xác trên trang tracking Yamato</p>
+          </td>
+        </tr>
+
+        <!-- Prepare to receive checklist -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;">
+              <tr>
+                <td style="border-left:4px solid #D4A017;padding:16px 20px;">
+                  <h3 style="color:#78350F;margin:0 0 12px;font-size:16px;font-weight:bold;">🏠 Khi nhận hàng, anh/chị nhớ:</h3>
+                  <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#78350F;">
+                    <strong>✓</strong> Cho giò chả vào <strong>tủ lạnh ngăn mát ngay</strong> (không để ngoài nhiệt độ phòng quá 2 tiếng)
+                  </p>
+                  <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#78350F;">
+                    <strong>✓</strong> Ăn trong vòng <strong>5-7 ngày</strong> là ngon nhất (tươi, mềm, thơm)
+                  </p>
+                  <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#78350F;">
+                    <strong>✓</strong> Không ăn hết? <strong>Cấp đông</strong> được 2-3 tháng — rã đông ngăn mát qua đêm là dùng được
+                  </p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#78350F;">
+                    <strong>✓</strong> Kiểm tra hộp lúc nhận — nếu có dấu hiệu bất thường, chụp ảnh báo Thuỷ ngay
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Contact safety net -->
+        <tr>
+          <td style="padding:0 24px 16px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 12px;">
+              <strong style="color:#C8102E;font-size:16px;">🛟 Nếu có sự cố trên đường ship</strong>
+            </p>
+            <p style="margin:0 0 16px;font-size:14px;">
+              Hiếm khi xảy ra, nhưng nếu anh/chị gặp <strong>thất lạc, chậm trễ, hộp móp/rách, hoặc giò chả không tươi như mong đợi</strong> — nhắn Thuỷ <strong>NGAY</strong> qua Zalo hoặc Messenger (kèm ảnh chụp). Thuỷ sẽ xử lý trong vòng 24h: hoàn tiền hoặc gửi lại đơn mới — <em>không vòng vo</em>.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Contact + signature -->
+        <tr>
+          <td style="padding:0 24px 28px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              Mọi thắc mắc khác (đổi địa chỉ ship, hỏi trạng thái, đặt thêm cho đợt sau...), nhắn Thuỷ qua <strong>Zalo 080-5115-6688</strong> hoặc <strong>Messenger</strong> nhé. Thuỷ luôn online từ 9h sáng đến 10h tối!
+            </p>
+            <p style="margin:0 0 16px;">
+              Một lần nữa, cảm ơn anh/chị đã chọn Bếp Thuỷ. Chúc anh/chị nhận hàng an toàn và bữa cơm gia đình thật ấm áp 💝
+            </p>
+            <p style="margin:0;">
+              Thân thương,<br>
+              <strong style="color:#C8102E;font-size:16px;">Thuỷ</strong> — Bếp Thuỷ Japan<br>
+              <em style="color:#6B7280;font-size:13px;">"Hạnh phúc là được ăn ngon"</em>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#2C1A0E;padding:22px 24px;text-align:center;">
+            <p style="color:#D4A017;margin:0 0 4px;font-weight:bold;font-size:14px;">Bếp Thuỷ Japan</p>
+            <p style="color:#9CA3AF;margin:0;font-size:11px;">Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản</p>
+            <p style="color:#9CA3AF;margin:12px 0 0;font-size:11px;">
+              <a href="https://www.thuyjapan.com" style="color:#D4A017;text-decoration:none;">thuyjapan.com</a> &nbsp;·&nbsp;
+              <a href="https://zalo.me/+818051156688" style="color:#D4A017;text-decoration:none;">Zalo 080-5115-6688</a> &nbsp;·&nbsp;
+              <a href="https://m.me/ThuyJapaan" style="color:#D4A017;text-decoration:none;">Messenger</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
