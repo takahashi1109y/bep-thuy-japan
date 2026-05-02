@@ -1,0 +1,194 @@
+<!--
+================================================================================
+EMAIL 5 — XIN CẢM NHẬN (sau giao 5-7 ngày)
+================================================================================
+
+[ SUBJECT LINE — paste vào ô Subject của GetResponse ]
+💌 Bếp Thuỷ rất muốn nghe cảm nhận của anh/chị
+
+[ ALTERNATIVE SUBJECTS — anh chọn 1 cái nhé ]
+- [[name]] ơi, giò chả ăn có hợp khẩu vị không? 💌
+- 2-3 dòng cảm nhận = 50 điểm Thuỷ tặng anh/chị 🎁
+- Thuỷ đang chờ feedback của anh/chị — có quà nhỏ kèm theo 💝
+- Anh/chị thử rồi — chia sẻ giúp Thuỷ với nhé 🌸
+
+[ PREVIEW TEXT — paste vào ô "Preview text" của GetResponse ]
+Reply email này được tặng 50 điểm — Thuỷ đang chờ feedback của anh/chị 💝
+
+================================================================================
+SEND TIMING
+================================================================================
+- Gửi 5-7 ngày sau khi đơn được giao tới khách (tức D8-D10 nếu ship D4).
+- Lúc này khách đã ăn thử ít nhất 1-2 lần, có cảm nhận đủ rõ để feedback.
+- Tránh gửi quá sớm (< 3 ngày) — khách chưa kịp ăn — và quá muộn (> 10 ngày)
+  — khách quên cảm xúc đầu tiên.
+
+GỬI THẾ NÀO:
+- Manual (giai đoạn đầu): Tạo segment "delivered 5-7 days ago" trong
+  GetResponse, gửi broadcast.
+- Auto (Phase B Apps Script): Cron daily đọc Supabase, lọc đơn có
+  shipped_at = NOW() - 7 ngày, push contact lên GetResponse + trigger.
+
+GHI CHÚ VỀ +50 ĐIỂM:
+- Khi khách reply, anh thủ công vào Supabase / Admin panel cộng 50 điểm
+  vào tài khoản khách đó (ghi chú: "Cảm ơn feedback Email 5 — [ngày]").
+- Hoặc Phase B sau này: tạo nút "Tặng 50đ feedback" trong Admin để click
+  1 phát là cộng + log lý do.
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Bếp Thuỷ — Xin cảm nhận của anh/chị</title>
+</head>
+<body style="margin:0;padding:0;background:#FFF8F0;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+
+<!-- Preheader (hidden, hiện trong inbox preview) -->
+<div style="display:none;font-size:1px;color:#FFF8F0;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  Reply email này được tặng 50 điểm — Thuỷ đang chờ feedback của anh/chị 💝
+</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFF8F0;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+
+      <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#2C1A0E;background:linear-gradient(135deg,#2C1A0E 0%,#8B3A0F 50%,#C8102E 100%);padding:32px 24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-family:Georgia,serif;font-size:26px;font-weight:bold;letter-spacing:0.5px;">Bếp Thuỷ Japan</h1>
+            <p style="color:#FEF3C7;margin:6px 0 0;font-size:13px;font-style:italic;">"Hạnh phúc là được ăn ngon"</p>
+          </td>
+        </tr>
+
+        <!-- Hero -->
+        <tr>
+          <td style="padding:32px 24px 12px;text-align:center;">
+            <div style="font-size:54px;line-height:1;margin-bottom:8px;">💌</div>
+            <h2 style="color:#C8102E;margin:0;font-size:22px;font-weight:bold;line-height:1.3;">Bếp Thuỷ rất muốn nghe<br>cảm nhận của anh/chị</h2>
+            <div style="width:60px;height:3px;background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017);margin:14px auto 0;border-radius:2px;"></div>
+          </td>
+        </tr>
+
+        <!-- Body intro — vulnerable opening -->
+        <tr>
+          <td style="padding:24px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              <strong>[[name]] thân mến 🌸</strong>
+            </p>
+            <p style="margin:0 0 16px;">
+              Đã gần 1 tuần kể từ khi đơn của anh/chị đến nơi — Thuỷ tin rằng giò chả đã được anh/chị thưởng thức rồi nhỉ? 🍜
+            </p>
+            <p style="margin:0 0 20px;">
+              Thuỷ viết email này <strong>không phải để bán thêm gì đâu</strong> — Thuỷ chỉ thật sự <strong>muốn được nghe cảm nhận thật của anh/chị</strong>. Vì với một shop nhỏ làm thủ công như Bếp Thuỷ, mỗi feedback của khách là <em>vàng</em> — giúp Thuỷ biết mình đang đi đúng hướng, và phải sửa cái gì để lần sau ngon hơn.
+            </p>
+          </td>
+        </tr>
+
+        <!-- 3 feedback questions box -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;border:2px solid #D4A017;">
+              <tr>
+                <td style="padding:22px 22px;">
+                  <h3 style="color:#C8102E;margin:0 0 16px;font-size:18px;font-weight:bold;text-align:center;">📝 3 câu hỏi nhỏ thôi</h3>
+
+                  <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="display:inline-block;background:#C8102E;color:#ffffff;width:24px;height:24px;border-radius:50%;text-align:center;font-weight:bold;font-size:13px;line-height:24px;margin-right:6px;">1</span>
+                    <strong>Hương vị thế nào?</strong> Có gần với giò chả ở Việt Nam không? <em>(Đặc biệt là vị tiêu, độ giòn, độ thơm)</em>
+                  </p>
+
+                  <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="display:inline-block;background:#C8102E;color:#ffffff;width:24px;height:24px;border-radius:50%;text-align:center;font-weight:bold;font-size:13px;line-height:24px;margin-right:6px;">2</span>
+                    <strong>Đóng gói + ship</strong> có ổn không? Có hộp nào bị vỡ, có ướt nước đá không?
+                  </p>
+
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="display:inline-block;background:#C8102E;color:#ffffff;width:24px;height:24px;border-radius:50%;text-align:center;font-weight:bold;font-size:13px;line-height:24px;margin-right:6px;">3</span>
+                    <strong>Có gì Bếp Thuỷ cần cải thiện?</strong> Anh/chị thẳng thắn nhé — Thuỷ hứa <em>không buồn</em> 😊
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Reward box -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#D1FAE5;border-radius:10px;border:1px solid #6EE7B7;">
+              <tr>
+                <td style="padding:20px 22px;text-align:center;">
+                  <p style="margin:0 0 6px;color:#065F46;font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">🎁 Cảm ơn riêng từ Thuỷ</p>
+                  <p style="margin:0 0 10px;color:#1F2937;font-size:15px;line-height:1.6;">
+                    Anh/chị nào reply email này — <strong>chỉ cần 2-3 dòng</strong> — sẽ được Thuỷ tặng thêm
+                  </p>
+                  <p style="margin:0 0 10px;color:#C8102E;font-size:32px;font-weight:bold;font-family:Georgia,serif;">
+                    +50 điểm
+                  </p>
+                  <p style="margin:0;color:#065F46;font-size:13px;font-style:italic;">
+                    Cộng thẳng vào tài khoản — dùng giảm giá đơn tiếp theo của anh/chị 💝
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Photo invite section -->
+        <tr>
+          <td style="padding:0 24px 16px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 12px;">
+              <strong style="color:#C8102E;font-size:16px;">📸 Hoặc gửi Thuỷ 1 tấm ảnh thôi</strong>
+            </p>
+            <p style="margin:0 0 16px;font-size:14px;">
+              Anh/chị chụp <strong>1 tấm ảnh món ăn ngon</strong> (có giò chả Bếp Thuỷ trong đó — bún, xôi, bánh mì, hay dĩa cơm gia đình…) gửi Thuỷ qua <strong>Zalo</strong> hoặc <strong>Messenger</strong> — Thuỷ sẽ post lên fanpage <em>tag tên anh/chị</em>, để cộng đồng người Việt ở Nhật cùng thấy 🌸
+            </p>
+            <p style="margin:0 0 16px;font-size:14px;color:#6B7280;font-style:italic;padding-left:8px;border-left:3px solid #FEF3C7;">
+              (Nếu anh/chị ngại lên ảnh thì cứ nhắn riêng cho Thuỷ thôi cũng được — vẫn được +50 điểm như reply email nhé!)
+            </p>
+          </td>
+        </tr>
+
+        <!-- Heartfelt thanks -->
+        <tr>
+          <td style="padding:0 24px 24px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              Một lần nữa, Thuỷ thực sự cảm ơn anh/chị đã chọn Bếp Thuỷ giữa <em>rất nhiều shop</em> bán đồ Việt ở Nhật. Mỗi đơn của anh/chị giúp Thuỷ duy trì cái bếp nhỏ này — và mang giò chả Hà Nội thật, làm thủ công, đến nhiều gia đình Việt xa quê hơn 💝
+            </p>
+            <p style="margin:0 0 16px;">
+              Feedback của anh/chị — dù khen hay chê — đều giúp Bếp Thuỷ lớn lên từng ngày. Thuỷ đang ngồi chờ email của anh/chị đây 🌸
+            </p>
+            <p style="margin:0;">
+              Thân thương,<br>
+              <strong style="color:#C8102E;font-size:16px;">Thuỷ</strong> — Bếp Thuỷ Japan<br>
+              <em style="color:#6B7280;font-size:13px;">"Hạnh phúc là được ăn ngon"</em>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#2C1A0E;padding:22px 24px;text-align:center;">
+            <p style="color:#D4A017;margin:0 0 4px;font-weight:bold;font-size:14px;">Bếp Thuỷ Japan</p>
+            <p style="color:#9CA3AF;margin:0;font-size:11px;">Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản</p>
+            <p style="color:#9CA3AF;margin:12px 0 0;font-size:11px;">
+              <a href="https://www.thuyjapan.com" style="color:#D4A017;text-decoration:none;">thuyjapan.com</a> &nbsp;·&nbsp;
+              <a href="https://zalo.me/+818051156688" style="color:#D4A017;text-decoration:none;">Zalo 080-5115-6688</a> &nbsp;·&nbsp;
+              <a href="https://m.me/ThuyJapaan" style="color:#D4A017;text-decoration:none;">Messenger</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

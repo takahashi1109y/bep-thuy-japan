@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Bếp Thuỷ — Đợt mới đã mở, quà cho khách thân thiết</title>
+</head>
+
+<!--
+  ============================================================
+  EMAIL 6 — Đợt mới mở đơn (Win-back + Discount)
+  ============================================================
+  SUBJECT (paste vào ô Tiêu đề trong GetResponse):
+    🎁 Đợt mới đã mở — quà đặc biệt cho khách thân thiết của Bếp Thuỷ
+
+  PREVIEW TEXT (preheader):
+    Mã CAMON5 giảm 5% — chỉ còn 48 giờ. Đợt này có gì mới? 💝
+
+  ALTERNATIVE SUBJECTS (A/B test nếu open rate < 25%):
+    1. 🎁 [[name]] ơi — Bếp Thuỷ vừa mở đợt mới, có quà cho khách quen
+    2. 💝 Đợt mới đã mở + mã CAMON5 giảm 5% (chỉ 48 giờ)
+    3. 🍜 Bếp Thuỷ mở đợt mới — ưu tiên gọi anh/chị trước
+    4. 🎁 Quà cảm ơn khách quen: giảm 5% đơn đợt này (CAMON5)
+
+  ============================================================
+  ⚠️ NOTE — ANH CẦN ĐIỀN TRƯỚC KHI GỬI MỖI ĐỢT:
+  ============================================================
+  Trong file này, tìm và thay các placeholder dưới (Ctrl+F):
+
+    [SỐ_LƯỢNG_GIÒ]    → vd: 30 kg
+    [SỐ_LƯỢNG_CHẢ]    → vd: 20 kg
+    [SỐ_LƯỢNG_PATE]   → vd: 50 hộp
+    [SẢN_PHẨM_MỚI]    → vd: Chả quế cốm, Giò bì lợn, Pa Tê gan vịt...
+                         (nếu đợt này không có món mới → xoá luôn cả <li> đó)
+    [HIGHLIGHT_BESTSELLER]  → vd: Pa Tê đã có thêm size 250g cho gia đình đông
+                              (nếu không có → xoá luôn cả <li> đó)
+    [NGÀY_ĐÓNG_ĐƠN]   → vd: Chủ Nhật 5/5 (24h)
+    [NGÀY_SHIP]       → vd: Thứ Tư 8/5
+
+  Mã CAMON5 = giảm 5%, hiệu lực 48 giờ kể từ lúc anh gửi email này.
+  → Nhớ tạo/check mã CAMON5 trong admin trước khi gửi!
+
+  Cách dùng trong GetResponse:
+    1. Mở GetResponse → Create Newsletter → HTML editor
+    2. Paste toàn bộ file này (kể cả <!DOCTYPE>...)
+    3. Subject + Preview: copy từ trên
+    4. Recipient: segment "Khách đã từng đặt đơn" (hoặc list import từ admin)
+    5. [[name]] tự động fill từ contact field "name"
+    6. Bấm "Send a test" → kiểm tra layout trên Gmail mobile + desktop
+    7. Schedule gửi sáng 8-9h JST hoặc tối 8-10h JST
+  ============================================================
+-->
+
+<body style="margin:0;padding:0;background:#FFF8F0;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+
+<!-- Preheader (hidden, hiện trong inbox preview) -->
+<div style="display:none;font-size:1px;color:#FFF8F0;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  Mã CAMON5 giảm 5% — chỉ còn 48 giờ. Đợt này có gì mới? 💝
+</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFF8F0;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+
+      <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#2C1A0E;background:linear-gradient(135deg,#2C1A0E 0%,#8B3A0F 50%,#C8102E 100%);padding:32px 24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-family:Georgia,serif;font-size:26px;font-weight:bold;letter-spacing:0.5px;">Bếp Thuỷ Japan</h1>
+            <p style="color:#FEF3C7;margin:6px 0 0;font-size:13px;font-style:italic;">"Hạnh phúc là được ăn ngon"</p>
+          </td>
+        </tr>
+
+        <!-- Hero -->
+        <tr>
+          <td style="padding:32px 24px 12px;text-align:center;">
+            <div style="font-size:54px;line-height:1;margin-bottom:8px;">🎁</div>
+            <h2 style="color:#C8102E;margin:0;font-size:22px;font-weight:bold;line-height:1.3;">Đợt mới đã mở<br>— đặc biệt cho khách thân thiết</h2>
+            <div style="width:60px;height:3px;background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017);margin:14px auto 0;border-radius:2px;"></div>
+          </td>
+        </tr>
+
+        <!-- Body intro -->
+        <tr>
+          <td style="padding:24px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              <strong>[[name]] thân mến 🌸</strong>
+            </p>
+            <p style="margin:0 0 16px;">
+              Bếp Thuỷ vừa <strong>mở đợt sản xuất mới</strong>! Lần này Thuỷ làm <strong>[SỐ_LƯỢNG_GIÒ] giò</strong>, <strong>[SỐ_LƯỢNG_CHẢ] chả</strong>, <strong>[SỐ_LƯỢNG_PATE] pa tê</strong>... và Thuỷ muốn <strong>ưu tiên gọi anh/chị trước</strong> — vì anh/chị là một trong những khách đã từng tin tưởng và ủng hộ Bếp Thuỷ 💝
+            </p>
+            <p style="margin:0 0 20px;">
+              Đợt này Thuỷ chuẩn bị <em>kỹ hơn mọi lần</em> — nguyên liệu được chọn từ nguồn quen, bếp đã đỏ lửa từ sáng sớm. Và đặc biệt, có một <strong>quà nhỏ cảm ơn riêng</strong> dành cho anh/chị ở dưới...
+            </p>
+          </td>
+        </tr>
+
+        <!-- What's new this batch -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFF8F0;border-radius:10px;border:1px solid #F5C842;">
+              <tr>
+                <td style="padding:20px 22px;">
+                  <h3 style="color:#C8102E;margin:0 0 14px;font-size:17px;font-weight:bold;">🆕 Đợt này có gì mới?</h3>
+                  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#D4A017;font-weight:bold;">🥩</span> <strong>[SẢN_PHẨM_MỚI]</strong> — vị mới Thuỷ thử nghiệm tháng này, làm thủ công từng mẻ nhỏ
+                  </p>
+                  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#D4A017;font-weight:bold;">🌟</span> <strong>[HIGHLIGHT_BESTSELLER]</strong>
+                  </p>
+                  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#D4A017;font-weight:bold;">📦</span> <strong>Combo tiết kiệm</strong>: Giò + Chả + Mọc — mua chung được giá tốt hơn
+                  </p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#D4A017;font-weight:bold;">✨</span> <strong>Bestsellers quen thuộc</strong>: giò lụa, chả quế, pa tê gan, nem lụi Huế — vẫn đầy đủ
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Discount box (gift for loyal customer) -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEE2E2;border-radius:10px;border-left:4px solid #C8102E;">
+              <tr>
+                <td style="padding:20px 22px;text-align:center;">
+                  <p style="margin:0 0 10px;color:#7F1D1D;font-size:14px;font-weight:bold;letter-spacing:0.5px;">
+                    🎁 QUÀ CẢM ƠN RIÊNG CHO KHÁCH THÂN THIẾT
+                  </p>
+                  <p style="margin:0 0 14px;color:#1F2937;font-size:15px;line-height:1.6;">
+                    Đặt đơn trong vòng <strong>48 giờ tới</strong> + dùng mã:
+                  </p>
+                  <div style="display:inline-block;background:white;border:2px dashed #C8102E;border-radius:8px;padding:12px 28px;margin:0 0 14px;">
+                    <span style="font-family:'Courier New',monospace;font-size:24px;font-weight:bold;color:#C8102E;letter-spacing:3px;">CAMON5</span>
+                  </div>
+                  <p style="margin:0;color:#1F2937;font-size:15px;line-height:1.6;">
+                    để được <strong style="color:#C8102E;font-size:17px;">giảm 5%</strong> đơn hàng đợt này 💝
+                  </p>
+                  <p style="margin:10px 0 0;color:#7F1D1D;font-size:12px;font-style:italic;">
+                    ⏰ Hiệu lực 48 giờ kể từ khi anh/chị nhận email này
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Big CTA button -->
+        <tr>
+          <td style="padding:8px 24px 24px;text-align:center;">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 auto;">
+              <tr>
+                <td style="background:#C8102E;background:linear-gradient(135deg,#C8102E 0%,#8B3A0F 100%);border-radius:9999px;box-shadow:0 4px 12px rgba(200,16,46,0.25);">
+                  <a href="https://www.thuyjapan.com" target="_blank" style="display:inline-block;padding:16px 40px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;letter-spacing:0.5px;font-family:Arial,Helvetica,sans-serif;">
+                    🛒 Đặt Hàng Ngay
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:12px 0 0;color:#6B7280;font-size:12px;">
+              Hoặc truy cập <a href="https://www.thuyjapan.com" style="color:#C8102E;text-decoration:none;font-weight:bold;">thuyjapan.com</a> và nhập mã <strong>CAMON5</strong> ở bước thanh toán
+            </p>
+          </td>
+        </tr>
+
+        <!-- Urgency / batch deadline -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;">
+              <tr>
+                <td style="border-left:4px solid #D4A017;padding:16px 18px;">
+                  <p style="margin:0 0 8px;color:#78350F;font-size:14px;font-weight:bold;">
+                    ⏰ Lịch đợt này
+                  </p>
+                  <p style="margin:0 0 6px;color:#1F2937;font-size:14px;line-height:1.6;">
+                    📅 <strong>Đóng đơn:</strong> [NGÀY_ĐÓNG_ĐƠN]
+                  </p>
+                  <p style="margin:0 0 10px;color:#1F2937;font-size:14px;line-height:1.6;">
+                    🚚 <strong>Ship Yamato Cool:</strong> [NGÀY_SHIP]
+                  </p>
+                  <p style="margin:0;color:#78350F;font-size:13px;line-height:1.6;font-style:italic;">
+                    💡 Thuỷ làm thủ công nên <strong>slot có hạn</strong>. Đặt sớm để giữ chỗ — hết slot là phải chờ đợt sau (7-10 ngày nữa). Anh/chị nào quen biết cũng đang đợi mở đơn rồi!
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Closing message -->
+        <tr>
+          <td style="padding:0 24px 8px;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 16px;">
+              Anh/chị có bất kỳ câu hỏi nào về sản phẩm đợt này, hoặc muốn Thuỷ <strong>tư vấn combo</strong> hợp với gia đình — cứ nhắn Thuỷ qua <strong>Zalo 080-5115-6688</strong> hoặc <strong>Messenger</strong> nhé. Thuỷ luôn online từ 9h sáng đến 10h tối!
+            </p>
+            <p style="margin:0 0 16px;">
+              Cảm ơn anh/chị đã <strong>luôn ở bên Bếp Thuỷ</strong>. Mỗi lần anh/chị quay lại đặt là một động lực rất lớn để Thuỷ tiếp tục giữ lửa cái bếp này, và mang giò chả Hà Nội đến nhiều gia đình Việt ở Nhật hơn 🍜💝
+            </p>
+            <p style="margin:0 0 28px;">
+              Hẹn gặp lại anh/chị trong đợt này nhé!
+            </p>
+
+            <p style="margin:0;">
+              Thân thương,<br>
+              <strong style="color:#C8102E;font-size:16px;">Thuỷ</strong> — Bếp Thuỷ Japan<br>
+              <em style="color:#6B7280;font-size:13px;">"Hạnh phúc là được ăn ngon"</em>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Spacer -->
+        <tr>
+          <td style="padding:20px 24px 0;"></td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#2C1A0E;padding:22px 24px;text-align:center;">
+            <p style="color:#D4A017;margin:0 0 4px;font-weight:bold;font-size:14px;">Bếp Thuỷ Japan</p>
+            <p style="color:#9CA3AF;margin:0;font-size:11px;">Đặc Sản Phố Cổ Hà Nội Tại Nhật Bản</p>
+            <p style="color:#9CA3AF;margin:12px 0 0;font-size:11px;">
+              <a href="https://www.thuyjapan.com" style="color:#D4A017;text-decoration:none;">thuyjapan.com</a> &nbsp;·&nbsp;
+              <a href="https://zalo.me/+818051156688" style="color:#D4A017;text-decoration:none;">Zalo 080-5115-6688</a> &nbsp;·&nbsp;
+              <a href="https://m.me/ThuyJapaan" style="color:#D4A017;text-decoration:none;">Messenger</a>
+            </p>
+            <p style="color:#6B7280;margin:14px 0 0;font-size:10px;line-height:1.5;">
+              Anh/chị nhận được email này vì đã từng đặt hàng tại Bếp Thuỷ Japan.<br>
+              Nếu không muốn nhận thông báo đợt mới, có thể <a href="[[remove]]" style="color:#9CA3AF;text-decoration:underline;">huỷ đăng ký tại đây</a>.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
