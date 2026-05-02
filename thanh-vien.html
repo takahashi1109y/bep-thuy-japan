@@ -1134,6 +1134,8 @@ function renderOrderErrorCard() {
 
 // Render orders Amazon-style: gray header (date / total / order no) + status pill + items preview + action row
 function renderOrdersToUI(orders) {
+  // Single source of truth: expose orders globally for showTrackingModal/refreshTrackingEvents lookup
+  window.allOrders = Array.isArray(orders) ? orders : [];
   const orderBox = document.getElementById('order-history');
   if (!orderBox) return;
   if (!orders || orders.length === 0) {
@@ -2489,10 +2491,15 @@ function closePaymentUpload() {
 let _currentTrackingOrder = null;
 
 async function showTrackingModal(orderNo) {
-  // Find order from cache (look for allOrders or whatever variable)
-  const order = (window.allOrders || []).find(o => o.order_no === orderNo);
+  // Race: user click trước khi orders load xong
+  if (typeof window.allOrders === 'undefined') {
+    alert('⏳ Dữ liệu đang tải, anh/chị chờ vài giây rồi thử lại nhé');
+    return;
+  }
+  // String cast 2 phía: button truyền string, Supabase có thể trả number
+  const order = window.allOrders.find(o => String(o.order_no) === String(orderNo));
   if (!order) {
-    alert('Không tìm thấy đơn hàng');
+    alert('Không tìm thấy đơn ' + orderNo + ' trong tài khoản này');
     return;
   }
   _currentTrackingOrder = order;
