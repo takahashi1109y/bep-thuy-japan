@@ -344,6 +344,21 @@ function doPost(e) {
       }
       // Urgent Telegram alert — admin must confirm within 24h
       try { sendManualReviewTelegramAlert_(orderNoM, data); } catch(te) { Logger.log('TG manual err: ' + te); }
+      // Urgent admin email — gives bill thumbnail + quick action links, dedup'd 1/order
+      try { sendManualReviewEmailToAdmin_({
+        orderNo: orderNoM,
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        total: Number(data.total || 0),
+        cartItems: data.cartItems || [],
+        ship_address: data.ship_address || data.address || '',
+        ai_layer_failed: data.ai_layer_failed || data.verify_fail_layer || ('after ' + (data.verify_fail_count || 0) + ' attempts'),
+        ai_reason: data.ai_reason || data.verify_fail_reason || 'Khách báo đã thanh toán nhưng AI verify không khớp',
+        verify_fail_count: data.verify_fail_count || 0,
+        receipt_base64: data.receipt_base64,
+        receipt_mime: data.receipt_mime
+      }); } catch(me) { Logger.log('Manual review email err: ' + me); }
       // Secondary verify-funnel alert (rate-limited) — flags the manual-review fallback path
       try {
         sendVerifyFailureTelegram_({
@@ -1777,19 +1792,39 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     Logger.log('Receipt upload err: ' + upRes.getContentText().slice(0, 200));
     return;
   }
-  var pubUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(path);
 
-  // 2) Create payment_confirmations row (include screenshot_hash for future dedup)
+  // 2) Get a signed URL (1 year TTL) — bucket is private, public URL won't load in <img>
+  var signedUrl = '';
+  try {
+    var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(path), {
+      method: 'post',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ expiresIn: 365 * 86400 }),
+      muteHttpExceptions: true
+    });
+    if (signRes.getResponseCode() === 200) {
+      var signData = JSON.parse(signRes.getContentText());
+      signedUrl = SUPABASE_URL + signData.signedURL;
+    }
+  } catch(e) { Logger.log('Sign URL err: ' + e); }
+  // Fallback to bare path if signing failed (admin modal can re-sign)
+  if (!signedUrl) signedUrl = path;
+
+  // 3) Create payment_confirmations row matching column names used by /thanh-vien
+  // FIX (anh report 2026-05-02): admin modal reads c.screenshot_url, not c.image_url
   var confPayload = {
     order_no: orderNo,
     user_id: data.userId || null,
-    amount: data.total,
+    claimed_amount: data.total,
     method: 'auto_verified',
-    image_url: pubUrl,
+    screenshot_url: signedUrl,
     screenshot_hash: data.ai_screenshot_hash || null,
-    notes: 'Auto-verified at checkout. AI detected ¥' + (data.ai_detected_amount || data.total).toLocaleString(),
+    note: 'Auto-verified at checkout. AI detected ¥' + (data.ai_detected_amount || data.total).toLocaleString(),
     ai_status: 'matched',
-    ai_detected_amount: data.ai_detected_amount || data.total,
+    ai_verified_amount: data.ai_detected_amount || data.total,
     ai_match: true,
     ai_confidence: 0.95,
     ai_verified_at: new Date().toISOString()
@@ -1839,15 +1874,33 @@ function savePaymentProofForManualReview_(orderNo, data) {
     Logger.log('Manual receipt upload err: ' + upRes.getContentText().slice(0, 200));
     return;
   }
-  var pubUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(path);
+
+  // Get signed URL (1 year) — same fix as auto-verified flow
+  var signedUrl = '';
+  try {
+    var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(path), {
+      method: 'post',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ expiresIn: 365 * 86400 }),
+      muteHttpExceptions: true
+    });
+    if (signRes.getResponseCode() === 200) {
+      var signData = JSON.parse(signRes.getContentText());
+      signedUrl = SUPABASE_URL + signData.signedURL;
+    }
+  } catch(e) { Logger.log('Sign URL err: ' + e); }
+  if (!signedUrl) signedUrl = path;
 
   var confPayload = {
     order_no: orderNo,
     user_id: data.userId || null,
-    amount: data.total,
+    claimed_amount: data.total,
     method: 'manual_review',
-    image_url: pubUrl,
-    notes: 'Manual review requested. AI verify failed ' + (data.verify_fail_count || 0) + ' time(s). Admin to inspect.',
+    screenshot_url: signedUrl,
+    note: 'Manual review requested. AI verify failed ' + (data.verify_fail_count || 0) + ' time(s). Admin to inspect.',
     ai_status: 'manual_review_pending',
     ai_match: false
   };
@@ -2436,6 +2489,219 @@ function sendOrderShippedEmail_(data) {
     htmlBody: html
   });
   Logger.log('Order shipped email sent to ' + data.email);
+}
+
+// Urgent admin email when a customer submits a manual-review order via the
+// "📋 Gửi cho admin xem" fallback. Mirrors sendManualReviewTelegramAlert_ on
+// the email channel so admin still notices when offline from Telegram.
+// Rate-limit: max 1 email per order_no (CacheService, 24h TTL) — re-submits
+// of the same order_no won't spam.
+function sendManualReviewEmailToAdmin_(orderData) {
+  if (!orderData || !orderData.orderNo) { Logger.log('sendManualReviewEmailToAdmin_: missing orderNo'); return; }
+
+  // Dedupe: only one email per order_no per 24h
+  try {
+    var cache = CacheService.getScriptCache();
+    var cacheKey = 'mr_email_sent_' + orderData.orderNo;
+    if (cache.get(cacheKey)) {
+      Logger.log('Manual review email already sent for ' + orderData.orderNo + ' — skip');
+      return;
+    }
+    cache.put(cacheKey, '1', 86400); // 24h
+  } catch (ce) { Logger.log('Cache dedupe err (continuing): ' + ce); }
+
+  var adminEmail = _prop('PRODUCTION_REPORT_EMAIL', PRODUCTION_REPORT_EMAIL || 'support@thuyjapan.com');
+  var subject = '🚨 Đơn cần xem xét — #' + orderData.orderNo + ' · ¥' + Number(orderData.total || 0).toLocaleString();
+  var body = buildManualReviewEmailHtml_(orderData);
+
+  try {
+    MailApp.sendEmail({
+      to: adminEmail,
+      replyTo: 'support@thuyjapan.com',
+      name: 'Bếp Thuỷ Japan System',
+      subject: subject,
+      htmlBody: body
+    });
+    Logger.log('Manual review email sent to ' + adminEmail + ' for order #' + orderData.orderNo);
+  } catch (e) {
+    Logger.log('Email err: ' + e);
+  }
+}
+
+// Build the HTML body for the manual-review admin alert email.
+// Matches the email-admin-review-needed.html template structure (red-tone alert,
+// customer info, order details, AI fail reason, bill thumbnail, CTA buttons).
+function buildManualReviewEmailHtml_(d) {
+  var orderNo = escapeHtml_(d.orderNo);
+  var amount = Number(d.total || 0).toLocaleString();
+  var customerName = escapeHtml_(d.name || 'Khách');
+  var customerEmail = escapeHtml_(d.email || '');
+  var customerPhone = escapeHtml_(d.phone || '');
+  var shipAddress = escapeHtml_(d.ship_address || '');
+  var aiLayerFailed = escapeHtml_(d.ai_layer_failed || '');
+  var aiReason = escapeHtml_(d.ai_reason || '');
+  var createdAt = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'dd/MM/yyyy HH:mm');
+
+  // Build items list as readable HTML
+  var itemsHtml = '';
+  if (Array.isArray(d.cartItems) && d.cartItems.length) {
+    itemsHtml = d.cartItems.map(function(it) {
+      var nm = escapeHtml_(it.name || '');
+      var qty = Number(it.qty || 0);
+      var wt = it.wt ? (' × ' + it.wt + 'kg') : '';
+      return '• ' + nm + wt + ' × ' + qty;
+    }).join('<br>');
+  } else {
+    itemsHtml = '(không có chi tiết)';
+  }
+
+  // Generate signed Storage URL (24h TTL) for the bill image so admin can view
+  // even if bucket is private. Falls back to public URL pattern if signing fails.
+  var billUrl = '';
+  try {
+    billUrl = generateSignedReceiptUrlForOrder_(d.orderNo, 86400) || '';
+  } catch (su) { Logger.log('Signed URL err: ' + su); }
+  if (!billUrl) {
+    // Fallback: blank placeholder; admin will open /thuythang to see it
+    billUrl = 'https://www.thuyjapan.com/thuythang';
+  }
+
+  var adminLink = 'https://www.thuyjapan.com/thuythang';
+  var customerContactLink = d.email ? ('mailto:' + d.email) : adminLink;
+
+  return '' +
+'<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bếp Thuỷ — Đơn cần admin xem xét #' + orderNo + '</title></head>' +
+'<body style="margin:0;padding:0;background:#FEF2F2;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">' +
+'<div style="display:none;font-size:1px;color:#FEF2F2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Khách ' + customerName + ' đã thanh toán nhưng AI verify thất bại — cần anh xem</div>' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF2F2;"><tr><td align="center" style="padding:20px 10px;">' +
+'<table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">' +
+// Header
+'<tr><td style="background:#7F1D1D;background:linear-gradient(135deg,#7F1D1D 0%,#B91C1C 50%,#DC2626 100%);padding:28px 24px;text-align:center;">' +
+'<div style="font-size:42px;line-height:1;margin-bottom:6px;">🚨</div>' +
+'<h1 style="color:#ffffff;margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;letter-spacing:0.5px;">ĐƠN CẦN ADMIN XEM XÉT</h1>' +
+'<p style="color:#FECACA;margin:6px 0 0;font-size:13px;">AI verify thất bại — cần anh check tay</p></td></tr>' +
+// Order ID
+'<tr><td style="padding:24px 24px 8px;text-align:center;">' +
+'<p style="margin:0;color:#6B7280;font-size:13px;">Mã đơn</p>' +
+'<h2 style="color:#DC2626;margin:4px 0 0;font-size:24px;font-weight:bold;letter-spacing:0.5px;">#' + orderNo + '</h2>' +
+'<p style="margin:8px 0 0;color:#1F2937;font-size:18px;"><strong>¥' + amount + '</strong></p>' +
+'<div style="width:60px;height:3px;background:linear-gradient(90deg,#DC2626,#FCA5A5,#DC2626);margin:14px auto 0;border-radius:2px;"></div></td></tr>' +
+// Intro
+'<tr><td style="padding:20px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">' +
+'<p style="margin:0 0 14px;"><strong>Anh ơi,</strong></p>' +
+'<p style="margin:0 0 18px;">Có 1 đơn vừa được khách gửi qua nút <strong>"📋 Gửi cho admin xem"</strong> — AI verify đã thất bại nhưng khách báo đã thanh toán PayPay rồi. Cần anh vào xem và xử lý tay.</p></td></tr>' +
+// Customer info
+'<tr><td style="padding:0 24px 16px;">' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;"><tr><td style="padding:18px 20px;">' +
+'<h3 style="color:#1F2937;margin:0 0 12px;font-size:15px;font-weight:bold;">👤 Thông tin khách</h3>' +
+'<p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#1F2937;"><span style="color:#6B7280;display:inline-block;width:60px;">Tên:</span> <strong>' + customerName + '</strong></p>' +
+'<p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#1F2937;"><span style="color:#6B7280;display:inline-block;width:60px;">Email:</span> <a href="mailto:' + customerEmail + '" style="color:#C8102E;text-decoration:none;">' + customerEmail + '</a></p>' +
+'<p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;"><span style="color:#6B7280;display:inline-block;width:60px;">Phone:</span> <strong>' + customerPhone + '</strong></p>' +
+'</td></tr></table></td></tr>' +
+// Order info
+'<tr><td style="padding:0 24px 16px;">' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFFBEB;border-radius:10px;border:1px solid #FDE68A;"><tr><td style="padding:18px 20px;">' +
+'<h3 style="color:#78350F;margin:0 0 12px;font-size:15px;font-weight:bold;">📦 Chi tiết đơn</h3>' +
+'<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#1F2937;"><strong style="color:#6B7280;">Items:</strong><br><span style="display:block;padding:6px 0 0 8px;color:#1F2937;">' + itemsHtml + '</span></p>' +
+'<p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:#1F2937;border-top:1px dashed #FDE68A;padding-top:8px;"><strong style="color:#6B7280;">Tổng tiền:</strong> <strong style="color:#DC2626;font-size:16px;">¥' + amount + '</strong></p>' +
+'<p style="margin:6px 0 0;font-size:14px;line-height:1.6;color:#1F2937;"><strong style="color:#6B7280;">Ship đến:</strong><br><span style="display:block;padding:4px 0 0 8px;color:#1F2937;">' + shipAddress + '</span></p>' +
+'</td></tr></table></td></tr>' +
+// AI fail box
+'<tr><td style="padding:0 24px 16px;">' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEE2E2;border-radius:10px;border:1px solid #FCA5A5;"><tr><td style="padding:18px 20px;border-left:4px solid #DC2626;">' +
+'<h3 style="color:#7F1D1D;margin:0 0 10px;font-size:15px;font-weight:bold;">🤖 AI Verify thất bại</h3>' +
+'<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#1F2937;"><strong style="color:#6B7280;">Layer fail:</strong> <strong style="color:#DC2626;">' + aiLayerFailed + '</strong></p>' +
+'<p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;"><strong style="color:#6B7280;">Lý do:</strong><br><span style="display:block;padding:6px 10px;margin-top:4px;background:#ffffff;border-radius:6px;color:#7F1D1D;font-style:italic;">' + aiReason + '</span></p>' +
+'</td></tr></table></td></tr>' +
+// Bill thumbnail (only if signed URL succeeded)
+'<tr><td style="padding:0 24px 20px;">' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;"><tr><td style="padding:18px 20px;text-align:center;">' +
+'<h3 style="color:#1F2937;margin:0 0 12px;font-size:15px;font-weight:bold;">🧾 Ảnh bill khách gửi</h3>' +
+'<a href="' + billUrl + '" target="_blank" style="display:inline-block;text-decoration:none;">' +
+'<img src="' + billUrl + '" alt="Bill PayPay khách gửi" width="240" style="display:block;max-width:240px;width:100%;height:auto;border-radius:8px;border:2px solid #E5E7EB;margin:0 auto;"></a>' +
+'<p style="margin:10px 0 0;font-size:12px;color:#6B7280;">👆 Click ảnh để xem full size (link có hiệu lực 24h)</p>' +
+'</td></tr></table></td></tr>' +
+// CTAs
+'<tr><td style="padding:0 24px 12px;">' +
+'<h3 style="color:#1F2937;margin:0 0 14px;font-size:16px;font-weight:bold;text-align:center;">⚡ Hành động nhanh</h3>' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:10px;"><tr><td align="center">' +
+'<a href="' + adminLink + '" target="_blank" style="display:block;background:#DC2626;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:bold;text-align:center;">✅ Xem ngay trong /thuythang</a>' +
+'</td></tr></table>' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:10px;"><tr><td align="center">' +
+'<a href="' + customerContactLink + '" target="_blank" style="display:block;background:#F59E0B;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:bold;text-align:center;">💬 Hỏi khách thêm</a>' +
+'</td></tr></table>' +
+'<p style="margin:0 0 4px;font-size:12px;color:#6B7280;text-align:center;line-height:1.5;">Để từ chối: vào <strong>/thuythang</strong> → tab <strong>Đơn</strong> → mở đơn #' + orderNo + ' → bấm <strong>"Từ chối"</strong> + ghi lý do</p>' +
+'</td></tr>' +
+// Tip
+'<tr><td style="padding:18px 24px 20px;">' +
+'<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;"><tr><td style="border-left:4px solid #D4A017;padding:14px 18px;">' +
+'<p style="margin:0;color:#78350F;font-size:13px;line-height:1.6;">💡 <strong>Lưu ý:</strong> Khách đã được báo "đơn đang chờ xác nhận trong vòng 24h". Anh nên xử lý sớm để khách đỡ lo. Nếu bill đúng → bấm Xác nhận, đơn sẽ chuyển sang trạng thái <em>paid</em> và auto gửi email cảm ơn cho khách.</p>' +
+'</td></tr></table></td></tr>' +
+// Footer
+'<tr><td style="background:#1F2937;padding:20px 24px;text-align:center;">' +
+'<p style="color:#FCA5A5;margin:0 0 4px;font-weight:bold;font-size:13px;">🔒 Email nội bộ admin</p>' +
+'<p style="color:#9CA3AF;margin:0;font-size:11px;">Chỉ gửi cho support@thuyjapan.com — không forward cho khách</p>' +
+'<p style="color:#9CA3AF;margin:10px 0 0;font-size:11px;">Đơn được tạo lúc: <strong style="color:#D4A017;">' + createdAt + '</strong></p>' +
+'<p style="color:#9CA3AF;margin:8px 0 0;font-size:11px;">' +
+'<a href="https://www.thuyjapan.com/thuythang" style="color:#D4A017;text-decoration:none;">/thuythang admin</a> &nbsp;·&nbsp; ' +
+'<a href="https://zalo.me/+818051156688" style="color:#D4A017;text-decoration:none;">Zalo</a> &nbsp;·&nbsp; ' +
+'<a href="https://m.me/ThuyJapaan" style="color:#D4A017;text-decoration:none;">Messenger</a></p>' +
+'</td></tr>' +
+'</table></td></tr></table></body></html>';
+}
+
+// Generate a 24h-signed URL to the most recent receipt for an order in
+// the payment-proofs Storage bucket. Returns null on any failure (caller
+// should fall back to public URL or admin dashboard link).
+function generateSignedReceiptUrlForOrder_(orderNo, expiresInSec) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+
+  // 1. Find the latest payment_confirmations row for this order_no to get image_url path
+  try {
+    var listUrl = SUPABASE_URL + '/rest/v1/payment_confirmations'
+      + '?select=image_url&order_no=eq.' + encodeURIComponent(orderNo)
+      + '&order=created_at.desc&limit=1';
+    var listRes = UrlFetchApp.fetch(listUrl, {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    });
+    if (listRes.getResponseCode() >= 300) return null;
+    var rows = JSON.parse(listRes.getContentText() || '[]');
+    if (!rows.length || !rows[0].image_url) return null;
+
+    // Extract path inside bucket from public URL — pattern:
+    //   {SUPABASE_URL}/storage/v1/object/public/payment-proofs/{path}
+    var imageUrl = rows[0].image_url;
+    var marker = '/storage/v1/object/public/payment-proofs/';
+    var idx = imageUrl.indexOf(marker);
+    if (idx === -1) return imageUrl; // not the expected pattern, return as-is
+    var bucketPath = decodeURIComponent(imageUrl.substring(idx + marker.length));
+
+    // 2. Request signed URL from Supabase Storage
+    var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(bucketPath), {
+      method: 'post',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ expiresIn: Number(expiresInSec) || 86400 }),
+      muteHttpExceptions: true
+    });
+    if (signRes.getResponseCode() >= 300) return imageUrl; // fall back to public
+    var signed = JSON.parse(signRes.getContentText() || '{}');
+    if (!signed.signedURL) return imageUrl;
+    // Supabase returns a relative path like "/object/sign/...?token=..."
+    var rel = String(signed.signedURL);
+    if (rel.indexOf('http') === 0) return rel;
+    return SUPABASE_URL + '/storage/v1' + (rel.charAt(0) === '/' ? rel : '/' + rel);
+  } catch (e) {
+    Logger.log('generateSignedReceiptUrlForOrder_ err: ' + e);
+    return null;
+  }
 }
 
 // Optional: Telegram bot notification

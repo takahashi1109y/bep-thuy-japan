@@ -204,6 +204,22 @@
 
     <!-- DASHBOARD TAB -->
     <div id="tab-dashboard">
+      <!-- Review banner: orders needing admin attention -->
+      <div id="dashboard-review-banner" class="hidden" style="margin-bottom: 14px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); color: #fff; box-shadow: 0 4px 12px rgba(220,38,38,0.25); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">
+            🚨 <span id="dashboard-review-total">0</span> đơn cần xem xét
+          </div>
+          <div style="font-size: 12.5px; opacity: 0.95; line-height: 1.55;">
+            • <span id="dashboard-review-failed">0</span> đơn AI verify thất bại (cần admin review)<br>
+            • <span id="dashboard-review-unconfirmed">0</span> đơn AI pass nhưng chưa được admin xác nhận
+          </div>
+        </div>
+        <button type="button" onclick="goToReviewQueue()" style="background:#fff;color:#991B1B;border:none;border-radius:8px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+          Xem ngay →
+        </button>
+      </div>
+
       <!-- Today stats -->
       <div class="grid-stats" style="margin-bottom: 14px;">
         <div class="stat-card clickable" onclick="navToOrdersToday()" style="cursor:pointer;">
@@ -819,6 +835,13 @@
   </div>
 </div>
 
+<!-- IMAGE LIGHTBOX (full-screen overlay for receipt previews) -->
+<div id="image-lightbox" class="hidden" onclick="closeImageLightbox()" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;">
+  <button onclick="closeImageLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <a id="image-lightbox-link" href="#" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);color:#fff;text-decoration:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;">↗ Mở tab mới</a>
+  <img id="image-lightbox-img" src="" alt="Hóa đơn thanh toán" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,0.5);" onclick="event.stopPropagation();">
+</div>
+
 <!-- BULK SHIP MODAL -->
 <div id="ship-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeShipModal()">
   <div class="modal" style="max-width: 800px;">
@@ -1151,9 +1174,14 @@ async function checkAdminAndLoad(user) {
   restoreAdminTabs();
   checkUnreadMessages();
   checkPendingPayments();
-  // Poll for new messages + new payment confirmations every 30s
+  checkManualReviewCount();
+  requestNotificationPermission();
+  // Poll for new messages + new payment confirmations + manual review every 30s
   setInterval(checkUnreadMessages, 30000);
   setInterval(checkPendingPayments, 30000);
+  setInterval(checkManualReviewCount, 30000);
+  // Refresh review-banner counts every 30s (orders needing admin attention)
+  setInterval(updateReviewBanner, 30000);
 }
 
 // Track last count to detect NEW submissions + play alert
@@ -1187,20 +1215,111 @@ async function checkPendingPayments() {
   } catch(e) {}
 }
 
-function playPaymentAlert() {
+function playPaymentAlert(beeps) {
   try {
     // Create short beep sound (no external file needed)
+    // beeps: 2 (default, customer_paid) | 3 (manual_review urgent ping)
+    const n = (beeps === 3) ? 3 : 2;
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880; gain.gain.value = 0.1;
-    osc.start(); osc.stop(ctx.currentTime + 0.15);
-    setTimeout(() => {
-      const osc2 = ctx.createOscillator(); osc2.connect(gain);
-      osc2.frequency.value = 1320;
-      osc2.start(); osc2.stop(ctx.currentTime + 0.15);
-    }, 200);
+    gain.connect(ctx.destination);
+    gain.gain.value = 0.1;
+    // Manual review = higher pitches to differentiate from normal payment alert
+    const freqs = (n === 3) ? [1046, 1318, 1568] : [880, 1320];
+    freqs.forEach((f, i) => {
+      setTimeout(() => {
+        try {
+          const osc = ctx.createOscillator();
+          osc.connect(gain);
+          osc.frequency.value = f;
+          osc.start();
+          osc.stop(ctx.currentTime + 0.15);
+        } catch(e) {}
+      }, i * 200);
+    });
+  } catch(e) {}
+}
+
+// ═══════════════════ MANUAL REVIEW ALERT (sound + browser Notification API) ═══════════════════
+// Track last count to detect NEW manual_review orders (AI verify failed/skipped)
+let _lastManualReviewCount = -1;
+async function checkManualReviewCount() {
+  try {
+    const { count } = await sb.from('orders')
+      .select('id', { count:'exact', head:true })
+      .eq('status', 'pending_manual_review');
+    const n = count || 0;
+
+    // Alert if count increased (new manual_review order arrived)
+    if (_lastManualReviewCount >= 0 && n > _lastManualReviewCount) {
+      const delta = n - _lastManualReviewCount;
+      // Try to fetch latest order's customer name for the notification body
+      let customerLabel = '';
+      try {
+        const { data: latest } = await sb.from('orders')
+          .select('customer_name, order_no')
+          .eq('status', 'pending_manual_review')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (latest && latest[0]) {
+          customerLabel = latest[0].customer_name || latest[0].order_no || '';
+        }
+      } catch(e) {}
+      triggerManualReviewAlert(delta, customerLabel);
+    }
+    _lastManualReviewCount = n;
+  } catch(e) {}
+}
+
+// Ask permission once on init. Save state in localStorage so we don't re-prompt aggressively.
+function requestNotificationPermission() {
+  try {
+    if (!('Notification' in window)) return; // unsupported (older browsers / Safari iOS web)
+    const stored = localStorage.getItem('admin_notif_permission_asked');
+    // Already granted → nothing to do
+    if (Notification.permission === 'granted') return;
+    // User previously denied → don't pester
+    if (Notification.permission === 'denied') return;
+    // Already asked once on this device → don't re-prompt automatically
+    if (stored === '1') return;
+    // Ask gently — only fires when permission state is 'default'
+    Notification.requestPermission().then(p => {
+      try { localStorage.setItem('admin_notif_permission_asked', '1'); } catch(e) {}
+      if (p === 'granted') {
+        try { showToast('🔔 Đã bật thông báo đơn cần xem xét', 'success'); } catch(e) {}
+      }
+    }).catch(() => {});
+  } catch(e) {}
+}
+
+function triggerManualReviewAlert(count, customerLabel) {
+  // 1) Sound — 3 beeps to differentiate from normal customer_paid alert (2 beeps)
+  try { playPaymentAlert(3); } catch(e) {}
+
+  // 2) Toast (always, regardless of notification permission)
+  try {
+    showToast('🚨 ' + count + ' đơn mới cần xem xét (AI verify failed)', 'error');
+  } catch(e) {}
+
+  // 3) Browser notification (only if permission granted)
+  try {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    const cust = customerLabel ? ('Khách ' + customerLabel) : 'Khách hàng';
+    const body = cust + ' đã pay nhưng AI verify failed. Click để xem.';
+    const title = '🚨 Đơn mới cần xem xét';
+    // tag = dedupe key so multiple alerts in a row replace instead of stacking
+    const notif = new Notification(title, {
+      body: body,
+      tag: 'thuythang-manual-review',
+      requireInteraction: true // stay on screen until clicked (Chrome desktop)
+    });
+    notif.onclick = function() {
+      try { window.focus(); } catch(e) {}
+      try { switchTab('orders'); } catch(e) {}
+      try { setOrdersSubTab('review'); } catch(e) {}
+      try { notif.close(); } catch(e) {}
+    };
   } catch(e) {}
 }
 
@@ -1971,6 +2090,45 @@ async function loadDashboard() {
   }
   loadAnalytics();
   loadStats();
+  updateReviewBanner();
+}
+
+// Banner: count orders needing admin review (AI verify failed + AI-pass-unconfirmed last 7d)
+async function updateReviewBanner() {
+  try {
+    const banner       = document.getElementById('dashboard-review-banner');
+    const totalEl      = document.getElementById('dashboard-review-total');
+    const failedEl     = document.getElementById('dashboard-review-failed');
+    const unconfEl     = document.getElementById('dashboard-review-unconfirmed');
+    if (!banner || !totalEl || !failedEl || !unconfEl) return;
+
+    // (a) AI verify failed → status = 'pending_manual_review'
+    const failedQ = await sb.from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_manual_review');
+
+    // (b) AI pass nhưng admin chưa xác nhận → status = 'customer_paid' AND created_at > NOW() - 7d
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const unconfQ = await sb.from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'customer_paid')
+      .gt('created_at', sevenDaysAgo);
+
+    const failed = failedQ.count || 0;
+    const unconf = unconfQ.count || 0;
+    const total  = failed + unconf;
+
+    totalEl.textContent  = total;
+    failedEl.textContent = failed;
+    unconfEl.textContent = unconf;
+    banner.classList.toggle('hidden', total === 0);
+  } catch (e) { /* silent */ }
+}
+
+// Click "Xem ngay" → jump to Orders tab + open the "review" sub-tab
+function goToReviewQueue() {
+  switchTab('orders');
+  setOrdersSubTab('review');
 }
 
 function primaryAction(o) {
@@ -2491,10 +2649,14 @@ async function openOrderModal(orderNo) {
 
   // Fetch payment confirmations for this order
   let paymentHtml = '';
+  let latestConfId = null;  // captured for step-2 admin confirm button below
+  // Receipt-image legacy paths queued for async signed-URL resolution after innerHTML.
+  const pendingResolves = [];
   try {
     const { data: confs } = await sb.from('payment_confirmations')
       .select('*').eq('order_no', orderNo).order('created_at', { ascending: false });
     if (confs && confs.length > 0) {
+      latestConfId = confs[0].id;
       // Check for hash reuse across orders
       const hashes = confs.map(c => c.screenshot_hash);
       const { data: reuse } = await sb.from('payment_confirmations')
@@ -2502,12 +2664,21 @@ async function openOrderModal(orderNo) {
       const reuseMap = {};
       (reuse || []).forEach(r => { reuseMap[r.screenshot_hash] = r.order_no; });
 
+      // Note: pendingResolves is declared at function scope above so it survives
+      // beyond this try block — flushed after the modal innerHTML is injected
+      // (inline <script> tags in innerHTML do NOT execute by spec).
+
       paymentHtml = '<div class="card" style="margin-bottom: 12px; border:2px solid #10B981;">' +
         '<h4 style="margin: 0 0 8px; font-size: 14px;">💳 Hóa Đơn Thanh Toán Khách Gửi (' + confs.length + ')</h4>' +
         confs.map(c => {
           const cdate = fmtJST(c.created_at, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
           const methodTxt = c.method === 'paypay' ? '💳 PayPay' : '🏦 Chuyển khoản NH';
           const amountMismatch = Math.abs(c.claimed_amount - o.total) > 1;
+          // Resolve image source: Apps Script Option B writes to image_url (full public URL),
+          // /thanh-vien customer upload writes to screenshot_url (full signed URL).
+          // Some legacy rows may store only a path → resolveReceiptImageSrc() will fetch a signed URL async.
+          const rawImg = c.screenshot_url || c.image_url || '';
+          const imgId  = 'recImg-' + c.id;
           const STATUS_CONF = {
             'submitted': { text:'⏳ Chờ xác nhận', cls:'badge-pending' },
             'verified':  { text:'✅ Đã xác nhận', cls:'badge-shipped' },
@@ -2523,7 +2694,7 @@ async function openOrderModal(orderNo) {
             ? '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">' +
               '<button onclick="doVerifyPayment(' + c.id + ', \'verify\')" class="btn btn-success" style="padding:6px 12px;font-size:12px;">✅ Xác nhận TT</button>' +
               '<button onclick="doVerifyPayment(' + c.id + ', \'reject\')" class="btn btn-danger" style="padding:6px 12px;font-size:12px;">❌ Từ chối</button>' +
-              '<button onclick="doReVerifyAI(' + c.id + ', \'' + (c.screenshot_url || '').replace(/\'/g, "\\'") + '\', ' + o.total + ', \'' + o.order_no + '\')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;">🤖 Xác thực AI</button>' +
+              '<button onclick="doReVerifyAI(' + c.id + ', \'' + rawImg.replace(/\'/g, "\\'") + '\', ' + o.total + ', \'' + o.order_no + '\')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;">🤖 Xác thực AI</button>' +
               '</div>'
             : (c.rejected_reason ? '<p style="font-size:11px;color:#EF4444;margin-top:6px;"><strong>Lý do từ chối:</strong> ' + escapeHtml(c.rejected_reason) + '</p>' : '');
 
@@ -2563,7 +2734,7 @@ async function openOrderModal(orderNo) {
           // without us having to escape long strings into onclick attrs (CSP/quoting safer).
           window.__forceApproveCtx = window.__forceApproveCtx || {};
           window.__forceApproveCtx[c.id] = {
-            screenshotUrl: c.screenshot_url || '',
+            screenshotUrl: rawImg,
             aiReason: c.ai_reason || '',
             aiMatch: c.ai_match,
             aiVerifiedAmount: c.ai_verified_amount,
@@ -2585,7 +2756,24 @@ async function openOrderModal(orderNo) {
             aiBadgeHtml +
             forceApproveBtnHtml +
             (warnings.length > 0 ? '<div style="background:#FEF3C7;border:1px solid #FBBF24;border-radius:6px;padding:6px;margin:6px 0;font-size:11px;color:#78350F;">' + warnings.join('<br>') + '</div>' : '') +
-            '<a href="' + c.screenshot_url + '" target="_blank"><img src="' + c.screenshot_url + '" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;margin-top:4px;"></a>' +
+            (rawImg
+              ? (function(){
+                  // Apps Script Option B → image_url is a full https URL → use directly.
+                  // /thanh-vien upload → screenshot_url is a full signed URL → use directly.
+                  // Legacy bare-path rows → defer to async signed-URL resolution.
+                  const isFullUrl = /^https?:\/\//i.test(rawImg);
+                  if (!isFullUrl) pendingResolves.push({ rawPath: rawImg, imgId: imgId });
+                  // 1×1 transparent gif placeholder while we wait for the async signed URL —
+                  // keeps slot reserved without firing onerror for an empty src.
+                  const placeholderSrc = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+                  const initialSrc = isFullUrl ? escapeHtml(rawImg) : placeholderSrc;
+                  return '<div id="' + imgId + '-wrap" style="position:relative;margin-top:4px;cursor:zoom-in;min-height:120px;" onclick="(function(el){var i=el.querySelector(\'img\'); if(i&amp;&amp;i.src&amp;&amp;!i.src.startsWith(\'data:\')) openImageLightbox(i.src);})(this)" title="Bấm để phóng to">' +
+                    '<img id="' + imgId + '" src="' + initialSrc + '" style="display:block;width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;" ' +
+                      'onerror="this.onerror=null;this.parentElement.outerHTML=\'<div style=&quot;padding:18px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;text-align:center;margin-top:4px;&quot;>❌ Ảnh không tải được</div>\';">' +
+                    '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;pointer-events:none;">🔍 Phóng to</div>' +
+                  '</div>';
+                })()
+              : '<div style="padding:18px;border:1px dashed #9CA3AF;border-radius:8px;background:#F9FAFB;color:#6B7280;font-size:12px;text-align:center;margin-top:4px;">⚠️ Không có ảnh hóa đơn</div>') +
             actions +
           '</div>';
         }).join('') + '</div>';
@@ -2633,16 +2821,87 @@ async function openOrderModal(orderNo) {
       <h4 style="margin: 0 0 4px; font-size: 13px;">📝 Ghi chú</h4>
       <div style="font-size: 13px; color: #78350F;">${escapeHtml(o.note)}</div>
     </div>` : ''}
+    ${o.status === 'confirmed' && (o.confirmed_at || o.admin_confirmed_at || o.confirmed_by_admin) ? `<div class="card" style="margin-bottom: 12px; background: #D1FAE5; border:2px solid #10B981;">
+      <div style="font-size: 13px; color: #065F46;">
+        <strong>✅ Đã xác nhận lúc ${o.admin_confirmed_at ? fmtJST(o.admin_confirmed_at) : (o.confirmed_at ? fmtJST(o.confirmed_at) : '-')}</strong>
+        ${o.confirmed_by_admin || o.admin_confirmed_by ? ` bởi <em>${escapeHtml(o.confirmed_by_admin || o.admin_confirmed_by)}</em>` : ''}
+        ${o.admin_confirm_note ? `<br><span style="font-size: 11px;">📝 ${escapeHtml(o.admin_confirm_note)}</span>` : ''}
+      </div>
+    </div>` : ''}
     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px;">
-      ${o.status === 'pending' || o.status === 'customer_paid' ? `<button onclick="doConfirmPayment('${o.order_no}', true)" class="btn btn-success">✅ Xác nhận thanh toán</button>` : ''}
+      ${o.status === 'pending' ? `<button onclick="doConfirmPayment('${o.order_no}', true)" class="btn btn-success">✅ Xác nhận thanh toán</button>` : ''}
+      ${o.status === 'customer_paid' ? `<button onclick="doConfirmPaymentStep2(${latestConfId === null ? 'null' : latestConfId}, '${o.order_no}')" class="btn btn-success" style="background:#10B981;">✅ Xác nhận thanh toán &amp; sản xuất</button>` : ''}
+      ${o.status === 'pending_manual_review' ? `<button onclick="doConfirmPaymentStep2(${latestConfId === null ? 'null' : latestConfId}, '${o.order_no}')" class="btn btn-success" style="background:#10B981;">✅ Xác nhận &amp; sản xuất</button>
+        <button onclick="doRejectPaymentStep2(${latestConfId === null ? 'null' : latestConfId}, '${o.order_no}')" class="btn btn-danger">❌ Từ chối &amp; hoàn tiền</button>` : ''}
       ${o.status === 'confirmed' ? `<button onclick="closeOrderModal(); openSingleShipModal('${o.order_no}');" class="btn btn-primary">🚚 Đã gửi hàng</button>` : ''}
       ${o.status !== 'shipped' && o.status !== 'delivered' && o.status !== 'cancelled' ? `<button onclick="doCancelOrder('${o.order_no}')" class="btn btn-danger">🗑 Hủy đơn</button>` : ''}
     </div>
   `;
   document.getElementById('order-modal').classList.remove('hidden');
+
+  // Resolve any legacy bare-path receipt images → swap each <img> src to a
+  // fresh 24h signed URL. Skipped (queue empty) for normal Apps Script /
+  // /thanh-vien rows whose URL is already absolute.
+  if (pendingResolves.length) {
+    pendingResolves.forEach(p => resolveReceiptImageSrc(p.rawPath, p.imgId));
+  }
 }
 
 function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+
+// ============ RECEIPT IMAGE PREVIEW ============
+// Lightbox: full-screen overlay when admin clicks a receipt thumbnail.
+function openImageLightbox(src) {
+  if (!src) return;
+  const lb = document.getElementById('image-lightbox');
+  const img = document.getElementById('image-lightbox-img');
+  const link = document.getElementById('image-lightbox-link');
+  if (!lb || !img) return;
+  img.src = src;
+  if (link) link.href = src;
+  lb.classList.remove('hidden');
+  document.addEventListener('keydown', __lightboxEscHandler);
+}
+function closeImageLightbox() {
+  const lb = document.getElementById('image-lightbox');
+  if (lb) lb.classList.add('hidden');
+  document.removeEventListener('keydown', __lightboxEscHandler);
+}
+function __lightboxEscHandler(e) {
+  if (e.key === 'Escape') closeImageLightbox();
+}
+
+// Resolve a payment-proof image URL.
+// - Full https URLs (Apps Script auto-upload + /thanh-vien signed URLs) returned as-is.
+// - Bare storage paths (legacy rows) get a fresh 24h signed URL from payment-proofs bucket.
+async function getImageUrl(rawPath) {
+  if (!rawPath) return '';
+  if (/^https?:\/\//i.test(rawPath)) return rawPath;
+  try {
+    const { data, error } = await sb.storage
+      .from('payment-proofs')
+      .createSignedUrl(rawPath, 86400);
+    if (error) { console.warn('createSignedUrl err:', error); return ''; }
+    return data?.signedUrl || '';
+  } catch (e) {
+    console.warn('getImageUrl err:', e);
+    return '';
+  }
+}
+
+// Called by openOrderModal for rows that store a bare storage path instead of a
+// full URL — swap the <img> src to a fresh signed URL once it arrives.
+async function resolveReceiptImageSrc(rawPath, imgId) {
+  const url = await getImageUrl(rawPath);
+  const img = document.getElementById(imgId);
+  if (!img) return;
+  if (url) {
+    img.src = url;
+  } else if (img.parentElement) {
+    // Resolution failed → show the same broken-image placeholder.
+    img.parentElement.outerHTML = '<div style="padding:18px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;text-align:center;margin-top:4px;">❌ Ảnh không tải được</div>';
+  }
+}
 
 // ── Edit shipping address inline in order modal ──
 function editOrderAddress(orderNo) {
@@ -3127,6 +3386,68 @@ async function doForceApprovePayment(confId, orderNo, expectedAmount, reason) {
     }
   } catch (e) {
     showToast('❌ Lỗi gọi server: ' + (e.message || e), 'error');
+  }
+}
+
+// ============ STEP-2 ADMIN PAYMENT CONFIRMATION ============
+// After AI verify pass + order auto-flips to customer_paid (or pending_manual_review when AI
+// is uncertain), admin must still manually click to confirm before production starts. This is
+// the SECOND verification step. Calls SQL RPC `admin_confirm_payment` (created by Agent 4)
+// which flips order.status -> 'confirmed' and stamps confirmed_at / confirmed_by_admin.
+async function doConfirmPaymentStep2(confirmationId, orderNo) {
+  if (!confirm('Xác nhận đã kiểm tra ảnh biên lai và đồng ý sản xuất đơn này?')) return;
+  const note = prompt('Ghi chú (tuỳ chọn):', '') || '';
+
+  showToast('⏳ Đang xác nhận...', 'success');
+  try {
+    const adminEmail = currentAdmin?.email || 'unknown';
+    const { data, error } = await sb.rpc('admin_confirm_payment', {
+      p_order_no: orderNo,
+      p_confirmation_id: confirmationId,
+      p_admin_email: adminEmail,
+      p_note: note.trim()
+    });
+    if (error) throw error;
+    if (data && data.ok === false) {
+      throw new Error(data.error || 'Xác nhận thất bại');
+    }
+    showToast('✅ Đã xác nhận đơn #' + orderNo + ' — sẵn sàng sản xuất', 'success');
+    // Re-render modal to show "Đã xác nhận lúc..." block + dashboard refresh
+    await openOrderModal(orderNo);
+    await loadDashboard();
+    if (!document.getElementById('tab-orders').classList.contains('hidden')) loadOrders();
+  } catch (e) {
+    showToast('❌ Lỗi xác nhận: ' + (e.message || e), 'error');
+  }
+}
+
+// Reject + refund path for pending_manual_review orders. Calls SQL RPC
+// `admin_reject_payment` which flips order.status -> 'cancelled', restores stock + points,
+// and marks the payment_confirmation as rejected.
+async function doRejectPaymentStep2(confirmationId, orderNo) {
+  const reason = prompt('Lý do từ chối & hoàn tiền cho đơn #' + orderNo + ':', '');
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('❌ Phải nhập lý do từ chối', 'error'); return; }
+
+  showToast('⏳ Đang từ chối...', 'success');
+  try {
+    const adminEmail = currentAdmin?.email || 'unknown';
+    const { data, error } = await sb.rpc('admin_reject_payment', {
+      p_order_no: orderNo,
+      p_confirmation_id: confirmationId,
+      p_admin_email: adminEmail,
+      p_reason: reason.trim()
+    });
+    if (error) throw error;
+    if (data && data.ok === false) {
+      throw new Error(data.error || 'Từ chối thất bại');
+    }
+    showToast('❌ Đã từ chối đơn #' + orderNo + ' — sẽ hoàn tiền cho khách', 'success');
+    await openOrderModal(orderNo);
+    await loadDashboard();
+    if (!document.getElementById('tab-orders').classList.contains('hidden')) loadOrders();
+  } catch (e) {
+    showToast('❌ Lỗi từ chối: ' + (e.message || e), 'error');
   }
 }
 

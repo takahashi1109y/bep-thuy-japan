@@ -645,6 +645,89 @@ order by t.last_message_at desc;
 
 ---
 
+## 🚨 8. 2-step verify monitoring
+
+### 8.1 Đếm đơn pending_manual_review (cần xem xét NGAY)
+```sql
+SELECT COUNT(*) FROM orders WHERE status = 'pending_manual_review';
+```
+> Số đơn AI không tự verify được — anh cần vào tab admin xem xét thủ công ngay.
+
+### 8.2 List đơn manual_review > 24h (overdue)
+```sql
+SELECT order_no, customer_name, total, created_at, 
+       NOW() - created_at AS waited
+FROM orders 
+WHERE status = 'pending_manual_review' 
+  AND created_at < NOW() - INTERVAL '24 hours'
+ORDER BY created_at;
+```
+> Đơn manual_review đã chờ quá 24 tiếng — khách đợi lâu, anh cần ưu tiên xử lý.
+
+### 8.3 Đếm đơn customer_paid chưa được admin confirm
+```sql
+SELECT COUNT(*) FROM orders o
+JOIN payment_confirmations pc ON pc.order_no = o.order_no
+WHERE o.status = 'customer_paid'
+  AND pc.admin_confirmed_at IS NULL;
+```
+> Đơn đã có payment_confirmation nhưng chưa được admin xác nhận lần cuối (bước 2 của 2-step).
+
+### 8.4 Admin productivity report (số đơn confirm/reject mỗi tuần)
+```sql
+SELECT admin_email, action_type, COUNT(*) AS actions
+FROM admin_audit_log 
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY admin_email, action_type
+ORDER BY actions DESC;
+```
+> Đếm số thao tác confirm/reject của từng admin trong 7 ngày qua — đo workload và năng suất.
+
+### 8.5 AI false negative rate (đơn manual_review được anh confirm = false negative)
+```sql
+SELECT 
+  COUNT(*) FILTER (WHERE admin_action='confirmed') AS false_negatives,
+  COUNT(*) FILTER (WHERE admin_action='rejected') AS true_rejects,
+  COUNT(*) AS total_reviews
+FROM payment_confirmations
+WHERE ai_match = false 
+  AND admin_action IS NOT NULL;
+```
+> AI từ chối nhưng admin xác nhận đúng = false negative. Nhiều = AI đang quá nghiêm, cần tinh chỉnh.
+
+### 8.6 Layer-by-layer fail rate (which AI layer fails most)
+```sql
+SELECT 
+  ai_status,
+  COUNT(*) AS fail_count
+FROM payment_confirmations
+WHERE ai_match = false
+  AND created_at > NOW() - INTERVAL '30 days'
+GROUP BY ai_status
+ORDER BY fail_count DESC;
+```
+> Lớp AI nào fail nhiều nhất 30 ngày qua — biết để tối ưu khâu yếu nhất trước.
+
+### 8.7 Time admin takes to confirm (median)
+```sql
+SELECT 
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (admin_confirmed_at - created_at))) AS median_seconds_to_confirm
+FROM payment_confirmations
+WHERE admin_confirmed_at IS NOT NULL;
+```
+> Thời gian trung vị (giây) admin cần để confirm 1 đơn — đo tốc độ xử lý.
+
+### 8.8 Audit trail for specific order
+```sql
+SELECT created_at, admin_email, action_type, details
+FROM admin_audit_log
+WHERE target_id = '0123'
+ORDER BY created_at;
+```
+> Đổi `'0123'` thành order_no cần tra. Xem toàn bộ thao tác admin đã làm với đơn này.
+
+---
+
 ## ⚠️ Lưu ý an toàn cho anh
 
 1. **`SELECT` luôn an toàn** — không sửa data, anh chạy thoải mái.

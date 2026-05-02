@@ -143,21 +143,50 @@ Sau khi có Team ID, em sẽ guide:
 - Recommend Shopify + KOMOJU plugin
 - Pending decision
 
+### J. 2-Step Verify Feature (commits e866e77, ca2b1f2, 3474484, 9e0d302) ⭐ NEW
+
+**State machine mở rộng:**
+```
+pending → customer_paid → confirmed → shipped → delivered
+                ↘ pending_manual_review (nhánh phụ khi AI fail nhưng anh approve)
+```
+
+**8-layer AI verify hardening:**
+- `e866e77` — Layer 7 fix: support `取引番号` + space-separated digits + 12+ char fallback (PayPay/銀行 format đa dạng)
+- `ca2b1f2` — Layer 6 fix: pick transaction date, NOT expiry date (regex priority)
+- `3474484` — 10-agent parallel hardening: all 8 layers + admin/customer UX + docs
+- `9e0d302` — Admin: show `pending_manual_review` orders trong sub-tab riêng + 🔴 red badge count
+
+**Manual pending review flow + Agent 4 "Submit Anyway" button:**
+- Khi AI verify fail (1 trong 8 layer rớt), customer thấy lý do cụ thể + button "Gửi để admin xem xét thủ công" (Agent 4)
+- Order create với status=`pending_manual_review` (không phải `customer_paid`)
+- Admin sub-tab "🔴 Cần duyệt thủ công" (red badge nếu có đơn pending) — anh xem biên lai upload + approve/reject
+
+**3 admin tools mới:**
+1. **Test Bill tab** trong /thuythang — upload biên lai test, xem 8 layer scoring breakdown để hiểu AI logic
+2. **Manual override modal** — admin click "Duyệt thủ công" trên đơn `pending_manual_review` → status chuyển `customer_paid` + ghi audit log
+3. **Audit log spec** — bảng `payment_verify_audit` log mọi quyết định AI + manual override (timestamp, admin, reason)
+
+**Telegram alerts:**
+- Anh nhận push khi có đơn `pending_manual_review` mới (cần duyệt)
+
 ---
 
 ## 🔴 PENDING USER ACTIONS (từ V5 Windows session)
 
 | # | Việc | Status |
 |---|---|---|
-| 1 | **Redeploy Apps Script** với Mã.gs mới nhất | 🔴 Chưa làm — block 4 features mới |
-| 2 | **Run SQL** `supabase-admin-edit-address.sql` | 🔴 Chưa run |
-| 3 | **Run SQL** `supabase-product-extras.sql` | 🔴 Chưa run |
-| 4 | Test Option B end-to-end với 1 đơn ¥925 thật | 🟡 Sau khi #1-3 |
-| 5 | Daily trigger `sendDailyProductionReport` 23h JST | 🟡 |
-| 6 | Decide PayPay path + lên 法務局 update 定款 | 🟡 |
-| 7 | Decide TPCN platform (Shopify hay khác) | 🟡 |
-| 8 | Rotate Supabase JWT secret | 🟡 V3 doc carry-over |
-| 9 | Tạo Firebase project (cho push notification iOS) | 🟡 cần để push hoạt động |
+| 1 | **Redeploy Apps Script** với Mã.gs mới nhất (tích luỹ Option B + 8-layer + 2-step verify + manual review) | 🔴 Chưa làm — block 5 features mới |
+| 2 | **Run SQL** `supabase-2-step-verify.sql` ⭐ NEW V5 | 🔴 Chưa run — block 2-step verify |
+| 3 | **Run SQL** `supabase-manual-approve-payment.sql` ⭐ NEW V5 | 🔴 Chưa run — block manual override |
+| 4 | **Run SQL** `supabase-admin-edit-address.sql` | 🔴 Chưa run |
+| 5 | **Run SQL** `supabase-product-extras.sql` | 🔴 Chưa run |
+| 6 | Test Option B + 2-step verify end-to-end với 1 đơn ¥925 thật | 🟡 Sau khi #1-5 |
+| 7 | Daily trigger `sendDailyProductionReport` 23h JST | 🟡 |
+| 8 | Decide PayPay path + lên 法務局 update 定款 | 🟡 |
+| 9 | Decide TPCN platform (Shopify hay khác) | 🟡 |
+| 10 | Rotate Supabase JWT secret | 🟡 V3 doc carry-over |
+| 11 | Tạo Firebase project (cho push notification iOS) | 🟡 cần để push hoạt động |
 
 → Có thể làm song song với iOS app — không block.
 

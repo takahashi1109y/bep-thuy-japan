@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Bếp Thuỷ — Đơn cần admin xem xét #{{order_no}}</title>
+</head>
+<body style="margin:0;padding:0;background:#FEF2F2;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+
+<!-- Preheader (hidden, hiện trong inbox preview) -->
+<div style="display:none;font-size:1px;color:#FEF2F2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  Khách {{customer_name}} đã thanh toán nhưng AI verify thất bại — cần anh xem
+</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF2F2;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+
+      <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background:white;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+
+        <!-- Header (RED gradient — alert tone) -->
+        <tr>
+          <td style="background:#7F1D1D;background:linear-gradient(135deg,#7F1D1D 0%,#B91C1C 50%,#DC2626 100%);padding:28px 24px;text-align:center;">
+            <div style="font-size:42px;line-height:1;margin-bottom:6px;">🚨</div>
+            <h1 style="color:#ffffff;margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;letter-spacing:0.5px;">ĐƠN CẦN ADMIN XEM XÉT</h1>
+            <p style="color:#FECACA;margin:6px 0 0;font-size:13px;">AI verify thất bại — cần anh check tay</p>
+          </td>
+        </tr>
+
+        <!-- Order ID summary -->
+        <tr>
+          <td style="padding:24px 24px 8px;text-align:center;">
+            <p style="margin:0;color:#6B7280;font-size:13px;">Mã đơn</p>
+            <h2 style="color:#DC2626;margin:4px 0 0;font-size:24px;font-weight:bold;letter-spacing:0.5px;">#{{order_no}}</h2>
+            <p style="margin:8px 0 0;color:#1F2937;font-size:18px;"><strong>¥{{amount}}</strong></p>
+            <div style="width:60px;height:3px;background:linear-gradient(90deg,#DC2626,#FCA5A5,#DC2626);margin:14px auto 0;border-radius:2px;"></div>
+          </td>
+        </tr>
+
+        <!-- Body intro -->
+        <tr>
+          <td style="padding:20px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">
+            <p style="margin:0 0 14px;">
+              <strong>Anh ơi,</strong>
+            </p>
+            <p style="margin:0 0 18px;">
+              Có 1 đơn vừa được khách gửi qua nút <strong>"📋 Gửi cho admin xem"</strong> — AI verify đã thất bại nhưng khách báo đã thanh toán PayPay rồi. Cần anh vào xem và xử lý tay.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Customer Info Box -->
+        <tr>
+          <td style="padding:0 24px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <h3 style="color:#1F2937;margin:0 0 12px;font-size:15px;font-weight:bold;">👤 Thông tin khách</h3>
+                  <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#6B7280;display:inline-block;width:60px;">Tên:</span> <strong>{{customer_name}}</strong>
+                  </p>
+                  <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#6B7280;display:inline-block;width:60px;">Email:</span> <a href="mailto:{{customer_email}}" style="color:#C8102E;text-decoration:none;">{{customer_email}}</a>
+                  </p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <span style="color:#6B7280;display:inline-block;width:60px;">Phone:</span> <strong>{{customer_phone}}</strong>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Order Info Box -->
+        <tr>
+          <td style="padding:0 24px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FFFBEB;border-radius:10px;border:1px solid #FDE68A;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <h3 style="color:#78350F;margin:0 0 12px;font-size:15px;font-weight:bold;">📦 Chi tiết đơn</h3>
+                  <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <strong style="color:#6B7280;">Items:</strong><br>
+                    <span style="display:block;padding:6px 0 0 8px;color:#1F2937;">{{order_items}}</span>
+                  </p>
+                  <p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:#1F2937;border-top:1px dashed #FDE68A;padding-top:8px;">
+                    <strong style="color:#6B7280;">Tổng tiền:</strong> <strong style="color:#DC2626;font-size:16px;">¥{{amount}}</strong>
+                  </p>
+                  <p style="margin:6px 0 0;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <strong style="color:#6B7280;">Ship đến:</strong><br>
+                    <span style="display:block;padding:4px 0 0 8px;color:#1F2937;">{{ship_address}}</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- AI Verify Result Box -->
+        <tr>
+          <td style="padding:0 24px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEE2E2;border-radius:10px;border:1px solid #FCA5A5;">
+              <tr>
+                <td style="padding:18px 20px;border-left:4px solid #DC2626;">
+                  <h3 style="color:#7F1D1D;margin:0 0 10px;font-size:15px;font-weight:bold;">🤖 AI Verify thất bại</h3>
+                  <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <strong style="color:#6B7280;">Layer fail:</strong> <strong style="color:#DC2626;">{{ai_layer_failed}}</strong>
+                  </p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#1F2937;">
+                    <strong style="color:#6B7280;">Lý do:</strong><br>
+                    <span style="display:block;padding:6px 10px;margin-top:4px;background:#ffffff;border-radius:6px;color:#7F1D1D;font-style:italic;">{{ai_reason}}</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Bill Image Thumbnail -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;">
+              <tr>
+                <td style="padding:18px 20px;text-align:center;">
+                  <h3 style="color:#1F2937;margin:0 0 12px;font-size:15px;font-weight:bold;">🧾 Ảnh bill khách gửi</h3>
+                  <a href="{{bill_url}}" target="_blank" style="display:inline-block;text-decoration:none;">
+                    <img src="{{bill_url}}" alt="Bill PayPay khách gửi" width="240" style="display:block;max-width:240px;width:100%;height:auto;border-radius:8px;border:2px solid #E5E7EB;margin:0 auto;">
+                  </a>
+                  <p style="margin:10px 0 0;font-size:12px;color:#6B7280;">
+                    👆 Click ảnh để xem full size
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 3 CTA Buttons -->
+        <tr>
+          <td style="padding:0 24px 12px;">
+            <h3 style="color:#1F2937;margin:0 0 14px;font-size:16px;font-weight:bold;text-align:center;">⚡ Hành động nhanh</h3>
+
+            <!-- CTA 1: Confirm (RED — primary action) -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:10px;">
+              <tr>
+                <td align="center">
+                  <a href="{{admin_link}}" target="_blank" style="display:block;background:#DC2626;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:bold;text-align:center;">
+                    ✅ Xác nhận trong /thuythang
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <!-- CTA 2: Ask customer (YELLOW — secondary) -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:10px;">
+              <tr>
+                <td align="center">
+                  <a href="{{customer_contact_link}}" target="_blank" style="display:block;background:#F59E0B;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:bold;text-align:center;">
+                    💬 Hỏi khách thêm
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <!-- CTA 3: Reject (GRAY — destructive but neutral) -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:8px;">
+              <tr>
+                <td align="center">
+                  <a href="{{admin_link}}" target="_blank" style="display:block;background:#6B7280;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:bold;text-align:center;">
+                    ❌ Từ chối đơn
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 4px;font-size:12px;color:#6B7280;text-align:center;line-height:1.5;">
+              Để từ chối: vào <strong>/thuythang</strong> → tab <strong>Đơn</strong> → mở đơn #{{order_no}} → bấm <strong>"Từ chối"</strong> + ghi lý do
+            </p>
+          </td>
+        </tr>
+
+        <!-- Tip box -->
+        <tr>
+          <td style="padding:18px 24px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#FEF3C7;border-radius:10px;">
+              <tr>
+                <td style="border-left:4px solid #D4A017;padding:14px 18px;">
+                  <p style="margin:0;color:#78350F;font-size:13px;line-height:1.6;">
+                    💡 <strong>Lưu ý:</strong> Khách đã được báo "đơn đang chờ xác nhận trong vòng 24h". Anh nên xử lý sớm để khách đỡ lo. Nếu bill đúng → bấm Xác nhận, đơn sẽ chuyển sang trạng thái <em>paid</em> và auto gửi email cảm ơn cho khách.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#1F2937;padding:20px 24px;text-align:center;">
+            <p style="color:#FCA5A5;margin:0 0 4px;font-weight:bold;font-size:13px;">🔒 Email nội bộ admin</p>
+            <p style="color:#9CA3AF;margin:0;font-size:11px;">Chỉ gửi cho support@thuyjapan.com — không forward cho khách</p>
+            <p style="color:#9CA3AF;margin:10px 0 0;font-size:11px;">
+              Đơn được tạo lúc: <strong style="color:#D4A017;">{{created_at}}</strong>
+            </p>
+            <p style="color:#9CA3AF;margin:8px 0 0;font-size:11px;">
+              <a href="https://www.thuyjapan.com/thuythang" style="color:#D4A017;text-decoration:none;">/thuythang admin</a> &nbsp;·&nbsp;
+              <a href="https://zalo.me/+818051156688" style="color:#D4A017;text-decoration:none;">Zalo</a> &nbsp;·&nbsp;
+              <a href="https://m.me/ThuyJapaan" style="color:#D4A017;text-decoration:none;">Messenger</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

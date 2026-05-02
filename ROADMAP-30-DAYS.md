@@ -131,6 +131,14 @@
 - **Priority**: 🔴 P1
 - **Unblocks**: data conversion uplift sau redesign
 
+### W2.8 — 2-step verify implementation (admin confirm step + dashboard banner + sub-tab)
+- **Why**: Hiện AI verify 8-layer pass = đơn auto-confirm. Cần thêm bước anh xác nhận thủ công cho đơn AI flag `manual_review` để giảm fraud xuống ~0%. Implementation: status mới `manual_review` → dashboard banner đỏ "X đơn cần review" + sub-tab "Cần xác nhận" trong production panel
+- **Effort**: em 6h (Apps Script status flow + dashboard UI + sub-tab) / anh 0.5h (test confirm/reject 2-3 đơn manual_review)
+- **Owner**: 🤖 em (anh test)
+- **Priority**: 🔴 P1
+- **Unblocks**: W3 email auto-trigger cho manual_review, W4 audit log + reject/refund flow
+- **Dependencies**: W1.1 (Apps Script redeploy) phải xong; data flow `payment_proof_hashes` → `manual_review` status
+
 ---
 
 ## 📅 WEEK 3 (May 15-21) — Marketing Automation + iOS TestFlight
@@ -199,6 +207,14 @@
 - **Owner**: 🤝 cả 2
 - **Priority**: 🔴 P1
 - **Unblocks**: validate automation với traffic thật
+
+### W3.10 — Email auto-trigger for manual_review orders
+- **Why**: Khi đơn rơi vào `manual_review` (W2.8) → khách phải biết "Đơn của em đang được xác nhận, vui lòng đợi tối đa 24h" để giảm anxiety + DM hỏi. Trigger email khi `status=manual_review`, gửi follow-up email khi anh confirm hoặc reject
+- **Effort**: em 2.5h (template + Apps Script trigger flow: pending email → confirmed email / rejected email) / anh 0.25h test
+- **Owner**: 🤖 em
+- **Priority**: 🔴 P1
+- **Unblocks**: customer trust, giảm DM "đơn em sao chưa thấy email"
+- **Dependencies**: W2.8 (manual_review status) + W3.3 (order confirmation email infrastructure)
 
 ---
 
@@ -269,6 +285,14 @@
 - **Priority**: 🔴 P1
 - **Unblocks**: chốt success metric tháng 5
 
+### W4.10 — Audit log + reject/refund flow + privacy review (2-step verify compliance)
+- **Why**: Sau 2 tuần chạy 2-step verify (W2.8) → cần (1) audit log mỗi action confirm/reject của admin để defend khi khách khiếu nại "tại sao bị reject" + chuẩn bị nếu 国民生活センター inquiry; (2) reject flow đầy đủ: KOMOJU refund auto + email reject template + log lý do; (3) privacy review: payment_proof image lưu bao lâu, ai access được, GDPR/個人情報保護法 compliance
+- **Effort**: em 5h (audit log table + reject RPC + KOMOJU refund integration + privacy doc) / anh 1h (review privacy policy update + sign off retention period)
+- **Owner**: 🤝 cả 2
+- **Priority**: 🔴 P1
+- **Unblocks**: legal defensibility, scale 2-step verify lên 800 đơn/tháng safely
+- **Dependencies**: W2.8 (manual_review base) + W3.10 (email infrastructure cho reject notification)
+
 ---
 
 ## ⚠️ RỦI RO & DEPENDENCIES
@@ -278,6 +302,7 @@
 ```
 W1.1 (Apps Script redeploy) ─┬─→ W1.4 (Option B test) ─→ W1.6 (Batch May 1)
                              ├─→ W2.x (mọi customer feature)
+                             ├─→ W2.8 (2-step verify) ─→ W3.10 (manual_review email) ─→ W4.10 (audit + refund + privacy)
                              └─→ W3.2-W3.5 (email automation)
 
 W3.6 (Team ID) ─→ W3.7 (Build IPA) ─→ W3.8 (TestFlight) ─→ W4.7 (App Store)
@@ -292,6 +317,9 @@ W4.1 (定款 update) ─→ W4.2 (PayPay apply) ─→ June integration
 3. **法務局 từ chối 事業目的 wording** (W4.1) — cần resubmit, kéo dài 1-2 tuần. **Mitigation**: em soạn 3 wording variants trước, anh đem cả 3 đi.
 4. **TestFlight processing stuck** (W3.8) — Apple đôi khi delay 24-48h. **Mitigation**: upload sớm W3, không chờ deadline.
 5. **Email deliverability tụt** (W3.2-3.5) — GetResponse + auto-trigger có thể bị Gmail flag spam. **Mitigation**: warm-up nhẹ tuần đầu (chỉ welcome email), monitor open rate ≥ 25%.
+6. **Admin overwhelmed if too many manual_reviews** (W2.8) — nếu AI flag >20% đơn → anh không kịp confirm trong 24h, queue dồn lại 50+ đơn/batch. **Mitigation**: tune AI threshold để false-positive ≤ 10%, set alert khi queue > 15 đơn pending, weekly review để adjust scoring.
+7. **Customer frustration với delays** (W2.8 + W3.10) — khách quen pay-first auto-confirm, giờ phải đợi anh xác nhận → DM hỏi nhiều, churn rate có thể tăng. **Mitigation**: email manual_review explain rõ + ETA 24h, dashboard banner promise SLA, anh confirm sớm vào batch days.
+8. **Edge cases: race conditions** (W2.8 + W4.10) — anh confirm cùng lúc với customer cancel, hoặc 2 admin tab confirm/reject cùng đơn → state inconsistent. **Mitigation**: lock row khi action pending (Supabase optimistic concurrency), audit log W4.10 ghi lại tất cả attempt để debug, idempotent endpoints.
 
 ### External dependencies (không control được)
 
@@ -316,6 +344,10 @@ W4.1 (定款 update) ─→ W4.2 (PayPay apply) ─→ June integration
 | 8 | Repeat rate | **≥ 30%** khách đặt 2+ lần trong tháng | `customer_modal_stats` query |
 | 9 | Conversion (mobile) | **≥ 30%** từ landing → paid order | GA4 funnel report |
 | 10 | Fraud rate | **≤ 1%** đơn fake pass AI verify | Manual spot-check + payment_proof_hashes |
+| 11 | 2-step verify coverage | **100%** orders go through 2-step verify | Supabase query: count đơn với status flow trải qua AI check + (auto-confirm hoặc manual_review→confirmed) |
+| 12 | Manual review SLA | **Queue handled within 24h** trung bình | `manual_review_queue` table: timestamp tạo → timestamp anh action |
+| 13 | AI false-negative rate | **< 5%** (fraud lọt qua AI auto-confirm) | Manual audit weekly: số fraud confirmed / tổng auto-confirmed |
+| 14 | Admin confirm latency | **Median 4h** sau order tạo | Audit log W4.10: median(confirm_at - order_at) cho manual_review orders |
 
 ### Bonus stretch goals
 
