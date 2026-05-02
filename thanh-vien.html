@@ -1234,10 +1234,9 @@ function renderOrdersToUI(orders) {
       actions.push(`<button onclick="openPaymentUpload('${orderNoSafe}', ${Number(o.total) || 0}, '${customerNameSafe}')" class="${outlineGrayCls}">📸 Gửi biên lai khác</button>`);
     }
 
-    // 3. Track shipping — show for confirmed/shipped/delivered orders (modal handles empty tracking gracefully)
-    if (o.status === 'confirmed' || o.status === 'shipped' || o.status === 'delivered' || o.tracking_number) {
-      const trackLabel = o.tracking_number ? '📍 Tình trạng vận chuyển' : '📍 Tình trạng đơn';
-      actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">${trackLabel}</button>`);
+    // 3. Track shipping — ALWAYS show. Modal explains state per order status.
+    if (o.status !== 'cancelled') {
+      actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">📍 Tình trạng vận chuyển</button>`);
     }
 
     // 4. Contact shop via Zalo (outline gray)
@@ -2571,8 +2570,27 @@ async function refreshTrackingEvents() {
 
 async function loadTrackingEvents(carrierKey, trackingNo, forceRefresh) {
   const timelineEl = document.getElementById('tracking-timeline');
+
+  // Status-aware messages khi chưa có tracking_number
   if (!trackingNo) {
-    timelineEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có mã vận đơn — hãng chưa tạo nhãn ship.</p>';
+    const status = (_currentTrackingOrder && _currentTrackingOrder.status) || 'unknown';
+    const statusMsg = {
+      pending:        { icon: '⏳', title: 'Đơn hàng chưa được thanh toán', body: 'Vui lòng hoàn tất thanh toán + gửi biên lai để Bếp Thuỷ xử lý đơn của anh/chị.' },
+      customer_paid:  { icon: '💰', title: 'Đang chờ shop xác nhận thanh toán', body: 'Anh/chị đã chuyển tiền — Bếp Thuỷ sẽ kiểm tra và xác nhận trong vòng 24 giờ.' },
+      confirmed:      { icon: '🍳', title: 'Đơn hàng chưa được vận chuyển', body: 'Bếp Thuỷ đã nhận thanh toán và đang chuẩn bị làm hàng. Sẽ gửi mã vận đơn ngay khi hàng được gửi đi.' },
+      shipped:        { icon: '🚚', title: 'Đơn đã gửi nhưng chưa cập nhật mã', body: 'Hàng đã được giao cho hãng vận chuyển. Mã vận đơn sẽ cập nhật sớm — anh/chị F5 sau vài phút nhé.' },
+      delivered:      { icon: '✅', title: 'Đơn hàng đã giao thành công', body: 'Cảm ơn anh/chị! Mong anh/chị thưởng thức ngon miệng. Có cảm nhận gì hãy nhắn Thuỷ qua Zalo nhé 💝' },
+      unknown:        { icon: '📋', title: 'Đơn hàng chưa được vận chuyển', body: 'Vui lòng đợi Bếp Thuỷ xử lý đơn của anh/chị.' }
+    };
+    const m = statusMsg[status] || statusMsg.unknown;
+    timelineEl.innerHTML = `
+      <div class="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6 text-center">
+        <div class="text-5xl mb-3">${m.icon}</div>
+        <h4 class="font-bold text-brand-dark text-base mb-2">${m.title}</h4>
+        <p class="text-gray-700 text-sm leading-relaxed max-w-md mx-auto">${m.body}</p>
+        <a href="https://zalo.me/+818051156688" target="_blank" rel="noopener" class="inline-block mt-4 text-brand-red text-sm underline hover:text-red-700">💬 Hỏi Thuỷ qua Zalo</a>
+      </div>
+    `;
     return;
   }
   timelineEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">⏳ Đang tải lịch trình từ ' + (carrierKey === 'sagawa' ? 'Sagawa' : 'Yamato') + '...</p>';
