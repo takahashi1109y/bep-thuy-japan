@@ -763,9 +763,8 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- TRACKING DETAIL MODAL (Amazon-style) -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="tracking-modal" class="hidden fixed inset-0 z-[9999] overflow-y-auto" style="background:rgba(0,0,0,0.5);" onclick="if(event.target===this)closeTrackingModal()">
-    <div class="min-h-screen flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+  <div id="tracking-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeTrackingModal()">
+      <div style="background:white;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);max-width:680px;width:100%;max-height:90vh;overflow-y:auto;margin:auto" onclick="event.stopPropagation()">
 
         <!-- Header -->
         <div class="bg-gradient-to-r from-brand-dark to-red-900 px-6 py-4 flex justify-between items-start">
@@ -822,7 +821,6 @@
         </div>
 
       </div>
-    </div>
   </div>
 
 </section>
@@ -2554,8 +2552,8 @@ async function showTrackingModal(orderNo) {
     + (itemsArr.length > 3 ? ', ...' : '');
   document.getElementById('tracking-order-items').textContent = itemsText || '-';
 
-  // Show modal
-  document.getElementById('tracking-modal').classList.remove('hidden');
+  // Show modal (inline style flex để bypass Tailwind purge issue)
+  document.getElementById('tracking-modal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
   // Load timeline events (delegated to fetchTrackingEvents)
@@ -2563,7 +2561,7 @@ async function showTrackingModal(orderNo) {
 }
 
 function closeTrackingModal() {
-  document.getElementById('tracking-modal').classList.add('hidden');
+  document.getElementById('tracking-modal').style.display = 'none';
   document.body.style.overflow = '';
   _currentTrackingOrder = null;
 }
