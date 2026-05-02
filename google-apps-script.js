@@ -84,7 +84,7 @@ function validatePayload_(data) {
   // Admin/system types bypass payload validation
   var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
                      'order_confirmed', 'order_shipped', 'send_production_report',
-                     'verify_then_create_order'];
+                     'verify_then_create_order', 'fetch_tracking_events'];
   if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
 
   if (data.type === 'member') {
@@ -233,6 +233,25 @@ function doPost(e) {
         try { deductPointsFromSupabase(data.userId, orderNo2, data.pointsUsed); } catch(de) { Logger.log('Pts err: ' + de); }
       }
       return buildResponse({ success: true, orderNo: orderNo2, verified: true, detected_amount: verifyRes.detected_amount });
+    }
+
+    // Fetch tracking events from carrier (Yamato/Sagawa)
+    // Used by admin tracking tab to display delivery progress for an order
+    if (data.type === 'fetch_tracking_events') {
+      if (!data.carrier || !data.tracking_number) {
+        return buildResponse({ success: false, error: 'Missing carrier or tracking_number' });
+      }
+      try {
+        var events;
+        if (data.carrier === 'sagawa') {
+          events = scrapeSagawaTracking_(data.tracking_number);
+        } else {
+          events = scrapeYamatoTracking_(data.tracking_number);
+        }
+        return buildResponse({ success: true, events: events, carrier: data.carrier, count: events.length });
+      } catch (err) {
+        return buildResponse({ success: false, error: 'Scrape err: ' + err.toString().slice(0, 200) });
+      }
     }
 
     const orderNo = getNextOrderNo(ss);
@@ -3156,4 +3175,152 @@ function updateProductStats(ss) {
   statsSheet.getRange(5, 3, dataRows.length, 2).setHorizontalAlignment('center');
 
   Logger.log('Da cap nhat bang thong ke san xuat');
+}
+
+// ============================================================
+// TRACKING SCRAPERS — Yamato (宅急便) & Sagawa (飛脚宅配便)
+// ============================================================
+// Fetches public tracking pages and parses event rows out of the
+// HTML tables. Called from doPost type='fetch_tracking_events'.
+//
+// IMPORTANT: The regex below is best-effort against the carriers'
+// current public HTML structure. If Yamato/Sagawa change their
+// markup, scraping may return [] (empty array). Admin should then
+// inspect the page source and update the rowRegex pattern.
+// Both functions return an empty array on parse failure rather
+// than throwing, so the admin UI degrades gracefully.
+// ============================================================
+
+function scrapeYamatoTracking_(trackingNo) {
+  var url = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + encodeURIComponent(trackingNo);
+  Logger.log('Yamato scrape: ' + url);
+  var resp = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; BepThuyTracking/1.0)'
+    },
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  if (resp.getResponseCode() !== 200) {
+    throw new Error('Yamato HTTP ' + resp.getResponseCode());
+  }
+  var html = resp.getContentText('UTF-8');
+
+  // Yamato tracking HTML uses tables. Parse rows looking for: 日付, 時間, 配達状況, 担当店名
+  // The events are typically in a <table class="meisaisubtitleEvents"> or similar.
+  // Common pattern: rows with 4 columns: date, time, status, location
+  // e.g. <tr><td>2026/04/27</td><td>10:51</td><td>持ち戻り</td><td>柏ベース店</td></tr>
+  var events = [];
+
+  try {
+    var rowRegex = /<tr[^>]*>\s*<td[^>]*>(\d{4}\/\d{1,2}\/\d{1,2})<\/td>\s*<td[^>]*>(\d{1,2}:\d{2})<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<\/tr>/g;
+    var m;
+    while ((m = rowRegex.exec(html)) !== null) {
+      var dateRaw = m[1].replace(/\//g, '-');  // 2026-04-27
+      var date = dateRaw.split('-').map(function(p){ return p.length < 2 ? ('0' + p) : p; }).join('-');
+      var timeStr = m[2];
+      var status = m[3].trim();
+      var location = m[4].trim();
+      events.push({
+        date: date,
+        time: timeStr,
+        status: status,
+        location: location,
+        type: classifyYamatoStatus_(status)
+      });
+    }
+  } catch (parseErr) {
+    Logger.log('Yamato parse err: ' + parseErr);
+    return [];
+  }
+
+  Logger.log('Yamato found ' + events.length + ' events for ' + trackingNo);
+
+  // Sort by date+time descending (newest first)
+  events.sort(function(a, b) {
+    var ka = a.date + ' ' + a.time;
+    var kb = b.date + ' ' + b.time;
+    return kb.localeCompare(ka);
+  });
+
+  return events;
+}
+
+function classifyYamatoStatus_(status) {
+  var s = (status || '').toLowerCase();
+  if (s.indexOf('配達完了') >= 0 || s.indexOf('投函') >= 0 || s.indexOf('受取') >= 0) return 'delivered';
+  if (s.indexOf('持ち戻り') >= 0 || s.indexOf('不在') >= 0) return 'attempt';
+  if (s.indexOf('配達中') >= 0 || s.indexOf('お届け中') >= 0) return 'in_transit';
+  if (s.indexOf('発送') >= 0 || s.indexOf('発店') >= 0 || s.indexOf('荷物受付') >= 0) return 'shipped';
+  return 'other';
+}
+
+function scrapeSagawaTracking_(trackingNo) {
+  // Sagawa uses GET with okurijoNo parameter (or sometimes okurijoNo1).
+  // We try okurijoNo first; if needed, admin can swap in okurijoNo1.
+  var url = 'https://k2k.sagawa-exp.co.jp/p/web/okurijoinput?okurijoNo=' + encodeURIComponent(trackingNo);
+  Logger.log('Sagawa scrape: ' + url);
+  var resp = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; BepThuyTracking/1.0)'
+    },
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  if (resp.getResponseCode() !== 200) {
+    throw new Error('Sagawa HTTP ' + resp.getResponseCode());
+  }
+  var html = resp.getContentText('UTF-8');
+
+  // Sagawa returns events in a similar table structure.
+  // Date may appear as M/D (no year) or YYYY/M/D depending on the row.
+  var events = [];
+
+  try {
+    var rowRegex = /<tr[^>]*>\s*<td[^>]*>(\d{1,2}\/\d{1,2}|\d{4}\/\d{1,2}\/\d{1,2})<\/td>\s*<td[^>]*>(\d{1,2}:\d{2})<\/td>\s*<td[^>]*>([^<]+)<\/td>(?:\s*<td[^>]*>([^<]*)<\/td>)?\s*<\/tr>/g;
+    var m;
+    var year = (new Date()).getFullYear();
+    while ((m = rowRegex.exec(html)) !== null) {
+      var dateRaw = m[1];
+      if (dateRaw.length <= 5) {  // M/D, no year
+        dateRaw = year + '/' + dateRaw;
+      }
+      var dateParts = dateRaw.split('/').map(function(p) { return p.length < 2 ? ('0' + p) : p; });
+      var date = dateParts.join('-');
+      var timeStr = m[2];
+      var status = m[3].trim();
+      var location = m[4] ? m[4].trim() : '';
+      events.push({
+        date: date,
+        time: timeStr,
+        status: status,
+        location: location,
+        type: classifySagawaStatus_(status)
+      });
+    }
+  } catch (parseErr) {
+    Logger.log('Sagawa parse err: ' + parseErr);
+    return [];
+  }
+
+  Logger.log('Sagawa found ' + events.length + ' events for ' + trackingNo);
+
+  events.sort(function(a, b) {
+    var ka = a.date + ' ' + a.time;
+    var kb = b.date + ' ' + b.time;
+    return kb.localeCompare(ka);
+  });
+
+  return events;
+}
+
+function classifySagawaStatus_(status) {
+  var s = (status || '').toLowerCase();
+  if (s.indexOf('配達済み') >= 0 || s.indexOf('お届け') >= 0) return 'delivered';
+  if (s.indexOf('持ち戻り') >= 0 || s.indexOf('不在') >= 0) return 'attempt';
+  if (s.indexOf('輸送中') >= 0 || s.indexOf('配達中') >= 0 || s.indexOf('持ち出し') >= 0) return 'in_transit';
+  if (s.indexOf('集荷') >= 0 || s.indexOf('発送') >= 0) return 'shipped';
+  return 'other';
 }

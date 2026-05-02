@@ -200,6 +200,69 @@
     @media (min-width: 641px) and (max-width: 1023px) {
       .dash-tab { padding: 8px 14px; font-size: 13px; }
     }
+
+    /* Tracking timeline component (Amazon-style) */
+    .tl-date-header {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1F2937;
+      padding: 8px 0;
+      border-bottom: 2px solid #E5E7EB;
+      margin-bottom: 8px;
+    }
+    .tl-event {
+      display: grid;
+      grid-template-columns: 90px 16px 1fr;
+      gap: 12px;
+      padding: 8px 0;
+      position: relative;
+    }
+    .tl-event-time {
+      font-size: 13px;
+      color: #6B7280;
+      font-weight: 500;
+    }
+    .tl-event-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #C8102E;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .tl-event-dot.first { background: #10B981; box-shadow: 0 0 0 4px rgba(16,185,129,0.2); }
+    .tl-event-dot.delivered { background: #10B981; }
+    .tl-event-dot.attempt { background: #F59E0B; }
+    .tl-event-dot.in-transit { background: #3B82F6; }
+    .tl-event-content {
+      font-size: 13px;
+      color: #1F2937;
+      line-height: 1.5;
+    }
+    .tl-event-status {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .tl-event-location {
+      color: #6B7280;
+      font-size: 12px;
+      font-style: italic;
+    }
+    .tl-line {
+      position: absolute;
+      left: 95px;  /* aligns with dot center */
+      top: 8px;
+      bottom: -8px;
+      width: 2px;
+      background: #E5E7EB;
+    }
+    .tl-event:last-child .tl-line { display: none; }
+
+    @media (max-width: 640px) {
+      .tl-event { grid-template-columns: 70px 14px 1fr; gap: 8px; }
+      .tl-event-time { font-size: 12px; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -474,26 +537,26 @@
       <a href="/" class="flex items-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-700 hover:text-white hover:border-gray-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm no-underline">
         ← Trang Chủ
       </a>
-      <div class="flex flex-col items-end gap-1">
-        <button onclick="doLogout()" class="flex items-center gap-2 bg-white border-2 border-brand-red text-brand-red hover:bg-brand-red hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
-          🚪 Đăng Xuất
-        </button>
-        <button onclick="switchDashTab('points')" class="text-amber-600 hover:text-amber-700 text-xs font-bold transition px-2 py-0.5">
-          <span id="dash-points-big">0</span> điểm
-        </button>
-      </div>
+      <button onclick="doLogout()" class="flex items-center gap-2 bg-white border-2 border-brand-red text-brand-red hover:bg-brand-red hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
+        🚪 Đăng Xuất
+      </button>
     </div>
 
-    <!-- Compact Welcome Header (only name + msg badge, no points pill) -->
+    <!-- Welcome Header: name + prominent points display -->
     <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-4 mb-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="min-w-0 flex-1">
           <p class="text-gray-500 text-xs">Xin chào,</p>
           <h2 id="dash-name" class="text-lg font-bold text-brand-dark truncate"></h2>
         </div>
-        <button onclick="switchDashTab('messages')" id="msg-unread-pill" class="hidden bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 transition">
-          💬 <span id="msg-unread-count">0</span> tin nhắn mới
-        </button>
+        <div class="flex flex-col items-end gap-1">
+          <button onclick="switchDashTab('points')" class="text-amber-600 hover:text-amber-700 font-bold transition" style="font-size:27px;line-height:1.1;">
+            Bạn có <span id="dash-points-big">0</span> điểm
+          </button>
+          <button id="msg-unread-pill" onclick="switchDashTab('messages')" class="hidden bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full border border-blue-200 transition">
+            💬 <span id="msg-unread-count">0</span> tin nhắn mới
+          </button>
+        </div>
       </div>
     </div>
 
@@ -696,6 +759,72 @@
       <button onclick="doLogout()" class="text-gray-400 hover:text-brand-red text-sm transition-colors">🚪 Đăng Xuất</button>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TRACKING DETAIL MODAL (Amazon-style) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="tracking-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" style="background:rgba(0,0,0,0.5);" onclick="if(event.target===this)closeTrackingModal()">
+    <div class="min-h-screen flex items-start justify-center p-4 pt-12">
+      <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden" onclick="event.stopPropagation()">
+
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-brand-dark to-red-900 px-6 py-4 flex justify-between items-start">
+          <div>
+            <p class="text-amber-200 text-xs uppercase tracking-wide font-semibold">Tình trạng vận chuyển</p>
+            <h3 id="tracking-modal-title" class="text-white text-xl font-bold mt-1">Đơn #----</h3>
+            <p id="tracking-modal-status" class="text-amber-100 text-sm mt-1">Đang tải...</p>
+          </div>
+          <button onclick="closeTrackingModal()" class="text-white text-2xl hover:text-amber-200 leading-none">×</button>
+        </div>
+
+        <!-- Body: 3 info cards -->
+        <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          <!-- Card 1: Carrier -->
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1">配送業者 / Đơn vị vận chuyển</p>
+            <p id="tracking-carrier-name" class="text-brand-dark font-bold">-</p>
+            <p class="text-gray-500 text-xs mt-2">Mã vận đơn:</p>
+            <p id="tracking-number" class="font-mono font-semibold text-sm break-all">-</p>
+            <a id="tracking-external-link" href="#" target="_blank" class="text-brand-red text-xs underline mt-2 inline-block">Xem trên website hãng →</a>
+          </div>
+
+          <!-- Card 2: Delivery address -->
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1">お届け先住所 / Địa chỉ nhận</p>
+            <p id="tracking-recipient-name" class="text-brand-dark font-bold">-</p>
+            <p id="tracking-address" class="text-gray-700 text-sm mt-1 whitespace-pre-line">-</p>
+          </div>
+
+          <!-- Card 3: Order info -->
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1">注文情報 / Thông tin đơn</p>
+            <p id="tracking-order-no" class="text-brand-dark font-bold">#----</p>
+            <p class="text-gray-500 text-xs mt-2">Tổng:</p>
+            <p id="tracking-order-total" class="text-brand-red font-bold">¥0</p>
+            <p id="tracking-order-items" class="text-gray-600 text-xs mt-2">-</p>
+          </div>
+
+        </div>
+
+        <!-- Timeline section -->
+        <div class="px-6 pb-6">
+          <div class="border-t border-gray-200 pt-4">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-bold text-brand-dark">📍 Lịch trình vận chuyển</h4>
+              <button onclick="refreshTrackingEvents()" class="text-xs text-brand-red hover:underline">🔄 Làm mới</button>
+            </div>
+            <div id="tracking-timeline" class="space-y-3">
+              <p class="text-gray-400 text-sm text-center py-4">Đang tải lịch trình...</p>
+            </div>
+            <p class="text-gray-400 text-xs mt-3 text-center">時間は現地時間で表示されます · Thời gian theo giờ địa phương</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </section>
 
 <!-- LOADING -->
@@ -1105,10 +1234,9 @@ function renderOrdersToUI(orders) {
       actions.push(`<button onclick="openPaymentUpload('${orderNoSafe}', ${Number(o.total) || 0}, '${customerNameSafe}')" class="${outlineGrayCls}">📸 Gửi biên lai khác</button>`);
     }
 
-    // 3. Track shipping (outline blue) — only if tracking_number exists
+    // 3. Track shipping (outline blue) — only if tracking_number exists; opens in-app modal
     if (o.tracking_number) {
-      const trackUrl = `https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=${encodeURIComponent(o.tracking_number)}`;
-      actions.push(`<a href="${trackUrl}" target="_blank" rel="noopener noreferrer" class="${outlineBlueCls}">🚚 Theo dõi vận chuyển</a>`);
+      actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">📍 Tình trạng vận chuyển</button>`);
     }
 
     // 4. Contact shop via Zalo (outline gray)
@@ -2357,6 +2485,112 @@ function closePaymentUpload() {
   pmCurrentOrder = null;
 }
 
+// ═══════════════ TRACKING MODAL ═══════════════
+let _currentTrackingOrder = null;
+
+async function showTrackingModal(orderNo) {
+  // Find order from cache (look for allOrders or whatever variable)
+  const order = (window.allOrders || []).find(o => o.order_no === orderNo);
+  if (!order) {
+    alert('Không tìm thấy đơn hàng');
+    return;
+  }
+  _currentTrackingOrder = order;
+
+  // Determine carrier
+  const rawCarrier = (order.carrier || '').toLowerCase();
+  let carrierName = 'Yamato Cool 宅急便';
+  let carrierKey = 'yamato';  // lowercase key for fetchTrackingEvents
+  let externalUrl = '';
+
+  if (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) {
+    carrierName = '佐川急便 (Sagawa)';
+    carrierKey = 'sagawa';
+    externalUrl = 'https://k2k.sagawa-exp.co.jp/p/sagawa/web/okurijoinput.jsp?okurijoNo=' + encodeURIComponent(order.tracking_number || '');
+  } else {
+    // Default Yamato
+    carrierName = 'ヤマト運輸 (Yamato Cool 宅急便)';
+    carrierKey = 'yamato';
+    externalUrl = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + encodeURIComponent(order.tracking_number || '');
+  }
+
+  // Populate modal fields
+  document.getElementById('tracking-modal-title').textContent = 'Đơn #' + (order.order_no || '----');
+  document.getElementById('tracking-modal-status').textContent = order.status === 'delivered' ? '✓ Đã giao'
+    : order.status === 'shipped' ? '🚚 Đang giao'
+    : order.status === 'confirmed' ? '✅ Đã xác nhận, sắp ship'
+    : 'Đang xử lý';
+
+  document.getElementById('tracking-carrier-name').textContent = carrierName;
+  document.getElementById('tracking-number').textContent = order.tracking_number || '(chưa có)';
+
+  const extLink = document.getElementById('tracking-external-link');
+  if (order.tracking_number) {
+    extLink.href = externalUrl;
+    extLink.style.display = 'inline-block';
+  } else {
+    extLink.style.display = 'none';
+  }
+
+  document.getElementById('tracking-recipient-name').textContent = order.recipient_name || order.customer_name || '-';
+  const addr = (order.ship_postal ? '〒' + order.ship_postal + '\n' : '')
+             + (order.ship_prefecture || '')
+             + (order.ship_address || '');
+  document.getElementById('tracking-address').textContent = addr;
+
+  document.getElementById('tracking-order-no').textContent = '#' + (order.order_no || '----');
+  document.getElementById('tracking-order-total').textContent = '¥' + Number(order.total || 0).toLocaleString();
+
+  // Items summary
+  const itemsArr = Array.isArray(order.items) ? order.items : [];
+  const itemsText = itemsArr.slice(0, 3).map(it => (it.name || '').replace(/^\[[^\]]+\]\s*/, '') + ' (' + (it.size || '') + ')').join(', ')
+    + (itemsArr.length > 3 ? ', ...' : '');
+  document.getElementById('tracking-order-items').textContent = itemsText || '-';
+
+  // Show modal
+  document.getElementById('tracking-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Load timeline events (delegated to fetchTrackingEvents)
+  loadTrackingEvents(carrierKey, order.tracking_number);
+}
+
+function closeTrackingModal() {
+  document.getElementById('tracking-modal').classList.add('hidden');
+  document.body.style.overflow = '';
+  _currentTrackingOrder = null;
+}
+
+async function refreshTrackingEvents() {
+  if (!_currentTrackingOrder) return;
+  const rawCarrier = (_currentTrackingOrder.carrier || '').toLowerCase();
+  const carrierKey = (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) ? 'sagawa' : 'yamato';
+  loadTrackingEvents(carrierKey, _currentTrackingOrder.tracking_number, true);
+}
+
+async function loadTrackingEvents(carrierKey, trackingNo, forceRefresh) {
+  const timelineEl = document.getElementById('tracking-timeline');
+  if (!trackingNo) {
+    timelineEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có mã vận đơn — hãng chưa tạo nhãn ship.</p>';
+    return;
+  }
+  timelineEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">⏳ Đang tải lịch trình từ ' + (carrierKey === 'sagawa' ? 'Sagawa' : 'Yamato') + '...</p>';
+
+  try {
+    const events = await fetchTrackingEvents(carrierKey, trackingNo, !!forceRefresh);
+    timelineEl.innerHTML = renderTrackingTimeline(events);
+  } catch(e) {
+    console.error('loadTrackingEvents err:', e);
+    timelineEl.innerHTML = `
+      <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 text-center">
+        <p class="text-amber-800 text-sm font-semibold mb-2">⚠️ Không lấy được lịch trình</p>
+        <p class="text-amber-700 text-xs mb-3">Anh/chị có thể click "Xem trên website hãng" ở trên để check trực tiếp.</p>
+        <button onclick="refreshTrackingEvents()" class="text-amber-700 underline text-xs">🔄 Thử lại</button>
+      </div>
+    `;
+  }
+}
+
 function switchPmView(view) {
   document.getElementById('pm-view-pay').classList.toggle('hidden', view !== 'pay');
   document.getElementById('pm-view-upload').classList.toggle('hidden', view !== 'upload');
@@ -3004,6 +3238,116 @@ async function loadMessages() {
 
 function escapeHtmlMsg(s) {
   return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== Tracking timeline (Amazon-style) =====
+function renderTrackingTimeline(events) {
+  if (!events || events.length === 0) {
+    return '<p class="text-gray-400 text-sm text-center py-4">Chưa có lịch trình. Hãng vận chuyển sẽ cập nhật khi nhận hàng.</p>';
+  }
+
+  // Group by date (events are { date, time, status, location, type? })
+  const byDate = {};
+  events.forEach(e => {
+    if (!byDate[e.date]) byDate[e.date] = [];
+    byDate[e.date].push(e);
+  });
+
+  // Render
+  const dates = Object.keys(byDate).sort().reverse();  // newest first
+  return dates.map(d => {
+    const dateLabel = formatDateVN(d);  // "4 月 27 日 月曜日" or Vietnamese
+    const eventsHtml = byDate[d].map((e, i) => {
+      const isFirst = (d === dates[0] && i === 0);
+      const dotClass = e.type === 'delivered' ? 'delivered'
+                     : e.type === 'attempt' ? 'attempt'
+                     : e.type === 'in_transit' ? 'in-transit'
+                     : isFirst ? 'first' : '';
+      return `
+        <div class="tl-event">
+          <div class="tl-event-time">${escapeHtmlMsg(e.time || '-')}</div>
+          <div class="tl-event-dot ${dotClass}"><div class="tl-line"></div></div>
+          <div class="tl-event-content">
+            <div class="tl-event-status">${escapeHtmlMsg(e.status)}</div>
+            ${e.location ? `<div class="tl-event-location">📍 ${escapeHtmlMsg(e.location)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+    return `
+      <div class="tl-date-section">
+        <div class="tl-date-header">${dateLabel}</div>
+        ${eventsHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+function formatDateVN(isoDate) {
+  // isoDate: "2026-04-27"
+  try {
+    const d = new Date(isoDate + 'T00:00:00');
+    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    return d.getDate() + ' tháng ' + (d.getMonth() + 1) + ' (' + dayNames[d.getDay()] + ')';
+  } catch(e) { return isoDate; }
+}
+
+// ═══════════════ FETCH TRACKING EVENTS ═══════════════
+const TRACKING_CACHE_TTL = 5 * 60 * 1000;  // 5 minutes
+const APPS_SCRIPT_TRACKING_URL = 'https://script.google.com/macros/s/AKfycbz38j2-cr8sWIib0qokfYyaPnjz7BemNIZjr-P9T4aIIW_R2vOpMfOUDeOFs_FnFYJA2g/exec';
+
+async function fetchTrackingEvents(carrierKey, trackingNo, forceRefresh) {
+  if (!trackingNo) return [];
+
+  const cacheKey = 'tracking_' + carrierKey + '_' + trackingNo;
+
+  // Cache check
+  if (!forceRefresh) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached && Date.now() - cached.ts < TRACKING_CACHE_TTL) {
+        console.log('Tracking cache hit', cacheKey);
+        return cached.events;
+      }
+    } catch(e) {}
+  }
+
+  // POST to Apps Script (server-side scrape)
+  let events = [];
+  try {
+    const res = await fetch(APPS_SCRIPT_TRACKING_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'fetch_tracking_events',
+        carrier: carrierKey,
+        tracking_number: trackingNo
+      })
+    });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.events)) {
+      events = data.events;
+    } else {
+      throw new Error(data.error || 'No events returned');
+    }
+  } catch(e) {
+    console.warn('fetchTrackingEvents error:', e);
+    throw e;  // bubbled up to loadTrackingEvents which shows fallback UI
+  }
+
+  // Save cache
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ events: events, ts: Date.now() }));
+  } catch(e) {}
+
+  return events;
+}
+
+// Optional: clear all tracking caches (for testing)
+function clearTrackingCache() {
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('tracking_')) localStorage.removeItem(k);
+  });
 }
 
 // Start — wait for Supabase JS (deferred) to finish loading first
