@@ -47,6 +47,10 @@
   .badge-shipped { background: #D1FAE5; color: #065F46; border-color: #10B981; }
   .badge-delivered { background: #E0E7FF; color: #3730A3; border-color: #818CF8; }
   .badge-cancelled { background: #F3F4F6; color: #6B7280; border-color: #D1D5DB; }
+  .badge-review { background: #FEE2E2; color: #991B1B; border-color: #DC2626; animation: pulse-review 2s ease-in-out infinite; }
+  @keyframes pulse-review { 0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } }
+  /* Highlight rows of orders needing admin review */
+  tr.row-review { background: linear-gradient(90deg, #FEE2E2 0%, #FFFFFF 30%) !important; border-left: 4px solid #DC2626 !important; }
   /* Button */
   .btn { padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
   .btn-primary { background: #C8102E; color: white; }
@@ -452,6 +456,7 @@
         <div class="sub-tabs">
           <button class="sub-tab active" data-tab="all" onclick="setOrdersSubTab('all')">📊 Tổng đơn hàng <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">🚨 Cần xem xét <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
           <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
@@ -1019,12 +1024,13 @@ let ordersFilteredCache = [];
 // Selection state for bulk actions
 const selectedOrders = new Set();
 let shipModalOrders = [];
-// Sub-tab state for orders (all | unpaid | paid | cancelled)
+// Sub-tab state for orders (all | unpaid | paid | review | cancelled)
 let ordersSubTab = 'all';
 const ORDERS_STATUS_GROUPS = {
-  all: ['pending', 'customer_paid', 'confirmed', 'shipped', 'delivered'], // không bao gồm cancelled
+  all:    ['pending', 'customer_paid', 'pending_manual_review', 'confirmed', 'shipped', 'delivered'], // exclude cancelled
   unpaid: ['pending', 'customer_paid'],
-  paid: ['confirmed', 'shipped', 'delivered'],
+  review: ['pending_manual_review'], // 🚨 đơn cần admin xem xét (AI verify failed/skipped)
+  paid:   ['confirmed', 'shipped', 'delivered'],
   cancelled: ['cancelled']
 };
 // Quick date filter for orders tab (null | 'today')
@@ -2003,12 +2009,13 @@ async function messagePaymentReceived(userId, orderNo) {
 
 function statusBadge(s) {
   const MAP = {
-    'pending':     { cls:'badge-pending',   text:'⏳ Chờ TT' },
-    'customer_paid':{cls:'badge-paid',      text:'💰 Khách báo TT' },
-    'confirmed':   { cls:'badge-confirmed', text:'✅ Đã XN' },
-    'shipped':     { cls:'badge-shipped',   text:'🚚 Đã gửi' },
-    'delivered':   { cls:'badge-delivered', text:'📦 Đã nhận' },
-    'cancelled':   { cls:'badge-cancelled', text:'❌ Đã hủy' }
+    'pending':                { cls:'badge-pending',   text:'⏳ Chờ TT' },
+    'customer_paid':          { cls:'badge-paid',      text:'💰 Khách báo TT' },
+    'pending_manual_review':  { cls:'badge-review',    text:'🚨 Cần admin xem xét' },
+    'confirmed':              { cls:'badge-confirmed', text:'✅ Đã XN' },
+    'shipped':                { cls:'badge-shipped',   text:'🚚 Đã gửi' },
+    'delivered':              { cls:'badge-delivered', text:'📦 Đã nhận' },
+    'cancelled':              { cls:'badge-cancelled', text:'❌ Đã hủy' }
   };
   const b = MAP[s] || MAP.pending;
   return `<span class="badge ${b.cls}">${b.text}</span>`;
