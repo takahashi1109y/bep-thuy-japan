@@ -4340,7 +4340,10 @@ function updateProductStats(ss) {
 // ============================================================
 
 function scrapeYamatoTracking_(trackingNo) {
-  var url = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + encodeURIComponent(trackingNo);
+  // Strip dashes/spaces — Yamato chỉ accept digits (e.g. 3898-5807-6156 → 389858076156)
+  var cleanNo = String(trackingNo || '').replace(/[^0-9]/g, '');
+  if (!cleanNo) throw new Error('Yamato: empty tracking number');
+  var url = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + cleanNo;
   Logger.log('Yamato scrape: ' + url);
   var resp = UrlFetchApp.fetch(url, {
     method: 'get',
@@ -4407,7 +4410,10 @@ function classifyYamatoStatus_(status) {
 function scrapeSagawaTracking_(trackingNo) {
   // Sagawa uses GET with okurijoNo parameter (or sometimes okurijoNo1).
   // We try okurijoNo first; if needed, admin can swap in okurijoNo1.
-  var url = 'https://k2k.sagawa-exp.co.jp/p/web/okurijoinput?okurijoNo=' + encodeURIComponent(trackingNo);
+  // Strip dashes defensively (Sagawa tolerant nhưng consistent với Yamato)
+  var cleanNo = String(trackingNo || '').replace(/[^0-9]/g, '');
+  if (!cleanNo) throw new Error('Sagawa: empty tracking number');
+  var url = 'https://k2k.sagawa-exp.co.jp/p/web/okurijoinput?okurijoNo=' + cleanNo;
   Logger.log('Sagawa scrape: ' + url);
   var resp = UrlFetchApp.fetch(url, {
     method: 'get',

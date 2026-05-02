@@ -3323,7 +3323,9 @@ const APPS_SCRIPT_TRACKING_URL = 'https://script.google.com/macros/s/AKfycbz38j2
 async function fetchTrackingEvents(carrierKey, trackingNo, forceRefresh) {
   if (!trackingNo) return [];
 
-  const cacheKey = 'tracking_' + carrierKey + '_' + trackingNo;
+  // Normalize: strip dashes/spaces để cache key consistent + match backend Yamato format
+  const normalizedNo = String(trackingNo).replace(/[^0-9]/g, '');
+  const cacheKey = 'tracking_' + carrierKey + '_' + normalizedNo;
 
   // Cache check
   if (!forceRefresh) {
@@ -3359,10 +3361,12 @@ async function fetchTrackingEvents(carrierKey, trackingNo, forceRefresh) {
     throw e;  // bubbled up to loadTrackingEvents which shows fallback UI
   }
 
-  // Save cache
-  try {
-    localStorage.setItem(cacheKey, JSON.stringify({ events: events, ts: Date.now() }));
-  } catch(e) {}
+  // Save cache — chỉ cache khi có events (tránh cache empty 5 phút làm bug "vĩnh viễn")
+  if (events.length > 0) {
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ events: events, ts: Date.now() }));
+    } catch(e) {}
+  }
 
   return events;
 }
