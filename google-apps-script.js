@@ -2318,10 +2318,16 @@ function formatPhone(phone) {
 
 // ---- Xuat don hang sang YAMATO spreadsheet ----
 function saveYamato(orderNo, data) {
+  // Declare outside try so catch block can reference them for diagnostics
+  var yamatoSS = null;
+  var yamatoSheet = null;
   try {
-    const yamatoSS    = SpreadsheetApp.openById(YAMATO_SS_ID);
-    const yamatoSheet = yamatoSS.getSheetByName(YAMATO_SHEET);
-    if (!yamatoSheet) return;
+    yamatoSS    = SpreadsheetApp.openById(YAMATO_SS_ID);
+    yamatoSheet = yamatoSS.getSheetByName(YAMATO_SHEET);
+    if (!yamatoSheet) {
+      Logger.log('Yamato sheet not found. Expected name: ' + YAMATO_SHEET + '. Available tabs: ' + yamatoSS.getSheets().map(function(s) { return s.getName(); }).join(', '));
+      return;
+    }
 
     const now      = new Date();
     const tomorrow = new Date(now.getTime() + 24*60*60*1000);
