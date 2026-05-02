@@ -323,15 +323,24 @@
       </button>
     </div>
 
-    <!-- Welcome Banner -->
-    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 mb-6 text-center">
-      <p class="text-gray-500 text-sm mb-1">Xin chào,</p>
-      <h2 id="dash-name" class="text-2xl font-bold text-brand-dark mb-3"></h2>
-      <div class="points-circle mb-3">
-        <span class="text-white text-3xl font-bold" id="dash-points-big">0</span>
-        <span class="text-white text-xs font-semibold opacity-80">ĐIỂM</span>
+    <!-- Compact Welcome Header (Amazon-style) -->
+    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-4 mb-4">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="min-w-0 flex-1">
+          <p class="text-gray-500 text-xs">Xin chào,</p>
+          <h2 id="dash-name" class="text-lg font-bold text-brand-dark truncate"></h2>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="switchDashTab('messages')" id="msg-unread-pill" class="hidden bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 transition">
+            💬 <span id="msg-unread-count">0</span>
+          </button>
+          <button onclick="switchDashTab('points')" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-full shadow-sm transition flex items-center gap-1">
+            <span>⭐</span>
+            <span id="dash-points-big">0</span>
+            <span class="text-xs opacity-90">điểm</span>
+          </button>
+        </div>
       </div>
-      <p class="text-gray-400 text-xs mt-2">Cứ ¥100 mua hàng = 1 điểm · Dùng tại checkout theo bội số 50 (50, 100, 150…)</p>
     </div>
 
     <!-- Dashboard Tabs -->
@@ -1671,6 +1680,24 @@ async function _loadDashboardImpl(retryAttempt) {
   const totalPoints = balRes.data?.total_points || 0;
   document.getElementById('dash-points-big').textContent = totalPoints.toLocaleString();
   try { localStorage.setItem('bepthuy_points', String(totalPoints)); } catch(e) {}
+
+  // Update unread messages badge in header pill (Amazon-style hub)
+  try {
+    const { count: unreadCount } = await sb.from('message_threads')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .eq('unread_by_user', true);
+    const pill = document.getElementById('msg-unread-pill');
+    const cnt  = document.getElementById('msg-unread-count');
+    if (pill && cnt) {
+      if (unreadCount && unreadCount > 0) {
+        cnt.textContent = unreadCount;
+        pill.classList.remove('hidden');
+      } else {
+        pill.classList.add('hidden');
+      }
+    }
+  } catch(e) { console.warn('unread badge err:', e); }
 
   // Show redeem box if enough points
   document.getElementById('redeem-box').classList.toggle('hidden', totalPoints < 500);
