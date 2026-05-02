@@ -1358,6 +1358,10 @@ window.addEventListener('scroll', function() {
   // Pending order data held client-side until receipt verified + AI passed
   let _pendingOrder = null;
   let _selectedReceiptFile = null;
+  // Track consecutive AI verify failures so we can offer a manual-review fallback
+  // after N attempts (avoids stuck UX on false negatives). Reset on success.
+  window._verifyFailCount = 0;
+  const VERIFY_FAIL_THRESHOLD = 2;
 
   async function submitOrder(){
     const name=document.getElementById('f-name').value.trim();
@@ -1418,6 +1422,8 @@ window.addEventListener('scroll', function() {
       birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent
     };
     _selectedReceiptFile = null;
+    // Reset verify failure counter for this new order
+    window._verifyFailCount = 0;
 
     // Render payment-section UI
     document.getElementById('pay-total').textContent = yen(total);
@@ -1539,14 +1545,24 @@ window.addEventListener('scroll', function() {
         if (data.error === 'verify_failed') {
           // Backend's verifyReceiptStandalone_ already returns a friendly Vietnamese reason
           // covering: amount mismatch / missing recipient name / duplicate hash / OCR fail
+          window._verifyFailCount = (window._verifyFailCount || 0) + 1;
           const detail = data.detail || {};
           const reason = detail.reason || 'Không xác minh được biên lai';
           // Convert \n to <br> for multiline reasons
           const reasonHtml = String(reason).replace(/\n/g, '<br>');
-          status.innerHTML = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:8px;padding:10px;color:#991B1B;font-weight:500;text-align:left;font-size:13px;line-height:1.5">'
+          let html = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:8px;padding:10px;color:#991B1B;font-weight:500;text-align:left;font-size:13px;line-height:1.5">'
             + reasonHtml
             + '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #FCA5A5;color:#7F1D1D;font-size:12px">💡 Vui lòng chọn ảnh biên lai khác và thử lại.</div>'
             + '</div>';
+          // After N failures, offer manual-review fallback so customer isn't stuck
+          if (window._verifyFailCount >= VERIFY_FAIL_THRESHOLD) {
+            html += '<div style="margin-top:10px;background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:10px;text-align:left;font-size:13px;line-height:1.5;color:#78350F">'
+              + '<div style="font-weight:700;margin-bottom:6px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'
+              + '<div style="font-size:12px;margin-bottom:8px">Nếu anh/chị đã thanh toán đúng số tiền, có thể gửi đơn để Bếp Thuỷ kiểm tra thủ công.</div>'
+              + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:#F59E0B;color:#fff;font-weight:700;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px">📋 Gửi đơn cho admin xem (tôi đã pay rồi)</button>'
+              + '</div>';
+          }
+          status.innerHTML = html;
           btn.disabled = false; btn.classList.remove('opacity-50');
           btn.innerHTML = '🔄 Thử Ảnh Khác';
           return;
@@ -1554,7 +1570,8 @@ window.addEventListener('scroll', function() {
         throw new Error(data.error || 'Lỗi không xác định');
       }
 
-      // SUCCESS — order created
+      // SUCCESS — order created. Reset failure counter for next purchase.
+      window._verifyFailCount = 0;
       orderNo = data.orderNo;
       status.innerHTML = '<span style="color:#10B981;font-weight:700">✓ Đã xác minh — đơn hàng được tạo!</span>';
 
@@ -1590,6 +1607,87 @@ window.addEventListener('scroll', function() {
       status.innerHTML = '<span style="color:#DC2626;font-weight:600">❌ ' + (e.message || e) + '</span>';
       btn.disabled = false; btn.classList.remove('opacity-50');
       btn.innerHTML = '🔄 Thử Lại';
+    }
+  }
+
+  // Fallback flow: after AI verify fails N times, customer can submit the order
+  // for manual admin review. Skips AI verify, creates order with status
+  // 'pending_manual_review', uploads receipt for admin to inspect, fires urgent
+  // Telegram notify so admin can confirm/reject within 24h.
+  async function submitForManualReview(){
+    if (!_pendingOrder) { alert('Lỗi: dữ liệu đơn bị mất, vui lòng đặt lại'); showStep('checkout-section'); return; }
+    if (!_selectedReceiptFile) { alert('Vui lòng chọn ảnh biên lai trước'); return; }
+
+    const ok = confirm('Anh/chị xác nhận đã thanh toán PayPay/Bank đúng số tiền? Bếp Thuỷ sẽ kiểm tra thủ công và xác nhận trong vòng 24h.');
+    if (!ok) return;
+
+    const manualBtn = document.getElementById('manual-review-btn');
+    const finalizeBtn = document.getElementById('finalize-btn');
+    const status = document.getElementById('verify-status');
+    if (manualBtn) { manualBtn.disabled = true; manualBtn.innerHTML = '<span class="spin">⏳</span> Đang gửi đơn cho admin...'; }
+    if (finalizeBtn) { finalizeBtn.disabled = true; finalizeBtn.classList.add('opacity-50'); }
+
+    try {
+      const receiptBase64 = await fileToBase64(_selectedReceiptFile);
+      const payload = Object.assign({}, _pendingOrder, {
+        type: 'manual_pending_order',
+        receipt_base64: receiptBase64,
+        receipt_mime: _selectedReceiptFile.type,
+        userId: sbUser ? sbUser.id : null,
+        verify_fail_count: window._verifyFailCount || 0
+      });
+
+      const res = await fetch(SCRIPT_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Không gửi được đơn');
+
+      orderNo = data.orderNo;
+      // Reset counter — customer is unstuck, order is in admin queue
+      window._verifyFailCount = 0;
+
+      // Optimistic cache for member dashboard (status: pending_manual_review)
+      if (sbUser) {
+        try {
+          const optimisticOrder = {
+            order_no: orderNo, user_id: sbUser.id,
+            customer_name: _pendingOrder.name, customer_email: _pendingOrder.email, customer_phone: _pendingOrder.phone,
+            ship_prefecture: _pendingOrder.prefecture, ship_postal: _pendingOrder.postal, ship_address: _pendingOrder.address,
+            items: _pendingOrder.cartItems, subtotal: _pendingOrder.subtotal, shipping_fee: _pendingOrder.shipping,
+            total: _pendingOrder.total, points_used: _pendingOrder.pointsUsed || 0,
+            points_earned: Math.floor(_pendingOrder.total / 100), points_awarded: false,
+            status: 'pending_manual_review', created_at: new Date().toISOString(), _optimistic: true
+          };
+          const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+          let orders = (cached && cached.userId === sbUser.id) ? (cached.orders || []) : [];
+          orders = [optimisticOrder, ...orders.filter(o => o.order_no !== orderNo)];
+          localStorage.setItem('bepthuy_orders_cache', JSON.stringify({ userId: sbUser.id, orders, ts: Date.now() }));
+        } catch(e) { console.warn('Optimistic cache err:', e); }
+      }
+
+      status.innerHTML = '<div style="background:#ECFDF5;border:1px solid #10B981;border-radius:8px;padding:12px;color:#065F46;font-weight:600;text-align:left;font-size:13px;line-height:1.6">'
+        + '✓ Đơn đã được nhận. Admin sẽ xác nhận sớm 💝'
+        + '<div style="margin-top:6px;font-weight:400;font-size:12px;color:#047857">Mã đơn: <strong>#' + orderNo + '</strong> · trạng thái: <em>chờ admin duyệt thủ công</em>.</div>'
+        + '</div>';
+
+      // Show success page (admin will manually confirm later)
+      showSuccess({
+        name: _pendingOrder.name, email: _pendingOrder.email, phone: _pendingOrder.phone,
+        pref: _pendingOrder.prefecture, postal: _pendingOrder.postal, address: _pendingOrder.address,
+        sub: _pendingOrder.subtotal, ship: _pendingOrder.shipping, total: _pendingOrder.total,
+        recipientName: _pendingOrder.recipientName || null, recipientPhone: _pendingOrder.recipientPhone || null
+      });
+
+    } catch(e) {
+      console.error('Manual review err:', e);
+      if (manualBtn) {
+        manualBtn.disabled = false;
+        manualBtn.innerHTML = '📋 Gửi đơn cho admin xem (tôi đã pay rồi)';
+      }
+      if (finalizeBtn) { finalizeBtn.disabled = false; finalizeBtn.classList.remove('opacity-50'); }
+      alert('❌ Không gửi được đơn: ' + (e.message || e) + '\nVui lòng thử lại hoặc liên hệ Bếp Thuỷ.');
     }
   }
 

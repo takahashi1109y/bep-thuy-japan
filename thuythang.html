@@ -2406,7 +2406,17 @@ async function openOrderModal(orderNo) {
 
           // AI verification badge
           let aiBadgeHtml = '';
-          if (c.ai_verified_at) {
+          // Allow admin manual override when AI rejected (mismatch) or failed-to-read.
+          // Hide button if already manually approved (ai_status === 'manual_approved').
+          let canForceApprove = false;
+          if (c.ai_status === 'manual_approved') {
+            aiBadgeHtml = '<div style="background:#DBEAFE;border:2px solid #3B82F6;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#1E3A8A;">' +
+              '<strong>🛡️ ĐÃ DUYỆT THỦ CÔNG</strong>' +
+              (c.manual_approver ? ' bởi <em>' + escapeHtml(c.manual_approver) + '</em>' : '') +
+              (c.manual_approved_at ? ' · ' + fmtJST(c.manual_approved_at, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '') +
+              (c.manual_approve_reason ? '<br><span style="font-size:11px;">Lý do: ' + escapeHtml(c.manual_approve_reason) + '</span>' : '') +
+              '</div>';
+          } else if (c.ai_verified_at) {
             if (c.ai_match === true) {
               aiBadgeHtml = '<div style="background:#D1FAE5;border:1px solid #10B981;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#065F46;">' +
                 '<strong>🤖 AI: ✅ KHỚP</strong> — đọc được ¥' + Number(c.ai_verified_amount).toLocaleString() +
@@ -2415,13 +2425,20 @@ async function openOrderModal(orderNo) {
               aiBadgeHtml = '<div style="background:#FEE2E2;border:2px solid #EF4444;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#991B1B;">' +
                 '<strong>🤖 AI: 🔴 LỆCH SỐ TIỀN — KIỂM TRA KỸ!</strong><br>' +
                 escapeHtml(c.ai_reason || '') + '</div>';
+              canForceApprove = true;
             } else {
               aiBadgeHtml = '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;color:#78350F;">' +
                 '<strong>🤖 AI: ⚠️ KHÔNG ĐỌC ĐƯỢC</strong> — ' + escapeHtml(c.ai_reason || '') + '</div>';
+              canForceApprove = true;
             }
           } else {
             aiBadgeHtml = '<div style="background:#F3F4F6;border:1px dashed #9CA3AF;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:11px;color:#6B7280;">🤖 AI chưa xác thực — bấm nút "Xác thực AI" để chạy</div>';
           }
+
+          // "Phê duyệt thủ công" button — only when AI rejected (mismatch/failed) and conf still submitted.
+          const forceApproveBtnHtml = (canForceApprove && c.status === 'submitted')
+            ? '<button onclick="doForceApprovePayment(' + c.id + ', \'' + o.order_no + '\', ' + o.total + ')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;margin-top:6px;">🛡️ Phê duyệt thủ công</button>'
+            : '';
 
           return '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:10px;margin-bottom:8px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
@@ -2432,6 +2449,7 @@ async function openOrderModal(orderNo) {
               (amountMismatch ? ' (đơn ¥' + Number(o.total).toLocaleString() + ')' : '') + '</div>' +
             (c.note ? '<div style="font-size:11px;color:#6B7280;margin-bottom:4px;">📝 ' + escapeHtml(c.note) + '</div>' : '') +
             aiBadgeHtml +
+            forceApproveBtnHtml +
             (warnings.length > 0 ? '<div style="background:#FEF3C7;border:1px solid #FBBF24;border-radius:6px;padding:6px;margin:6px 0;font-size:11px;color:#78350F;">' + warnings.join('<br>') + '</div>' : '') +
             '<a href="' + c.screenshot_url + '" target="_blank"><img src="' + c.screenshot_url + '" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;margin-top:4px;"></a>' +
             actions +
@@ -2827,6 +2845,64 @@ async function doReVerifyAI(confId, imageUrl, expectedAmount, orderNo) {
     }, 3500);
   } catch (e) {
     showToast('❌ Lỗi gọi AI: ' + (e.message || e), 'error');
+  }
+}
+
+// Admin manual override: approve a payment confirmation that AI verify rejected (false negative).
+// Calls Apps Script doPost type='admin_force_approve_payment' which patches DB
+// + bumps order status pending → customer_paid. Full audit trail in payment_confirmations.
+async function doForceApprovePayment(confId, orderNo, expectedAmount) {
+  const reason = prompt(
+    'Lý do duyệt thủ công?\n\n' +
+    '(Vd: "Đã kiểm tra MoMo/PayPay, tiền đã vào", "Khách gửi screenshot rõ", v.v.)\n' +
+    'Lý do này sẽ được lưu lại để audit.',
+    ''
+  );
+  if (reason === null) return;            // cancel
+  if (!reason.trim()) {
+    showToast('❌ Phải nhập lý do duyệt thủ công', 'error');
+    return;
+  }
+  if (!confirm('Xác nhận DUYỆT THỦ CÔNG hóa đơn #' + confId + ' cho đơn ' + orderNo + '?\n\nThao tác này sẽ:\n• Đánh dấu hoá đơn = đã khớp (manual_approved)\n• Cập nhật đơn → "Khách đã TT"\n• Ghi log audit (ai duyệt, khi nào, tại sao)')) {
+    return;
+  }
+
+  // Optimistic toast
+  showToast('🛡️ Đang phê duyệt thủ công...', 'success');
+  try {
+    const adminEmail = currentAdmin?.email || 'unknown';
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'admin_force_approve_payment',
+        confirmation_id: confId,
+        order_no: orderNo,
+        expected_amount: expectedAmount,
+        reason: reason.trim(),
+        admin_email: adminEmail
+      })
+    });
+    // Apps Script CORS often opaque from script.google.com — best effort: assume success,
+    // wait briefly, then reload modal so admin sees updated badge.
+    let ok = true;
+    try {
+      const j = await res.json();
+      if (j && j.success === false) {
+        ok = false;
+        showToast('❌ Lỗi phê duyệt: ' + (j.error || 'unknown'), 'error');
+      }
+    } catch (_) { /* opaque response — assume ok */ }
+
+    if (ok) {
+      showToast('✓ Đã phê duyệt thủ công', 'success');
+      setTimeout(async () => {
+        await openOrderModal(orderNo);  // re-render with new manual_approved badge
+        await loadDashboard();
+      }, 1500);
+    }
+  } catch (e) {
+    showToast('❌ Lỗi gọi server: ' + (e.message || e), 'error');
   }
 }
 

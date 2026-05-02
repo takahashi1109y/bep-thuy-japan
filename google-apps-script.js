@@ -84,7 +84,8 @@ function validatePayload_(data) {
   // Admin/system types bypass payload validation
   var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
                      'order_confirmed', 'order_shipped', 'send_production_report',
-                     'verify_then_create_order', 'fetch_tracking_events'];
+                     'verify_then_create_order', 'manual_pending_order', 'fetch_tracking_events',
+                     'admin_force_approve_payment'];
   if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
 
   if (data.type === 'member') {
@@ -170,6 +171,20 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'verify_receipt', result: result });
     }
 
+    // Admin manual override: approve a payment confirmation that AI verify rejected (false negative).
+    // Updates payment_confirmations row + bumps order to 'customer_paid' if still pending.
+    // Full audit trail: manual_approver / manual_approve_reason / manual_approved_at.
+    if (data.type === 'admin_force_approve_payment') {
+      try {
+        var fa = forceApprovePayment_(data);
+        if (!fa.ok) return buildResponse({ success: false, error: fa.error || 'force_approve_failed' });
+        return buildResponse({ success: true, confirmation_id: fa.confirmation_id, order_no: fa.order_no });
+      } catch (faErr) {
+        Logger.log('admin_force_approve_payment err: ' + faErr);
+        return buildResponse({ success: false, error: 'Force approve err: ' + faErr.toString().slice(0, 200) });
+      }
+    }
+
     // Send production report email on demand (admin clicks "📧 Gửi báo cáo")
     if (data.type === 'send_production_report') {
       try {
@@ -233,6 +248,44 @@ function doPost(e) {
         try { deductPointsFromSupabase(data.userId, orderNo2, data.pointsUsed); } catch(de) { Logger.log('Pts err: ' + de); }
       }
       return buildResponse({ success: true, orderNo: orderNo2, verified: true, detected_amount: verifyRes.detected_amount });
+    }
+
+    // OPTION B FALLBACK: Manual-review path. Customer hit AI verify failure N times,
+    // claims they paid correctly. Skip AI verify, save order with status
+    // 'pending_manual_review', upload receipt for admin to inspect, fire urgent
+    // Telegram alert. Admin confirms/rejects from /thuythang within 24h.
+    if (data.type === 'manual_pending_order') {
+      if (!data.receipt_base64 || typeof data.total !== 'number') {
+        return buildResponse({ success: false, error: 'Missing receipt_base64 or total' });
+      }
+      // Skip AI verify — admin will inspect manually
+      data.status = 'pending_manual_review';
+      data.ai_verify_passed = false;
+      data.manual_review = true;
+      data.verify_fail_count = Number(data.verify_fail_count || 0);
+
+      var orderNoM = getNextOrderNo(ss);
+      saveOrder(ss, orderNoM, data);
+      saveYamato(orderNoM, data);
+      sendOrderNotification(orderNoM, data);
+      sendCustomerConfirmation(orderNoM, data);
+      updateProductStats(ss);
+      try {
+        var buyerEmailM = data.email || '';
+        if (buyerEmailM) {
+          addToGetResponse(buyerEmailM, data.name || '', data.phone || '', data.prefecture || '',
+            data.userId ? 'member-buyer' : 'buyer');
+        }
+      } catch(ge) { Logger.log('GR err: ' + ge); }
+      try { saveOrderToSupabase(orderNoM, data); } catch(soe) { Logger.log('SB err: ' + soe); }
+      try { savePaymentProofForManualReview_(orderNoM, data); } catch(pe) { Logger.log('Save manual proof err: ' + pe); }
+      try { deductStockForOrder_(data.cartItems); } catch(dse) { Logger.log('Deduct stock err: ' + dse); }
+      if (data.userId && data.pointsUsed > 0) {
+        try { deductPointsFromSupabase(data.userId, orderNoM, data.pointsUsed); } catch(de) { Logger.log('Pts err: ' + de); }
+      }
+      // Urgent Telegram alert — admin must confirm within 24h
+      try { sendManualReviewTelegramAlert_(orderNoM, data); } catch(te) { Logger.log('TG manual err: ' + te); }
+      return buildResponse({ success: true, orderNo: orderNoM, manual_review: true, status: 'pending_manual_review' });
     }
 
     // Fetch tracking events from carrier (Yamato/Sagawa)
@@ -927,6 +980,375 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
   }
 }
 
+// =============================================================================
+// DEBUG VERIFY — editor-only diagnostic helpers (NOT exposed via doPost).
+// Run from the Apps Script editor (▶) and read output via View → Executions / Logs.
+//
+//   testVerifyBillDebug(imageUrl, expectedAmount)
+//     Loads the image from a URL (Supabase Storage public URL or any HTTPS URL),
+//     re-runs the full 8-layer fraud verify pipeline of verifyReceiptStandalone_,
+//     and Logger.logs each layer's intermediate state so anh có thể nhìn thấy
+//     OCR thực sự đọc gì + layer nào fail + lý do cụ thể.
+//
+//   testVerifyFromConfirmation(confirmationId)
+//     Same as above but pulls image_url + amount from an existing
+//     payment_confirmations row in Supabase. Useful để re-test các bill cũ đã fail.
+//
+//   testVerifyDebugRunner()
+//     Convenience entry point — edit hardcoded values inside, then ▶ Run.
+//
+// Important: doPost() dispatches purely by data.type — these names không match
+// bất kỳ branch nào, nên web request không thể gọi tới các hàm debug này.
+// =============================================================================
+
+function testVerifyBillDebug(imageUrl, expectedAmount) {
+  Logger.log('═══════════════════════════════════════════════════════════');
+  Logger.log('DEBUG VERIFY START');
+  Logger.log('  imageUrl       : ' + imageUrl);
+  Logger.log('  expectedAmount : ¥' + Number(expectedAmount).toLocaleString());
+  Logger.log('  timestamp      : ' + new Date().toISOString());
+  Logger.log('═══════════════════════════════════════════════════════════');
+
+  var apiKey = _prop('GOOGLE_VISION_KEY', '');
+  if (!apiKey) {
+    Logger.log('FAIL: GOOGLE_VISION_KEY not set in Script Properties.');
+    return { match: false, reason: 'GOOGLE_VISION_KEY missing' };
+  }
+  if (!imageUrl) {
+    Logger.log('FAIL: imageUrl is empty.');
+    return { match: false, reason: 'imageUrl missing' };
+  }
+  expectedAmount = Number(expectedAmount) || 0;
+
+  var summary = { match: false, failed_layer: null, detected_amount: null, reason: '' };
+  var base64;
+
+  try {
+    // ── Step 0a: Fetch image bytes ──
+    Logger.log('');
+    Logger.log('── Step 0a: Fetch image ──');
+    var fetchStart = Date.now();
+    var imgResp = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
+    var fetchMs = Date.now() - fetchStart;
+    Logger.log('  HTTP        : ' + imgResp.getResponseCode());
+    Logger.log('  bytes       : ' + imgResp.getBlob().getBytes().length);
+    Logger.log('  fetch time  : ' + fetchMs + ' ms');
+    if (imgResp.getResponseCode() !== 200) {
+      Logger.log('FAIL: image fetch returned non-200');
+      summary.failed_layer = 'fetch_image';
+      summary.reason = 'image fetch HTTP ' + imgResp.getResponseCode();
+      return summary;
+    }
+    base64 = Utilities.base64Encode(imgResp.getBlob().getBytes());
+    Logger.log('  base64 len  : ' + base64.length);
+
+    // ── Step 0b: Vision API OCR ──
+    Logger.log('');
+    Logger.log('── Step 0b: Vision API request ──');
+    var ocrStart = Date.now();
+    var visionResp = UrlFetchApp.fetch(
+      'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
+      {
+        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        payload: JSON.stringify({
+          requests: [{
+            image: { content: base64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+            imageContext: { languageHints: ['ja', 'vi', 'en'] }
+          }]
+        })
+      }
+    );
+    var ocrMs = Date.now() - ocrStart;
+    var visionRaw = visionResp.getContentText();
+    Logger.log('  HTTP        : ' + visionResp.getResponseCode());
+    Logger.log('  response ms : ' + ocrMs);
+    Logger.log('  raw[0..500] : ' + visionRaw.slice(0, 500));
+    if (visionResp.getResponseCode() !== 200) {
+      Logger.log('FAIL: Vision API non-200');
+      summary.failed_layer = 'vision_api';
+      summary.reason = 'Vision HTTP ' + visionResp.getResponseCode();
+      return summary;
+    }
+    var visionData = JSON.parse(visionRaw);
+    var fullText = (visionData.responses && visionData.responses[0] && visionData.responses[0].fullTextAnnotation
+      ? visionData.responses[0].fullTextAnnotation.text : '') || '';
+    Logger.log('  fullText len: ' + fullText.length);
+    if (!fullText) {
+      Logger.log('FAIL: OCR returned empty text');
+      summary.failed_layer = 'ocr_empty';
+      summary.reason = 'OCR text empty (ảnh mờ hoặc không có chữ)';
+      return summary;
+    }
+
+    // ── Layer 1: amount ──
+    Logger.log('');
+    Logger.log('── Layer 1: Amount match ──');
+    var amountRegex = /(?:¥|￥|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円)?/g;
+    var matches = [];
+    var m;
+    while ((m = amountRegex.exec(fullText)) !== null) {
+      var n = parseInt(m[1].replace(/[,，]/g, ''), 10);
+      if (n >= 100 && n <= 10000000) matches.push(n);
+    }
+    Logger.log('  extracted   : ' + JSON.stringify(matches));
+    Logger.log('  expected    : ¥' + expectedAmount.toLocaleString());
+    var exactMatch = matches.find(function(x) { return Math.abs(x - expectedAmount) <= 1; });
+    if (exactMatch == null) {
+      var closest = matches.length
+        ? matches.reduce(function(best, x) {
+            return Math.abs(x - expectedAmount) < Math.abs(best - expectedAmount) ? x : best;
+          }, matches[0])
+        : null;
+      Logger.log('  closest     : ' + (closest != null ? '¥' + closest.toLocaleString() : '(no candidates)'));
+      Logger.log('  RESULT      : ✗ FAIL (no exact match within ¥1)');
+      summary.failed_layer = 'L1_amount';
+      summary.detected_amount = closest;
+      summary.reason = 'Amount mismatch — closest ¥' + (closest || 0) + ' vs expected ¥' + expectedAmount;
+      return summary;
+    }
+    Logger.log('  matched     : ¥' + exactMatch.toLocaleString());
+    Logger.log('  RESULT      : ✓ PASS');
+    summary.detected_amount = exactMatch;
+
+    // ── Layer 2: recipient ──
+    Logger.log('');
+    Logger.log('── Layer 2: Recipient name ──');
+    Logger.log('  text[0..1000] : ' + fullText.slice(0, 1000).replace(/\n/g, ' ⏎ '));
+    var recipientCheck = checkRecipientName_(fullText);
+    if (recipientCheck.matched) {
+      Logger.log('  matched name: ' + recipientCheck.matched_keyword);
+      Logger.log('  RESULT      : ✓ PASS');
+    } else {
+      Logger.log('  matched name: (no patterns matched)');
+      Logger.log('  expected one of: Thanghoang / タカハラ / ケイイチロウ / 2168488 / 12030-21684881');
+      Logger.log('  RESULT      : ✗ FAIL');
+      summary.failed_layer = 'L2_recipient';
+      summary.reason = 'No recipient name pattern matched';
+      return summary;
+    }
+
+    // ── Layer 3: hash ──
+    Logger.log('');
+    Logger.log('── Layer 3: Hash duplicate ──');
+    var hashBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, base64);
+    var hash = hashBytes.map(function(b) { return (b < 0 ? b + 256 : b).toString(16); })
+                       .map(function(s) { return s.length === 1 ? '0' + s : s; }).join('');
+    Logger.log('  SHA-256     : ' + hash);
+    var dup = checkScreenshotDuplicate_(hash);
+    if (dup.duplicate) {
+      Logger.log('  duplicate   : YES — already used by order #' + dup.existing_order);
+      Logger.log('  RESULT      : ✗ FAIL');
+      summary.failed_layer = 'L3_duplicate';
+      summary.reason = 'Hash dup — existing order ' + dup.existing_order;
+      return summary;
+    }
+    Logger.log('  duplicate   : no');
+    Logger.log('  RESULT      : ✓ PASS');
+
+    // ── Layer 4: source ──
+    Logger.log('');
+    Logger.log('── Layer 4: Payment source ──');
+    var sourceCheck = checkPaymentSource_(fullText);
+    if (sourceCheck.matched) {
+      Logger.log('  matched src : ' + sourceCheck.matched_keyword);
+      Logger.log('  RESULT      : ✓ PASS');
+    } else {
+      Logger.log('  matched src : (no match)');
+      Logger.log('  expected one of: PayPay / ゆうちょ / Mizuho / MUFG / SMBC / etc.');
+      Logger.log('  RESULT      : ✗ FAIL');
+      summary.failed_layer = 'L4_source';
+      summary.reason = 'No payment source matched';
+      return summary;
+    }
+
+    // ── Layer 5: completion ──
+    Logger.log('');
+    Logger.log('── Layer 5: Completion keyword ──');
+    var completionCheck = checkCompletionKeyword_(fullText);
+    var completionKeywords = ['完了', '送金', '振込', 'お振込', '支払', 'お支払', '領収', '決済', '送付', '成功', '済', 'success', 'completed', 'paid'];
+    var foundCompletion = completionKeywords.filter(function(k) {
+      return new RegExp(k, 'i').test(fullText);
+    });
+    Logger.log('  found kws   : ' + (foundCompletion.length ? foundCompletion.join(', ') : '(none)'));
+    if (completionCheck.matched) {
+      Logger.log('  RESULT      : ✓ PASS');
+    } else {
+      Logger.log('  RESULT      : ✗ FAIL — bill not showing transaction success');
+      summary.failed_layer = 'L5_completion';
+      summary.reason = 'No completion keyword (完了/送金/振込/支払/etc.)';
+      return summary;
+    }
+
+    // ── Layer 6: date ──
+    Logger.log('');
+    Logger.log('── Layer 6: Recent date (≤48h) ──');
+    var allDates = [];
+    var datePatterns = [
+      /(20\d{2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/g,
+      /(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+      /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](20\d{2})/g
+    ];
+    for (var dp = 0; dp < datePatterns.length; dp++) {
+      var dm;
+      while ((dm = datePatterns[dp].exec(fullText)) !== null) allDates.push(dm[0]);
+    }
+    Logger.log('  all dates   : ' + (allDates.length ? allDates.join(', ') : '(none)'));
+    var dateCheck = checkRecentDate_(fullText);
+    Logger.log('  picked date : ' + (dateCheck.detected_date || '(none)'));
+    Logger.log('  recent (48h): ' + dateCheck.recent);
+    if (dateCheck.detected_date && !dateCheck.recent) {
+      Logger.log('  RESULT      : ✗ FAIL — bill quá cũ');
+      summary.failed_layer = 'L6_date';
+      summary.reason = 'Date too old: ' + dateCheck.detected_date;
+      return summary;
+    }
+    Logger.log('  RESULT      : ✓ PASS' + (dateCheck.detected_date ? '' : ' (date undetected — open-fail policy)'));
+
+    // ── Layer 7: transaction ref ──
+    Logger.log('');
+    Logger.log('── Layer 7: Transaction reference ──');
+    var refCheck = checkTransactionRef_(fullText);
+    var attemptLog = [];
+    if (/取引[\s]*(?:番号|ID|No)/i.test(fullText)) attemptLog.push('found 取引 keyword');
+    if (/受付番号|振込番号|整理番号|お取扱番号|認証番号|参照番号|ご依頼人番号/.test(fullText)) attemptLog.push('found bank ref keyword');
+    if (/\d{12,25}/.test(fullText.replace(/\s+/g, ''))) attemptLog.push('found 12+ digit numeric');
+    if (/\b[A-Z]{2,4}\d{6,12}\b/.test(fullText)) attemptLog.push('found alpha-prefixed ref');
+    Logger.log('  attempts    : ' + (attemptLog.length ? attemptLog.join(' | ') : '(none — no ref signal at all)'));
+    if (refCheck.matched) {
+      Logger.log('  matched val : ' + refCheck.matched_value);
+      Logger.log('  RESULT      : ✓ PASS');
+    } else {
+      Logger.log('  RESULT      : ✗ FAIL — no transaction ref found');
+      summary.failed_layer = 'L7_ref';
+      summary.reason = 'No transaction ref ID';
+      return summary;
+    }
+
+    // ── Layer 8: editor signature ──
+    Logger.log('');
+    Logger.log('── Layer 8: Image-editor EXIF signature ──');
+    var editCheck = checkImageEditorSignature_(base64);
+    if (editCheck.detected_editor) {
+      Logger.log('  editor      : ' + editCheck.detected_editor);
+      Logger.log('  RESULT      : ✗ FAIL — image edited');
+      summary.failed_layer = 'L8_editor';
+      summary.reason = 'Image edited with ' + editCheck.detected_editor;
+      return summary;
+    }
+    Logger.log('  editor      : (no editor detected)');
+    Logger.log('  RESULT      : ✓ PASS');
+
+    // ── ALL PASS ──
+    Logger.log('');
+    Logger.log('═══════════════════════════════════════════════════════════');
+    Logger.log('FINAL: ✓ MATCH — all 8 layers passed');
+    Logger.log('  detected ¥' + exactMatch.toLocaleString() + ' · ' + recipientCheck.matched_keyword + ' · ' + sourceCheck.matched_keyword);
+    Logger.log('═══════════════════════════════════════════════════════════');
+    summary.match = true;
+    summary.failed_layer = null;
+    summary.reason = '✓ All layers passed';
+    return summary;
+
+  } catch (err) {
+    Logger.log('');
+    Logger.log('EXCEPTION: ' + err);
+    Logger.log('Stack    : ' + (err && err.stack ? err.stack.slice(0, 600) : '(no stack)'));
+    summary.failed_layer = summary.failed_layer || 'exception';
+    summary.reason = 'Exception: ' + err.toString().slice(0, 200);
+    return summary;
+  }
+}
+
+// Re-test a past failure by loading the bill from payment_confirmations.
+// Pulls image_url + amount from the row and feeds them to testVerifyBillDebug.
+function testVerifyFromConfirmation(confirmationId) {
+  Logger.log('═══════════════════════════════════════════════════════════');
+  Logger.log('LOADING confirmation #' + confirmationId + ' from Supabase…');
+  Logger.log('═══════════════════════════════════════════════════════════');
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('FAIL: SUPABASE_URL / SUPABASE_SERVICE_KEY not set in Script Properties.');
+    return { match: false, reason: 'Supabase creds missing' };
+  }
+  if (!confirmationId) {
+    Logger.log('FAIL: confirmationId is empty.');
+    return { match: false, reason: 'confirmationId missing' };
+  }
+
+  try {
+    var url = SUPABASE_URL + '/rest/v1/payment_confirmations'
+            + '?id=eq.' + encodeURIComponent(confirmationId)
+            + '&select=id,order_no,amount,image_url,ai_status,ai_match,ai_detected_amount,created_at'
+            + '&limit=1';
+    var res = UrlFetchApp.fetch(url, {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+    Logger.log('Supabase HTTP : ' + res.getResponseCode());
+    if (res.getResponseCode() !== 200) {
+      Logger.log('FAIL: Supabase returned ' + res.getResponseCode() + ' — body: ' + res.getContentText().slice(0, 300));
+      return { match: false, reason: 'Supabase HTTP ' + res.getResponseCode() };
+    }
+    var rows = JSON.parse(res.getContentText() || '[]');
+    if (!rows.length) {
+      Logger.log('FAIL: no payment_confirmations row with id=' + confirmationId);
+      return { match: false, reason: 'Row not found' };
+    }
+    var row = rows[0];
+    Logger.log('Loaded row    : ' + JSON.stringify({
+      id: row.id,
+      order_no: row.order_no,
+      amount: row.amount,
+      ai_status: row.ai_status,
+      ai_match: row.ai_match,
+      ai_detected_amount: row.ai_detected_amount,
+      created_at: row.created_at
+    }));
+    if (!row.image_url) {
+      Logger.log('FAIL: row has no image_url');
+      return { match: false, reason: 'image_url missing on row' };
+    }
+    Logger.log('image_url     : ' + row.image_url);
+    Logger.log('Re-running 8-layer verify on this bill now…');
+    Logger.log('');
+
+    return testVerifyBillDebug(row.image_url, row.amount);
+
+  } catch (err) {
+    Logger.log('EXCEPTION: ' + err);
+    return { match: false, reason: 'Exception: ' + err.toString().slice(0, 200) };
+  }
+}
+
+// Convenience runner — edit the values below, then ▶ Run testVerifyDebugRunner.
+// Output: View → Executions (or Ctrl+Enter for Logs).
+function testVerifyDebugRunner() {
+  // ── Edit one of these two blocks before running ──
+
+  // Option A: by image URL + expected amount
+  var imageUrl       = '';   // e.g. 'https://curcsvwvjkjewtonkhnr.supabase.co/storage/v1/object/public/payment-proofs/...'
+  var expectedAmount = 0;    // e.g. 12500
+
+  // Option B: by confirmation_id (overrides Option A if set)
+  var confirmationId = '';   // e.g. '1234' or UUID
+
+  if (confirmationId) {
+    Logger.log('Running testVerifyFromConfirmation(' + confirmationId + ')');
+    return testVerifyFromConfirmation(confirmationId);
+  }
+  if (imageUrl && expectedAmount) {
+    Logger.log('Running testVerifyBillDebug(<url>, ' + expectedAmount + ')');
+    return testVerifyBillDebug(imageUrl, expectedAmount);
+  }
+  Logger.log('⚠ testVerifyDebugRunner: please edit the function source và set imageUrl+expectedAmount HOẶC confirmationId.');
+  return null;
+}
+
 // Recipient-name fingerprint check.
 // Returns { matched: bool, matched_keyword: string }
 function checkRecipientName_(text) {
@@ -1138,6 +1560,91 @@ function checkScreenshotDuplicate_(hash) {
   }
 }
 
+// ============================================================
+// DEBUG HELPER — find recent orders for an email
+// READ-ONLY. Runs from Apps Script editor for anh to inspect a
+// failed/in-flight checkout (e.g. AI verify rejected, was the
+// order still saved?).
+//
+// Usage from editor:
+//   findRecentOrdersForEmail('thanghoang1109@gmail.com', 2);
+// or run testFindMyTestOrder() (wrapper below) and check Executions log.
+//
+// Returns: array of order rows (also logged via Logger.log).
+// ============================================================
+function findRecentOrdersForEmail(email, hoursBack) {
+  if (!email) {
+    Logger.log('findRecentOrdersForEmail: email is required');
+    return [];
+  }
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('findRecentOrdersForEmail: SUPABASE_URL or SUPABASE_SERVICE_KEY missing');
+    return [];
+  }
+  hoursBack = Number(hoursBack) > 0 ? Number(hoursBack) : 2;
+
+  // Build a UTC ISO cutoff (Supabase timestamps are stored UTC).
+  var cutoffMs = Date.now() - hoursBack * 3600 * 1000;
+  var cutoffIso = new Date(cutoffMs).toISOString();
+
+  var url = SUPABASE_URL + '/rest/v1/orders'
+          + '?select=order_no,status,customer_name,customer_email,customer_phone,total,'
+          + 'ai_verify_passed,ai_detected_amount,points_used,created_at'
+          + '&customer_email=eq.' + encodeURIComponent(email)
+          + '&created_at=gte.' + encodeURIComponent(cutoffIso)
+          + '&order=created_at.desc'
+          + '&limit=50';
+
+  try {
+    var res = UrlFetchApp.fetch(url, {
+      method: 'GET', // explicit — read-only
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    var body = res.getContentText() || '[]';
+    if (code !== 200) {
+      Logger.log('findRecentOrdersForEmail HTTP ' + code + ': ' + body.slice(0, 300));
+      return [];
+    }
+    var rows = JSON.parse(body);
+    if (!Array.isArray(rows)) {
+      Logger.log('findRecentOrdersForEmail: response not array: ' + body.slice(0, 300));
+      return [];
+    }
+    Logger.log('=== findRecentOrdersForEmail ===');
+    Logger.log('Email: ' + email + ' | last ' + hoursBack + 'h | found ' + rows.length + ' order(s)');
+    rows.forEach(function(o, i) {
+      Logger.log(
+        '[' + (i + 1) + '] #' + o.order_no
+        + ' | status=' + o.status
+        + ' | total=¥' + (o.total || 0)
+        + ' | ai_verified=' + o.ai_verify_passed
+        + ' | ai_amt=' + o.ai_detected_amount
+        + ' | created=' + o.created_at
+      );
+    });
+    if (rows.length === 0) {
+      Logger.log('NOTE: 0 rows usually means verify_then_create_order returned early on verify_failed.');
+      Logger.log('See URGENT-RECOVER-FAILED-ORDER.md -> Section C -> Option 1.');
+    }
+    return rows;
+  } catch (e) {
+    Logger.log('findRecentOrdersForEmail err: ' + e);
+    return [];
+  }
+}
+
+// Convenience wrapper anh can pick from the function dropdown in the
+// Apps Script editor and click Run, no parameter editing needed.
+function testFindMyTestOrder() {
+  return findRecentOrdersForEmail('thanghoang1109@gmail.com', 2);
+}
+
 // After verify_then_create_order saves the order, persist the receipt image
 // to Supabase Storage + create a payment_confirmations row linking to it.
 function savePaymentProofForVerifiedOrder_(orderNo, data) {
@@ -1197,6 +1704,88 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     muteHttpExceptions: true
   });
   Logger.log('Save payment_confirmation: HTTP ' + confRes.getResponseCode());
+}
+
+// Manual-review fallback: persist customer's receipt to Storage and create a
+// payment_confirmations row with ai_status='manual_review_pending' so admin
+// can inspect from the dashboard. Mirrors savePaymentProofForVerifiedOrder_
+// but skips all AI fields.
+function savePaymentProofForManualReview_(orderNo, data) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  if (!data.receipt_base64) return;
+
+  var ts = Date.now();
+  var ext = 'jpg';
+  if (data.receipt_mime === 'image/png') ext = 'png';
+  else if (data.receipt_mime === 'image/webp') ext = 'webp';
+  var path = 'manual/' + orderNo + '-' + ts + '.' + ext;
+  var bytes = Utilities.base64Decode(data.receipt_base64);
+  var blob = Utilities.newBlob(bytes, data.receipt_mime || 'image/jpeg', path);
+
+  var uploadUrl = SUPABASE_URL + '/storage/v1/object/payment-proofs/' + encodeURIComponent(path);
+  var upRes = UrlFetchApp.fetch(uploadUrl, {
+    method: 'post',
+    headers: {
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': data.receipt_mime || 'image/jpeg',
+      'x-upsert': 'true'
+    },
+    payload: blob.getBytes(),
+    muteHttpExceptions: true
+  });
+  if (upRes.getResponseCode() >= 300) {
+    Logger.log('Manual receipt upload err: ' + upRes.getContentText().slice(0, 200));
+    return;
+  }
+  var pubUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(path);
+
+  var confPayload = {
+    order_no: orderNo,
+    user_id: data.userId || null,
+    amount: data.total,
+    method: 'manual_review',
+    image_url: pubUrl,
+    notes: 'Manual review requested. AI verify failed ' + (data.verify_fail_count || 0) + ' time(s). Admin to inspect.',
+    ai_status: 'manual_review_pending',
+    ai_match: false
+  };
+  var confRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/payment_confirmations', {
+    method: 'post',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    payload: JSON.stringify(confPayload),
+    muteHttpExceptions: true
+  });
+  Logger.log('Save manual payment_confirmation: HTTP ' + confRes.getResponseCode());
+}
+
+// Urgent Telegram alert when a customer submits a manual-review order.
+// Distinct from sendTelegramNotification_ — uses ⚠️ urgency styling so admin
+// notices immediately and confirms within the promised 24h window.
+function sendManualReviewTelegramAlert_(orderNo, data) {
+  var botToken = _prop('TELEGRAM_BOT_TOKEN', '');
+  var chatId = _prop('TELEGRAM_CHAT_ID', '');
+  if (!botToken || !chatId) return;
+
+  var text = '⚠️ *URGENT — Đơn cần duyệt thủ công*\n\n' +
+    '📦 Đơn: #' + orderNo + '\n' +
+    '👤 ' + (data.name || 'Khách') + '\n' +
+    '💵 ¥' + Number(data.total || 0).toLocaleString() + '\n' +
+    '📞 ' + (data.phone || '') + '\n' +
+    '🔄 AI verify thất bại ' + (data.verify_fail_count || 0) + ' lần\n' +
+    '📝 Khách xác nhận đã pay → cần admin kiểm tra biên lai trong 24h\n\n' +
+    '👉 [Mở Dashboard](https://www.thuyjapan.com/thuythang)';
+
+  UrlFetchApp.fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' }),
+    muteHttpExceptions: true
+  });
 }
 
 function verifyReceiptWithAI_(confirmationId, imageUrl, expectedAmount) {
@@ -1337,6 +1926,108 @@ function _writeAIResult_(confirmationId, result) {
       muteHttpExceptions: true
     }
   );
+}
+
+// ============================================================
+// ADMIN MANUAL APPROVE OVERRIDE
+// ============================================================
+// When AI verify rejects a legit bill (false negative), admin can force-approve.
+// Required: confirmation_id OR (order_no + image_url), expected_amount, reason, admin_email.
+// Side effects:
+//   1) Patches payment_confirmations row: ai_status='manual_approved', ai_match=true,
+//      manual_approver, manual_approve_reason, manual_approved_at.
+//   2) Bumps orders.status from 'pending' → 'customer_paid' so it shows up in admin queue.
+function forceApprovePayment_(data) {
+  var sbUrl = _prop('SUPABASE_URL', '');
+  var sbKey = _prop('SUPABASE_SERVICE_KEY', '');
+  if (!sbUrl || !sbKey) return { ok: false, error: 'Supabase creds missing' };
+
+  var reason = (data.reason || '').toString().slice(0, 500);
+  var adminEmail = (data.admin_email || '').toString().slice(0, 200);
+  if (!reason) return { ok: false, error: 'Missing reason' };
+  if (!adminEmail) return { ok: false, error: 'Missing admin_email' };
+
+  // Resolve confirmation_id (either supplied or look up by order_no + image_url).
+  var confId = data.confirmation_id || null;
+  if (!confId) {
+    if (!data.order_no) return { ok: false, error: 'Missing confirmation_id and order_no' };
+    var lookupUrl = sbUrl + '/rest/v1/payment_confirmations'
+      + '?select=id,order_no'
+      + '&order=created_at.desc&limit=1'
+      + '&order_no=eq.' + encodeURIComponent(data.order_no);
+    if (data.image_url) {
+      lookupUrl += '&screenshot_url=eq.' + encodeURIComponent(data.image_url);
+    }
+    var lr = UrlFetchApp.fetch(lookupUrl, {
+      headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey },
+      muteHttpExceptions: true
+    });
+    if (lr.getResponseCode() !== 200) {
+      return { ok: false, error: 'Lookup failed: HTTP ' + lr.getResponseCode() };
+    }
+    var rows = JSON.parse(lr.getContentText() || '[]');
+    if (!rows.length) return { ok: false, error: 'No matching confirmation found' };
+    confId = rows[0].id;
+  }
+
+  // Patch payment_confirmations: mark as manually approved + audit fields.
+  var nowIso = new Date().toISOString();
+  var expectedAmt = Number(data.expected_amount) || null;
+  var patchBody = {
+    ai_status: 'manual_approved',
+    ai_match: true,
+    ai_reason: 'Manual approve by ' + adminEmail + ': ' + reason,
+    manual_approver: adminEmail,
+    manual_approve_reason: reason,
+    manual_approved_at: nowIso
+  };
+  if (expectedAmt) patchBody.ai_verified_amount = expectedAmt;
+
+  var patchRes = UrlFetchApp.fetch(
+    sbUrl + '/rest/v1/payment_confirmations?id=eq.' + encodeURIComponent(confId) + '&select=id,order_no',
+    {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        'apikey': sbKey,
+        'Authorization': 'Bearer ' + sbKey,
+        'Prefer': 'return=representation'
+      },
+      payload: JSON.stringify(patchBody),
+      muteHttpExceptions: true
+    }
+  );
+  if (patchRes.getResponseCode() >= 300) {
+    return { ok: false, error: 'Patch failed: HTTP ' + patchRes.getResponseCode() + ' ' + patchRes.getContentText().slice(0, 200) };
+  }
+  var patched = JSON.parse(patchRes.getContentText() || '[]');
+  var orderNo = (patched[0] && patched[0].order_no) || data.order_no || null;
+
+  // Bump orders.status from 'pending' → 'customer_paid' so it shows up for admin to confirm payment.
+  // Only flip if currently 'pending' (don't downgrade confirmed/shipped/delivered).
+  if (orderNo) {
+    try {
+      var orderPatchUrl = sbUrl + '/rest/v1/orders'
+        + '?order_no=eq.' + encodeURIComponent(orderNo)
+        + '&status=eq.pending';
+      UrlFetchApp.fetch(orderPatchUrl, {
+        method: 'patch',
+        contentType: 'application/json',
+        headers: {
+          'apikey': sbKey,
+          'Authorization': 'Bearer ' + sbKey,
+          'Prefer': 'return=minimal'
+        },
+        payload: JSON.stringify({ status: 'customer_paid' }),
+        muteHttpExceptions: true
+      });
+    } catch (oe) {
+      Logger.log('Order status bump err (non-fatal): ' + oe);
+    }
+  }
+
+  Logger.log('Manual approve OK: conf #' + confId + ' order ' + orderNo + ' by ' + adminEmail);
+  return { ok: true, confirmation_id: confId, order_no: orderNo };
 }
 
 // ============================================================
