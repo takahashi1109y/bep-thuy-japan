@@ -4500,3 +4500,70 @@ function classifySagawaStatus_(status) {
   if (s.indexOf('集荷') >= 0 || s.indexOf('発送') >= 0) return 'shipped';
   return 'other';
 }
+
+// ============================================================
+// YAMATO SCRAPER HEALTH MONITORING
+// Weekly Tuesday 09:00 JST — alert anh nếu Yamato thay HTML structure
+// Reuses scrapeYamatoTracking_ để tránh duplicate POST + parse logic
+// ============================================================
+function testYamatoScraperHealth() {
+  var ADMIN_EMAIL = 'thuyjapan1606@gmail.com';
+  var TEST_TRACKING = '389858076156';  // Tracking thật của anh — rotate nếu Yamato xóa khỏi system
+
+  try {
+    var events = scrapeYamatoTracking_(TEST_TRACKING);
+    Logger.log('[YAMATO-HEALTH] Found ' + events.length + ' events for ' + TEST_TRACKING);
+
+    if (events.length >= 1) {
+      Logger.log('[YAMATO-OK] Health check passed — ' + events.length + ' events');
+      return true;
+    }
+
+    // 0 events = HTML structure changed OR test tracking expired — send alert
+    var subject = '[ALERT] Yamato Scraper Health Check FAILED';
+    var html =
+      '<div style="font-family:Arial,sans-serif;padding:20px;max-width:600px">' +
+      '<h2 style="color:#C8102E;margin:0 0 16px 0">⚠️ Yamato Scraper trả 0 events</h2>' +
+      '<p><b>Test tracking:</b> ' + TEST_TRACKING + '</p>' +
+      '<p><b>Khả năng nguyên nhân:</b></p>' +
+      '<ul style="line-height:1.6">' +
+      '<li>Yamato đã thay đổi HTML structure (regex <code>&lt;li&gt;&lt;div class="item"&gt;...&lt;/div&gt;</code> không còn match)</li>' +
+      '<li>Tracking ' + TEST_TRACKING + ' đã bị Yamato xóa khỏi system (retention period ~6 tháng)</li>' +
+      '</ul>' +
+      '<p><b>Action:</b> Mở <a href="https://toi.kuronekoyamato.co.jp/cgi-bin/tneko">Yamato site</a>, paste tracking ' + TEST_TRACKING + ', nếu site vẫn show events → scraper broken (cần update regex). Nếu site cũng 0 events → rotate test tracking trong testYamatoScraperHealth().</p>' +
+      '<p style="color:#666;font-size:12px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">Function: testYamatoScraperHealth · ' + new Date().toISOString() + ' · Bếp Thuỷ Japan</p>' +
+      '</div>';
+    GmailApp.sendEmail(ADMIN_EMAIL, subject, 'Yamato scraper trả 0 events cho ' + TEST_TRACKING + '. Mở email HTML để xem chi tiết.', {
+      htmlBody: html,
+      from: 'thuyjapan1606@gmail.com',
+      replyTo: 'thuyjapan1606@gmail.com'
+    });
+    return false;
+  } catch (err) {
+    Logger.log('[YAMATO-CRITICAL] ' + err);
+    GmailApp.sendEmail(ADMIN_EMAIL, '[CRITICAL] Yamato Scraper EXCEPTION', '', {
+      htmlBody: '<div style="font-family:Arial;padding:20px"><h2 style="color:#C8102E">Yamato Scraper Exception</h2><pre style="background:#fee;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto">' + err.toString() + '\n\n' + (err.stack || '') + '</pre></div>',
+      from: 'thuyjapan1606@gmail.com',
+      replyTo: 'thuyjapan1606@gmail.com'
+    });
+    return false;
+  }
+}
+
+// Chạy 1 lần để cài trigger weekly Tuesday 09:00 JST
+// (Apps Script Editor → chọn function này từ dropdown → click Run)
+function createYamatoMonitoringTrigger() {
+  // Cleanup duplicate triggers nếu chạy lại
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'testYamatoScraperHealth') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('testYamatoScraperHealth')
+    .timeBased()
+    .everyWeeks(1)
+    .onWeekDay(ScriptApp.WeekDay.TUESDAY)
+    .atHour(9)
+    .create();
+  Logger.log('Yamato monitoring trigger installed — runs every Tuesday 09:00 JST');
+}
