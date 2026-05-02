@@ -44,6 +44,162 @@
     .field-label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
     .field-input { width: 100%; border: 2px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; font-size: 0.875rem; }
     .points-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #D4A017, #F5C842); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 8px 24px rgba(212,160,23,0.3); }
+    @keyframes skeleton-pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.7; }
+    }
+    .skeleton-box {
+      background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+      background-size: 200% 100%;
+      border-radius: 8px;
+      animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+    .skeleton-card {
+      background: white;
+      border: 1px solid #FED7AA;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .skeleton-line { height: 14px; background: #e5e7eb; border-radius: 4px; margin-bottom: 8px; }
+    .skeleton-line.short { width: 30%; }
+    .skeleton-line.medium { width: 60%; }
+    .skeleton-line.long { width: 90%; }
+
+    /* ============================================================ */
+    /* MOBILE RESPONSIVE — added 2026-05-02 (audit fixes)            */
+    /* Targets: iPhone SE 375px, iPhone 14 Pro 393px, iPad mini 768px */
+    /* All rules additive; do not modify existing CSS above.         */
+    /* ============================================================ */
+
+    /* ===== <640px: phones (iPhone SE / 14 Pro / Galaxy) ===== */
+    @media (max-width: 640px) {
+
+      /* 1. Welcome header — keep name on 1 line, msg badge wraps below if needed */
+      #dash-name {
+        font-size: 15px;
+        line-height: 1.2;
+        max-width: 100%;
+      }
+      #msg-unread-pill {
+        flex-shrink: 0;
+        white-space: nowrap;
+        max-width: 100%;
+      }
+
+      /* 2. Top bar — ← Trang Chủ + Đăng Xuất + Điểm column should stay tight */
+      #dashboard-section .flex.justify-between.items-start > a[href="/"],
+      #dashboard-section .flex.justify-between.items-start button {
+        white-space: nowrap;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+      }
+
+      /* 3. Dash tabs — smaller pills + horizontal scroll if too many */
+      .dash-tab {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+        border-radius: 10px !important;
+        flex-shrink: 0;
+      }
+      /* Wrap container of dash tabs into a horizontal scroller */
+      #dashboard-section .flex.flex-wrap.gap-2.mb-6.justify-center {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        justify-content: flex-start !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        padding-bottom: 4px;
+      }
+      #dashboard-section .flex.flex-wrap.gap-2.mb-6.justify-center::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+      }
+
+      /* 4. Order cards — stack header (status/date and total) more clearly,
+       * give the order # its own line with separation */
+      #order-history > div.bg-white {
+        padding: 12px !important;
+      }
+      /* Header row inside each order card (already flex-wrap, tighten gaps) */
+      #order-history > div.bg-white > div.flex.items-center.justify-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        padding-bottom: 8px !important;
+      }
+      #order-history > div.bg-white > div.flex.items-center.justify-between > p.text-base {
+        align-self: flex-end;
+        font-size: 15px !important;
+      }
+
+      /* 5. Action buttons — wrap to 2 lines, full-width when narrow */
+      #order-history > div.bg-white > div.flex.flex-wrap.gap-2 {
+        flex-direction: column;
+        gap: 8px !important;
+      }
+      #order-history > div.bg-white > div.flex.flex-wrap.gap-2 > button,
+      #order-history > div.bg-white > div.flex.flex-wrap.gap-2 > a {
+        width: 100%;
+        padding: 10px 16px !important;
+        font-size: 13px !important;
+        min-height: 44px;
+      }
+
+      /* 6. Forms — bigger touch targets (min 44px per Apple HIG) */
+      .field-input {
+        min-height: 44px;
+        padding: 12px 14px !important;
+      }
+      input[type="date"].field-input,
+      select.field-input {
+        min-height: 44px;
+      }
+      .btn-primary {
+        min-height: 44px;
+      }
+
+      /* 7. Modal/dialog — edge-to-edge on small screens */
+      #payment-modal {
+        padding: 0 !important;
+        align-items: flex-start !important;
+      }
+      #payment-modal > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-height: 100vh;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 16px !important;
+      }
+      /* Cancel dialog (created dynamically with id="cancel-dialog") */
+      #cancel-dialog {
+        padding: 0 !important;
+        align-items: flex-end !important;
+      }
+      #cancel-dialog > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 16px 16px 0 0 !important;
+        margin: 0 !important;
+      }
+    }
+
+    /* ===== <380px: extra-narrow (iPhone SE 1st gen / Galaxy Fold closed) ===== */
+    @media (max-width: 380px) {
+      #dash-name { font-size: 14px; }
+      .dash-tab { padding: 5px 8px !important; font-size: 10px !important; }
+      /* Stack 2-col grids inside profile/address forms */
+      #panel-profile .grid[style*="repeat(2"],
+      #panel-address .grid[style*="repeat(2"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* ===== 641-1023px: tablet (iPad mini portrait) ===== */
+    @media (min-width: 641px) and (max-width: 1023px) {
+      .dash-tab { padding: 8px 14px; font-size: 13px; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -361,7 +517,36 @@
       <!-- Debug panel — an` by default, only visible on ?debug=1 URL param -->
       <div id="order-debug" class="hidden bg-gray-900 text-green-300 text-xs rounded-xl p-3 mb-3 font-mono" style="font-family:monospace;max-height:200px;overflow-y:auto;display:none"></div>
       <div id="order-history" class="space-y-2 mb-6">
-        <p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào</p>
+        <div class="skeleton-card">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+          </div>
+          <div class="skeleton-line long"></div>
+          <div class="skeleton-line medium"></div>
+          <div style="display:flex;gap:8px;margin-top:12px"><div class="skeleton-line" style="width:80px;height:32px"></div><div class="skeleton-line" style="width:120px;height:32px"></div></div>
+        </div>
+        <div class="skeleton-card">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+          </div>
+          <div class="skeleton-line long"></div>
+          <div class="skeleton-line medium"></div>
+          <div style="display:flex;gap:8px;margin-top:12px"><div class="skeleton-line" style="width:80px;height:32px"></div><div class="skeleton-line" style="width:120px;height:32px"></div></div>
+        </div>
+        <div class="skeleton-card">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+            <div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>
+          </div>
+          <div class="skeleton-line long"></div>
+          <div class="skeleton-line medium"></div>
+          <div style="display:flex;gap:8px;margin-top:12px"><div class="skeleton-line" style="width:80px;height:32px"></div><div class="skeleton-line" style="width:120px;height:32px"></div></div>
+        </div>
       </div>
     </div>
 
@@ -791,7 +976,34 @@ function renderDashboardFromCache() {
   return false;
 }
 
-// Extract order rendering to reusable function (Amazon-style layout: info left, actions right)
+// Skeleton loader: render N skeleton cards while orders are loading (Amazon-style pulse)
+function renderSkeletonCards(n) {
+  n = n || 3;
+  var card = '<div class="skeleton-card">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">' +
+      '<div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>' +
+      '<div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>' +
+      '<div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div>' +
+    '</div>' +
+    '<div class="skeleton-line long"></div>' +
+    '<div class="skeleton-line medium"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px"><div class="skeleton-line" style="width:80px;height:32px"></div><div class="skeleton-line" style="width:120px;height:32px"></div></div>' +
+  '</div>';
+  var out = '';
+  for (var i = 0; i < n; i++) out += card;
+  return out;
+}
+
+// Friendly retry card for when order fetch fails
+function renderOrderErrorCard() {
+  return '<div class="bg-red-50 border border-red-300 rounded-xl p-4 text-center">' +
+    '<p class="text-red-700 font-semibold mb-2">⚠️ Không tải được đơn hàng</p>' +
+    '<p class="text-red-600 text-sm mb-3">Có lỗi mạng — anh/chị thử lại nhé</p>' +
+    '<button onclick="loadDashboard()" class="bg-red-600 text-white font-semibold px-5 py-2 rounded-lg text-sm">🔄 Thử lại</button>' +
+  '</div>';
+}
+
+// Render orders Amazon-style: gray header (date / total / order no) + status pill + items preview + action row
 function renderOrdersToUI(orders) {
   const orderBox = document.getElementById('order-history');
   if (!orderBox) return;
@@ -799,90 +1011,167 @@ function renderOrdersToUI(orders) {
     orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/#products" class="text-brand-red underline">Đặt hàng ngay</a></p>';
     return;
   }
-  const STATUS_BADGE = {
-    'pending':   { text: '⏳ Chờ thanh toán',    cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-    'customer_paid':{text:'💰 Khách báo TT',     cls: 'bg-blue-100 text-blue-800 border-blue-300' },
-    'confirmed': { text: '✅ Đã xác nhận',        cls: 'bg-green-100 text-green-800 border-green-300' },
-    'shipped':   { text: '🚚 Đã gửi hàng',        cls: 'bg-green-100 text-green-800 border-green-300' },
-    'delivered': { text: '✅ Đã nhận',            cls: 'bg-green-100 text-green-800 border-green-300' },
-    'cancelled': { text: '❌ Đã hủy',             cls: 'bg-gray-100 text-gray-600 border-gray-300' }
+
+  // Vietnamese month names for "29 tháng 4, 2026" format
+  const VN_MONTHS = ['tháng 1','tháng 2','tháng 3','tháng 4','tháng 5','tháng 6','tháng 7','tháng 8','tháng 9','tháng 10','tháng 11','tháng 12'];
+  const fmtDateVN = (iso) => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getDate()} ${VN_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
   };
+
+  // Status pill mapping per spec
+  const STATUS_BADGE = {
+    'pending':       { text: '⏳ Chờ thanh toán',                cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    'customer_paid': { text: '💰 Đã chuyển — chờ xác nhận',     cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    'confirmed':     { text: '✅ Đã xác nhận',                   cls: 'bg-green-100 text-green-800 border-green-300' },
+    'shipped':       { text: '🚚 Đã gửi',                        cls: 'bg-purple-100 text-purple-800 border-purple-300' },
+    'delivered':     { text: '✓ Đã giao',                        cls: 'bg-green-100 text-green-800 border-green-300' },
+    'cancelled':     { text: '❌ Đã huỷ',                        cls: 'bg-gray-100 text-gray-600 border-gray-300' }
+  };
+
+  // Button class kits (Amazon-style)
+  const primaryCls = 'inline-flex items-center justify-center text-sm font-semibold px-5 py-2.5 rounded-full transition whitespace-nowrap';
+  const primaryStyle = 'background:#FFD814;color:#0F1111;border:1px solid #FCD200;';
+  const primaryHover = 'onmouseover="this.style.background=\'#F7CA00\'" onmouseout="this.style.background=\'#FFD814\'"';
+  const outlineBlueCls = 'inline-flex items-center justify-center text-sm font-medium px-5 py-2.5 rounded-full border border-blue-300 bg-white text-blue-700 hover:bg-blue-50 transition whitespace-nowrap';
+  const outlineGrayCls = 'inline-flex items-center justify-center text-sm font-medium px-5 py-2.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition whitespace-nowrap';
+  const subtleCancelCls = 'inline-flex items-center text-xs font-medium text-gray-500 hover:text-red-600 hover:underline px-2 py-2 transition whitespace-nowrap';
+
   orderBox.innerHTML = orders.map(o => {
-    const date = new Date(o.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
+    const orderNoSafe = escapeHtmlMsg(o.order_no);
+    const dateText = fmtDateVN(o.created_at);
     const badge = STATUS_BADGE[o.status] || STATUS_BADGE.pending;
     const items = Array.isArray(o.items) ? o.items : [];
-    const itemLines = items.map(i =>
-      `<div class="flex justify-between text-xs text-gray-600 py-0.5"><span>• ${i.name}${i.size ? ' ('+i.size+')' : ''} × ${i.qty}</span><span>¥${Number(i.price * i.qty).toLocaleString()}</span></div>`
-    ).join('');
-    const pointsLine = o.points_awarded
-      ? `<p class="text-xs text-green-700 font-semibold">+${o.points_earned} điểm đã cộng</p>`
-      : (o.status === 'pending'
-          ? `<p class="text-xs text-gray-400">Sẽ cộng ${o.points_earned} điểm sau khi gửi</p>`
-          : '');
-    const pointsUsedLine = o.points_used > 0
-      ? `<p class="text-xs text-orange-700">Đã dùng ${o.points_used} điểm</p>` : '';
+    const isOptimistic = o._optimistic === true;
 
-    // BUILD ACTION BUTTONS (Amazon mobile-style: pill buttons in flex-wrap grid)
+    // Items preview: first 3, then "...và N sản phẩm khác"
+    const MAX_ITEMS = 3;
+    const visibleItems = items.slice(0, MAX_ITEMS);
+    const hiddenCount = Math.max(0, items.length - MAX_ITEMS);
+    const itemLines = visibleItems.map(i => {
+      const name = escapeHtmlMsg(i.name);
+      const size = i.size ? ' (' + escapeHtmlMsg(i.size) + ')' : '';
+      const qty = Number(i.qty) || 0;
+      const lineTotal = (Number(i.price) || 0) * qty;
+      return `<div class="flex justify-between text-xs text-gray-700 py-0.5"><span class="truncate pr-2">• ${name}${size} × ${qty}</span><span class="whitespace-nowrap">¥${lineTotal.toLocaleString()}</span></div>`;
+    }).join('');
+    const moreItemsLine = hiddenCount > 0
+      ? `<p class="text-xs text-gray-500 italic mt-1">...và ${hiddenCount} sản phẩm khác</p>` : '';
+
+    // Status pill — for shipped, hyperlink to Yamato + show tracking number if present
+    const trackingSafe = escapeHtmlMsg(o.tracking_number || '');
+    let statusPillHtml;
+    if (o.status === 'shipped' && o.tracking_number) {
+      const trackUrl = `https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=${encodeURIComponent(o.tracking_number)}`;
+      statusPillHtml = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer" class="inline-block text-xs px-2.5 py-1 rounded-full border ${badge.cls} font-semibold hover:underline" title="Theo dõi vận chuyển Yamato">🚚 Đã gửi: ${trackingSafe}</a>`;
+    } else {
+      statusPillHtml = `<span class="inline-block text-xs px-2.5 py-1 rounded-full border ${badge.cls} font-semibold">${badge.text}</span>`;
+    }
+
+    // Address line
+    const postalSafe = escapeHtmlMsg(o.ship_postal || '');
+    const prefSafe = escapeHtmlMsg(o.ship_prefecture || '');
+    const addrSafe = escapeHtmlMsg(o.ship_address || '');
+    const hasAddress = postalSafe || prefSafe || addrSafe;
+    const addressLine = hasAddress
+      ? `<p class="text-xs text-gray-500 mt-2">📍 ${postalSafe ? '〒' + postalSafe + ' ' : ''}${prefSafe} ${addrSafe}</p>`
+      : '';
+
+    // Points / shipping info (preserved from previous version)
+    const pointsLine = o.points_awarded
+      ? `<p class="text-xs text-green-700 font-semibold">+${Number(o.points_earned || 0)} điểm đã cộng</p>`
+      : (o.status === 'pending' && o.points_earned
+          ? `<p class="text-xs text-gray-400">Sẽ cộng ${Number(o.points_earned)} điểm sau khi gửi</p>` : '');
+    const pointsUsedLine = o.points_used > 0
+      ? `<p class="text-xs text-orange-700">Đã dùng ${Number(o.points_used)} điểm</p>` : '';
+
+    // Cancellation eligibility (KEEP existing logic — pending/customer_paid + within 30 min)
     const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
     const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
     const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
-    const customerNameSafe = (o.customer_name || '').replace(/'/g, '').replace(/"/g, '');
+    const customerNameSafe = (o.customer_name || '').replace(/[\\'"]/g, '');
 
-    // Primary button: yellow Amazon style (1 per order)
-    const primaryCls = 'inline-flex items-center justify-center text-sm font-semibold px-5 py-2.5 rounded-full transition whitespace-nowrap';
-    const primaryStyle = 'background:#FFD814;color:#0F1111;border:1px solid #FCD200;';
-    const primaryHover = 'onmouseover="this.style.background=\'#F7CA00\'" onmouseout="this.style.background=\'#FFD814\'"';
-    // Secondary buttons: white outline (Amazon pill)
-    const secondaryCls = 'inline-flex items-center justify-center text-sm font-medium px-5 py-2.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition whitespace-nowrap';
-
+    // BUILD ACTION BUTTONS
     const actions = [];
 
-    // Primary action (yellow, Amazon-style)
+    // 1. Primary: Mua lại (yellow) — calls reorderFromOrder (created by another agent)
+    actions.push(`<button onclick="reorderFromOrder('${orderNoSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>🔄 Mua lại</button>`);
+
+    // 2. Pending → also show 💳 Thanh toán primary; customer_paid → outline "Gửi biên lai khác"
     if (o.status === 'pending') {
-      actions.push(`<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>💳 Thanh toán</button>`);
+      actions.push(`<button onclick="openPaymentUpload('${orderNoSafe}', ${Number(o.total) || 0}, '${customerNameSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>💳 Thanh toán</button>`);
     } else if (o.status === 'customer_paid') {
-      actions.push(`<button onclick="openPaymentUpload('${o.order_no}', ${o.total}, '${customerNameSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>📸 Gửi biên lai khác</button>`);
-    } else if (o.status === 'shipped' || o.status === 'delivered') {
-      actions.push(`<a href="/" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>🔄 Đặt lại</a>`);
+      actions.push(`<button onclick="openPaymentUpload('${orderNoSafe}', ${Number(o.total) || 0}, '${customerNameSafe}')" class="${outlineGrayCls}">📸 Gửi biên lai khác</button>`);
     }
 
-    // Secondary: cancel (if within 30 min) OR contact shop
+    // 3. Track shipping (outline blue) — only if tracking_number exists
+    if (o.tracking_number) {
+      const trackUrl = `https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=${encodeURIComponent(o.tracking_number)}`;
+      actions.push(`<a href="${trackUrl}" target="_blank" rel="noopener noreferrer" class="${outlineBlueCls}">🚚 Theo dõi vận chuyển</a>`);
+    }
+
+    // 4. Contact shop via Zalo (outline gray)
+    actions.push(`<a href="https://zalo.me/+818051156688" target="_blank" rel="noopener noreferrer" class="${outlineGrayCls}">💬 Liên hệ shop</a>`);
+
+    // 5. Cancel (subtle gray text-only) — pending/customer_paid + within 30 min
+    let cancelBtnHtml = '';
     if (canCancelStatus && minutesLeft > 0) {
-      actions.push(`<button onclick="cancelMyOrder('${o.order_no}')" class="${secondaryCls}">🗑 Hủy đơn <span class="text-gray-400 ml-1">(${minutesLeft}p)</span></button>`);
+      cancelBtnHtml = `<button onclick="cancelMyOrder('${orderNoSafe}')" class="${subtleCancelCls}">❌ Huỷ đơn (${minutesLeft}p)</button>`;
     }
 
-    // Always available: contact shop (for non-cancelled orders)
-    if (o.status !== 'cancelled') {
-      actions.push(`<button onclick="contactShopForCancel('${o.order_no}')" class="${secondaryCls}">💬 Liên hệ shop</button>`);
-    }
+    // Optimistic indicator: spinner + "Đang xử lý..."
+    const optimisticBadge = isOptimistic
+      ? `<div class="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 mb-3"><span class="spin">⏳</span><span>Đang xử lý...</span></div>` : '';
 
-    return `<div class="bg-white border border-gray-200 rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow">
-      <!-- Header: status + date + total -->
-      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3 gap-2 flex-wrap">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="inline-block text-xs px-2.5 py-1 rounded-full border ${badge.cls} font-semibold">${badge.text}</span>
-          <span class="text-xs text-gray-500">${date}</span>
+    return `<div class="bg-white border border-gray-200 rounded-2xl mb-3 overflow-hidden hover:shadow-md transition-shadow">
+      <!-- HEADER ROW (gray bg #F3F4F6, padding 12px) — wraps on mobile -->
+      <div class="px-3 py-3 flex flex-wrap items-center gap-3 sm:gap-6 border-b border-gray-200" style="background:#F3F4F6;">
+        <div class="flex flex-col min-w-0">
+          <span class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">ĐẶT HÀNG NGÀY</span>
+          <span class="text-sm sm:text-base font-bold text-brand-dark">${dateText}</span>
         </div>
-        <p class="text-base font-bold text-brand-red">¥${Number(o.total).toLocaleString()}</p>
+        <div class="flex flex-col min-w-0">
+          <span class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">TỔNG CỘNG</span>
+          <span class="text-sm sm:text-base font-bold text-brand-red">¥${Number(o.total || 0).toLocaleString()}</span>
+        </div>
+        <div class="flex flex-col min-w-0 sm:ml-auto">
+          <span class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">MÃ ĐƠN</span>
+          <span class="text-sm sm:text-base font-bold text-brand-red">#${orderNoSafe}</span>
+        </div>
       </div>
 
-      <!-- Order number -->
-      <p class="text-sm font-bold text-brand-dark mb-2">📦 Đơn #${o.order_no}</p>
+      <!-- BODY (white) -->
+      <div class="p-4">
+        ${optimisticBadge}
 
-      <!-- Items -->
-      <div class="mb-3">
-        ${itemLines || '<p class="text-xs text-gray-400">Không có chi tiết sản phẩm</p>'}
+        <!-- Status pill (top-right of card body) -->
+        <div class="flex justify-end mb-3">
+          ${statusPillHtml}
+        </div>
+
+        <!-- Items preview -->
+        <div class="mb-2">
+          ${itemLines || '<p class="text-xs text-gray-400">Không có chi tiết sản phẩm</p>'}
+          ${moreItemsLine}
+        </div>
+
+        <!-- Address line -->
+        ${addressLine}
+
+        <!-- Shipping fee + points info -->
+        <div class="pt-2 mt-2 border-t border-gray-100">
+          <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
+          ${pointsUsedLine}
+          ${pointsLine}
+        </div>
+
+        <!-- ACTION ROW: primary + outline buttons + subtle cancel -->
+        <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+          ${actions.join('')}
+          ${cancelBtnHtml}
+        </div>
       </div>
-
-      <!-- Shipping + points info -->
-      <div class="pt-2 border-t border-gray-100 mb-3">
-        <p class="text-xs text-gray-500">Phí ship: ¥${Number(o.shipping_fee || 0).toLocaleString()}</p>
-        ${pointsUsedLine}
-        ${pointsLine}
-      </div>
-
-      <!-- Action buttons: Amazon mobile style (pill grid) -->
-      ${actions.length > 0 ? `<div class="flex flex-wrap gap-2">${actions.join('')}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1439,7 +1728,7 @@ function switchDashTab(tab) {
     // Only show loading if no cache (otherwise keep showing existing orders)
     var orderBoxEl = document.getElementById('order-history');
     if (orderBoxEl && (!orderBoxEl.innerHTML || orderBoxEl.innerHTML.indexOf('Đơn #') === -1)) {
-      orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
+      orderBoxEl.innerHTML = renderSkeletonCards(3);
     }
     loadDashboard().catch(e => console.warn('Refresh orders err:', e));
   }
@@ -1499,15 +1788,15 @@ async function _loadDashboardImpl(retryAttempt) {
   }
 
   var orderBoxEl = document.getElementById('order-history');
-  // ONLY show loading text if NO cache (otherwise keep showing cached orders)
+  // ONLY show skeleton if NO cache (otherwise keep showing cached orders)
   if (orderBoxEl && retryAttempt === 0 && !hasCache) {
-    orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải đơn hàng...</p>';
+    orderBoxEl.innerHTML = renderSkeletonCards(3);
   }
 
   // Safety timeout: chi hien loi KHI khong co cache (neu co cache, user van thay data)
   var hangTimeout = setTimeout(function() {
     if (orderBoxEl && !hasCache) {
-      orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">⚠️ Kết nối chậm. <button onclick="loadDashboard()" class="text-brand-red underline ml-1 font-semibold">🔄 Thử lại</button></p>';
+      orderBoxEl.innerHTML = renderOrderErrorCard();
     } else if (hasCache) {
       // Co cache -> chi hien small indicator, ko phan UI chinh
       console.warn('[loadDashboard] slow connection but cache is showing');
@@ -1576,7 +1865,7 @@ async function _loadDashboardImpl(retryAttempt) {
     const allFailed = !profileRes.data && !balRes.data && !historyRes.data && !couponsRes.data && !ordersRes.data;
     if (allFailed && retryAttempt === 0) {
       dbgLog('⚠ all queries timed out -> trying pure fetch');
-      if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tải (fallback)...</p>';
+      if (orderBoxEl) orderBoxEl.innerHTML = renderSkeletonCards(3);
 
       // Read access_token DIRECTLY from localStorage (KHONG goi sb.auth.getSession - hang on iOS Safari)
       var accessToken = null;
@@ -1656,7 +1945,7 @@ async function _loadDashboardImpl(retryAttempt) {
   } catch(e) {
     clearTimeout(hangTimeout);
     console.error('[loadDashboard] unexpected error:', e);
-    if (orderBoxEl) orderBoxEl.innerHTML = '<p class="text-red-500 text-sm text-center py-4">❌ Lỗi: ' + (e.message || e) + '</p>';
+    if (orderBoxEl) orderBoxEl.innerHTML = renderOrderErrorCard();
     return;
   }
 
@@ -1734,10 +2023,27 @@ async function _loadDashboardImpl(retryAttempt) {
       var fromOrder = new URLSearchParams(window.location.search).get('tab') === 'orders';
       if (retryAttempt < 3 && fromOrder) {
         var nextRetry = retryAttempt + 1;
-        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-6"><span class="spin inline-block">⏳</span> Đang tìm đơn hàng (lần ' + nextRetry + '/3)...</p>';
+        orderBox.innerHTML = renderSkeletonCards(3);
         setTimeout(() => loadDashboard(nextRetry), 3000);
       } else {
-        orderBox.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Chưa có đơn hàng nào. <a href="/#products" class="text-brand-red underline">Đặt hàng ngay</a></p>';
+        orderBox.innerHTML = `
+          <div class="text-center py-12 px-4">
+            <div class="text-7xl mb-4">🍜</div>
+            <h3 class="text-xl font-bold text-brand-dark mb-2">Chưa có đơn hàng nào</h3>
+            <p class="text-gray-500 text-sm mb-6 max-w-sm mx-auto">Bếp Thuỷ đang đợi anh/chị đặt đơn đầu tiên — giò chả Hà Nội, làm thủ công từng mẻ 💝</p>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 max-w-sm mx-auto">
+              <p class="text-amber-800 text-sm font-semibold mb-1">🎁 Bonus chào mừng đang chờ</p>
+              <p class="text-amber-700 text-xs">Đơn đầu tiên của anh/chị sẽ được áp dụng <strong>100 điểm thưởng</strong> = giảm ¥100. Đặt ngay để dùng nhé!</p>
+            </div>
+
+            <a href="/" class="inline-block bg-gradient-to-r from-brand-red to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold px-6 py-3 rounded-full text-sm shadow-lg transition transform hover:-translate-y-0.5">
+              🛒 Mua Hàng Đầu Tiên
+            </a>
+
+            <p class="text-gray-400 text-xs mt-4">Hoặc <a href="https://www.facebook.com/groups/253344602723261" target="_blank" class="text-brand-red underline">tham gia nhóm Facebook</a> để xem ảnh sản phẩm</p>
+          </div>
+        `;
       }
     }
   }
@@ -2347,6 +2653,245 @@ function cancelMyOrder(orderNo) {
       confirmBtn.textContent = '🗑 Xác nhận hủy';
     }
   };
+}
+
+// ═══════════════════════════════════════════════════════════
+// MUA LẠI (One-click re-order from order history)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Helper: show error to the user. Tries an inline msg-box pattern first, falls back to alert.
+ */
+function showReorderError(msg) {
+  try {
+    var box = document.getElementById('orders-msg') || document.getElementById('msg-error');
+    if (box) {
+      box.textContent = msg;
+      box.classList.remove('hidden');
+      box.style.background = '#FEE2E2';
+      box.style.color = '#991B1B';
+      box.style.padding = '8px 12px';
+      box.style.borderRadius = '8px';
+      box.style.margin = '8px 0';
+      setTimeout(function(){ try { box.classList.add('hidden'); } catch(e){} }, 5000);
+      return;
+    }
+  } catch(e) {}
+  alert(msg);
+}
+
+/**
+ * Mua lại đơn cũ: copy items từ đơn cũ vào giỏ hàng (localStorage 'bepthuy_cart')
+ * rồi redirect về trang chủ "/" để khách checkout tiếp.
+ *
+ * Logic:
+ *  1. Tìm order trong orders cache (localStorage 'bepthuy_orders_cache').
+ *  2. Confirm dialog với khách.
+ *  3. Parse code từ name "[CODE] Tên SP" cho từng item (handle space trong code như "[CLUA TIEU]").
+ *  4. Fetch product_catalog by codes (1 query).
+ *  5. Skip items: not_found / discontinued (is_active=false) / out_of_stock (qty<=0).
+ *  6. Build cart shape (giá MỚI từ catalog, giữ wt/qty từ đơn cũ).
+ *  7. Write cart vào localStorage['bepthuy_cart'] (matches index.html key).
+ *  8. Stash skipped items vào sessionStorage['reorder_skipped'] (JSON).
+ *  9. Redirect to "/?reorder=success&from=<orderNo>".
+ */
+async function reorderFromOrder(orderNo) {
+  try {
+    // 1. Tìm order trong cache
+    var order = null;
+    try {
+      var cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
+      if (cached && Array.isArray(cached.orders)) {
+        order = cached.orders.find(function(o){ return String(o.order_no) === String(orderNo); });
+      }
+    } catch(e) {
+      console.warn('[reorder] cache parse fail:', e);
+    }
+
+    if (!order) {
+      showReorderError('Không tìm thấy đơn #' + orderNo + '. Anh/chị tải lại trang rồi thử lại nhé.');
+      return;
+    }
+
+    var orderItems = Array.isArray(order.items) ? order.items : [];
+    if (orderItems.length === 0) {
+      showReorderError('Đơn #' + orderNo + ' không có chi tiết sản phẩm. Anh/chị thử đặt từ trang chủ nhé.');
+      return;
+    }
+
+    // 2. Confirm dialog
+    var confirmMsg = 'Mua lại đơn #' + orderNo + ' với ' + orderItems.length + ' sản phẩm? Đơn cũ sẽ được copy vào giỏ hàng.';
+    if (!confirm(confirmMsg)) return;
+
+    // 3. Parse codes từ name (format "[CODE] Tên SP" — code có thể chứa space, ví dụ "[CLUA TIEU]")
+    var codes = [];
+    var codeByItemIdx = {}; // map index → code
+    orderItems.forEach(function(it, idx) {
+      var name = (it && it.name) ? String(it.name) : '';
+      var m = name.match(/^\[([^\]]+)\]/);
+      if (m && m[1]) {
+        var code = m[1].trim();
+        codeByItemIdx[idx] = code;
+        if (codes.indexOf(code) === -1) codes.push(code);
+      } else {
+        codeByItemIdx[idx] = null;
+      }
+    });
+
+    if (codes.length === 0) {
+      showReorderError('Đơn #' + orderNo + ' không có sản phẩm hợp lệ để mua lại (thiếu mã code).');
+      return;
+    }
+
+    // 4. Fetch catalog cho các codes (1 query duy nhất)
+    var catalogRes;
+    try {
+      catalogRes = await sb
+        .from('product_catalog')
+        .select('id, code, name, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold')
+        .in('code', codes);
+    } catch(e) {
+      console.error('[reorder] catalog fetch err:', e);
+      showReorderError('Không kết nối được hệ thống. Anh/chị thử lại sau nhé.');
+      return;
+    }
+
+    if (catalogRes.error) {
+      console.error('[reorder] catalog err:', catalogRes.error);
+      showReorderError('Lỗi tải dữ liệu sản phẩm: ' + catalogRes.error.message);
+      return;
+    }
+
+    var catalogRows = catalogRes.data || [];
+    var catalogByCode = {};
+    catalogRows.forEach(function(r){ catalogByCode[r.code] = r; });
+
+    // 5 + 6. Build validItems + skippedItems
+    var validItems = [];
+    var skippedItems = [];
+
+    orderItems.forEach(function(it, idx) {
+      var displayName = (it && it.name) ? String(it.name) : '(Không tên)';
+      var code = codeByItemIdx[idx];
+
+      if (!code) {
+        skippedItems.push({ name: displayName, reason: 'discontinued' });
+        return;
+      }
+      var cat = catalogByCode[code];
+      if (!cat) {
+        skippedItems.push({ name: displayName, reason: 'discontinued' });
+        return;
+      }
+      if (cat.is_active === false) {
+        skippedItems.push({ name: displayName, reason: 'discontinued' });
+        return;
+      }
+      if (typeof cat.stock_quantity === 'number' && cat.stock_quantity <= 0) {
+        skippedItems.push({ name: displayName, reason: 'out_of_stock' });
+        return;
+      }
+
+      // Build cart shape — dùng GIÁ MỚI từ catalog, giữ wt/qty từ đơn cũ
+      var stockUnit = cat.stock_unit || '';
+      var isBox = (stockUnit === 'hộp' || stockUnit === 'túi');
+      var unitPrice = Number(cat.unit_price) || 0;
+
+      var origQty = Number(it.qty) || 1;
+      var origWt = Number(it.wt) || 0;
+      var qty = 1; // cart luôn qty=1, gộp theo wt
+      var wt;
+
+      if (isBox) {
+        // Box products: ưu tiên wt từ đơn cũ; fallback qty × 0.5kg/hộp
+        wt = origWt > 0 ? origWt : (origQty * 0.5);
+      } else {
+        // Kg products: dùng item.wt (kg)
+        wt = origWt > 0 ? origWt : (origQty * 0.5);
+      }
+
+      if (!wt || wt <= 0) {
+        skippedItems.push({ name: displayName, reason: 'out_of_stock' });
+        return;
+      }
+
+      var price = Math.round(unitPrice * (wt / 0.5));
+      var size = isBox
+        ? (Math.max(1, Math.round(wt / 0.5)) + ' hộp')
+        : ((Math.round(wt * 10) / 10) + 'kg');
+
+      // Gộp duplicate theo id (đơn cũ có thể có 2 dòng cùng code)
+      var existing = validItems.find(function(v){ return v.id === cat.id; });
+      if (existing) {
+        existing.wt += wt;
+        existing.price = Math.round(existing.unitPrice * (existing.wt / 0.5));
+        existing.size = existing.isBox
+          ? (Math.max(1, Math.round(existing.wt / 0.5)) + ' hộp')
+          : ((Math.round(existing.wt * 10) / 10) + 'kg');
+      } else {
+        validItems.push({
+          id: cat.id,
+          key: cat.id,
+          name: '[' + cat.code + '] ' + cat.name,
+          size: size,
+          price: price,
+          qty: qty,
+          wt: wt,
+          unitPrice: unitPrice,
+          isBox: isBox
+        });
+      }
+    });
+
+    // 7. Nếu tất cả đều bị skip → cảnh báo, KHÔNG modify cart, KHÔNG redirect
+    if (validItems.length === 0) {
+      var allSkippedNames = skippedItems.map(function(s){ return s.name; }).join(', ');
+      showReorderError('Tiếc quá! Tất cả sản phẩm trong đơn #' + orderNo + ' hiện đều hết hàng hoặc ngừng bán. Anh/chị xem các sản phẩm khác ở trang chủ nhé.\n\n(' + allSkippedNames + ')');
+      return;
+    }
+
+    // 8. Write cart vào localStorage (matches index.html key 'bepthuy_cart')
+    try {
+      localStorage.setItem('bepthuy_cart', JSON.stringify(validItems));
+    } catch(e) {
+      console.error('[reorder] save cart err:', e);
+      showReorderError('Không lưu được giỏ hàng (storage đầy?). Anh/chị thử xoá bớt cache rồi thử lại nhé.');
+      return;
+    }
+
+    // 9. Lưu skipped items vào sessionStorage để trang / hiển thị banner
+    if (skippedItems.length > 0) {
+      try {
+        sessionStorage.setItem('reorder_skipped', JSON.stringify({
+          orderNo: orderNo,
+          items: skippedItems,
+          ts: Date.now()
+        }));
+      } catch(e) { console.warn('[reorder] skipped stash err:', e); }
+    }
+
+    // 10. Toast feedback rồi redirect
+    var skippedCount = skippedItems.length;
+    var validCount = validItems.length;
+    var msg = '✓ Đã thêm ' + validCount + ' sản phẩm vào giỏ.';
+    if (skippedCount > 0) msg += ' ' + skippedCount + ' sản phẩm đã hết hàng được bỏ qua.';
+    try { console.log('[reorder]', msg); } catch(e) {}
+
+    // GA4 tracking (nếu có)
+    try {
+      if (window.btTrack) window.btTrack('bt_reorder_confirmed', {
+        order_no: orderNo,
+        valid_count: validCount,
+        skipped_count: skippedCount
+      });
+    } catch(e) {}
+
+    // Redirect — query param để trang / có thể auto-open cart + show banner
+    window.location.href = '/?reorder=success&from=' + encodeURIComponent(orderNo);
+  } catch(e) {
+    console.error('[reorder] unexpected err:', e);
+    showReorderError('Có lỗi xảy ra: ' + (e.message || e));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
