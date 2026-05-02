@@ -4343,12 +4343,18 @@ function scrapeYamatoTracking_(trackingNo) {
   // Strip dashes/spaces — Yamato chỉ accept digits (e.g. 3898-5807-6156 → 389858076156)
   var cleanNo = String(trackingNo || '').replace(/[^0-9]/g, '');
   if (!cleanNo) throw new Error('Yamato: empty tracking number');
-  var url = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + cleanNo;
-  Logger.log('Yamato scrape: ' + url);
+
+  // POST với form-encoded body — Yamato server-side render HTML khi nhận POST
+  // (GET với ?number=X chỉ trả landing page rỗng)
+  // number00=1 → "show detailed info", number01=TRACKING (1st parcel)
+  var url = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko';
+  Logger.log('Yamato scrape POST: ' + url + ' number01=' + cleanNo);
   var resp = UrlFetchApp.fetch(url, {
-    method: 'get',
+    method: 'post',
+    contentType: 'application/x-www-form-urlencoded',
+    payload: 'number00=1&number01=' + encodeURIComponent(cleanNo),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; BepThuyTracking/1.0)'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
     muteHttpExceptions: true,
     followRedirects: true
@@ -4358,21 +4364,37 @@ function scrapeYamatoTracking_(trackingNo) {
   }
   var html = resp.getContentText('UTF-8');
 
-  // Yamato tracking HTML uses tables. Parse rows looking for: 日付, 時間, 配達状況, 担当店名
-  // The events are typically in a <table class="meisaisubtitleEvents"> or similar.
-  // Common pattern: rows with 4 columns: date, time, status, location
-  // e.g. <tr><td>2026/04/27</td><td>10:51</td><td>持ち戻り</td><td>柏ベース店</td></tr>
+  // Parse div-based timeline (modern Yamato HTML 2026):
+  // <div class="tracking-invoice-block-detail">
+  //   <ol>
+  //     <li>
+  //       <div class="item">荷物受付</div>
+  //       <div class="date">05月02日 15:33</div>
+  //       <div class="name">松戸主水新田営業所（新松戸７丁目）</div>
+  //     </li>
+  //   </ol>
+  // </div>
   var events = [];
+  var currentYear = (new Date()).getFullYear();
 
   try {
-    var rowRegex = /<tr[^>]*>\s*<td[^>]*>(\d{4}\/\d{1,2}\/\d{1,2})<\/td>\s*<td[^>]*>(\d{1,2}:\d{2})<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<\/tr>/g;
+    var rowRegex = /<li[^>]*>\s*<div class="item">([^<]+)<\/div>\s*<div class="date">([^<]+)<\/div>\s*<div class="name">(?:<a[^>]*>)?([^<]+)(?:<\/a>)?<\/div>\s*<\/li>/g;
     var m;
     while ((m = rowRegex.exec(html)) !== null) {
-      var dateRaw = m[1].replace(/\//g, '-');  // 2026-04-27
-      var date = dateRaw.split('-').map(function(p){ return p.length < 2 ? ('0' + p) : p; }).join('-');
-      var timeStr = m[2];
-      var status = m[3].trim();
-      var location = m[4].trim();
+      var status = m[1].trim();
+      var dateStr = m[2].trim();  // "05月02日 15:33" or "12月31日 09:00"
+      var location = m[3].trim();
+
+      // Parse "MM月DD日 HH:MM" → date "YYYY-MM-DD" + time "HH:MM"
+      var dateMatch = dateStr.match(/(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/);
+      if (!dateMatch) continue;  // skip malformed rows
+      var month = dateMatch[1].length < 2 ? '0' + dateMatch[1] : dateMatch[1];
+      var day = dateMatch[2].length < 2 ? '0' + dateMatch[2] : dateMatch[2];
+      var hour = dateMatch[3].length < 2 ? '0' + dateMatch[3] : dateMatch[3];
+      var minute = dateMatch[4];
+      var date = currentYear + '-' + month + '-' + day;
+      var timeStr = hour + ':' + minute;
+
       events.push({
         date: date,
         time: timeStr,
@@ -4386,7 +4408,7 @@ function scrapeYamatoTracking_(trackingNo) {
     return [];
   }
 
-  Logger.log('Yamato found ' + events.length + ' events for ' + trackingNo);
+  Logger.log('Yamato found ' + events.length + ' events for ' + cleanNo);
 
   // Sort by date+time descending (newest first)
   events.sort(function(a, b) {
