@@ -85,7 +85,7 @@ function validatePayload_(data) {
   var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
                      'order_confirmed', 'order_shipped', 'send_production_report',
                      'verify_then_create_order', 'manual_pending_order', 'fetch_tracking_events',
-                     'admin_force_approve_payment'];
+                     'admin_force_approve_payment', 'verify_dry_run'];
   if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
 
   if (data.type === 'member') {
@@ -171,6 +171,50 @@ function doPost(e) {
       return buildResponse({ success: true, type: 'verify_receipt', result: result });
     }
 
+    // ── Verify DRY-RUN (admin tool /thuythang Test Bill tab) ──
+    // Run the full 8-layer fraud pipeline against any image URL + expected amount
+    // WITHOUT touching DB / orders / payment_confirmations. Returns full layer-by-layer
+    // breakdown so anh can debug failed bills from the browser instead of Apps Script editor.
+    if (data.type === 'verify_dry_run') {
+      if (!data.image_url || !data.expected_amount) {
+        return buildResponse({ success: false, error: 'Missing image_url or expected_amount' });
+      }
+      try {
+        var dryStart = Date.now();
+        // Fetch image bytes → base64
+        var imgResp = UrlFetchApp.fetch(data.image_url, { muteHttpExceptions: true });
+        if (imgResp.getResponseCode() !== 200) {
+          return buildResponse({
+            success: false,
+            error: 'Image fetch HTTP ' + imgResp.getResponseCode(),
+            stage: 'fetch_image'
+          });
+        }
+        var dryBase64 = Utilities.base64Encode(imgResp.getBlob().getBytes());
+        // Run full pipeline
+        var dryResult = verifyReceiptStandalone_(dryBase64, Number(data.expected_amount));
+        return buildResponse({
+          success: true,
+          type: 'verify_dry_run',
+          elapsed_ms: Date.now() - dryStart,
+          match: !!dryResult.match,
+          reason: dryResult.reason || '',
+          raw_text: (dryResult.raw_text || '').slice(0, 1500),
+          checks: dryResult.checks || {},
+          detected_amount: dryResult.detected_amount || null,
+          detected_date: dryResult.detected_date || null,
+          detected_source: dryResult.detected_source || null,
+          detected_ref: dryResult.detected_ref || null,
+          hash: dryResult.hash || null,
+          expected_amount: Number(data.expected_amount),
+          image_url: data.image_url
+        });
+      } catch (dryErr) {
+        Logger.log('verify_dry_run err: ' + dryErr);
+        return buildResponse({ success: false, error: 'Dry run err: ' + dryErr.toString().slice(0, 200) });
+      }
+    }
+
     // Admin manual override: approve a payment confirmation that AI verify rejected (false negative).
     // Updates payment_confirmations row + bumps order to 'customer_paid' if still pending.
     // Full audit trail: manual_approver / manual_approve_reason / manual_approved_at.
@@ -212,6 +256,21 @@ function doPost(e) {
       }
       var verifyRes = verifyReceiptStandalone_(data.receipt_base64, data.total);
       if (!verifyRes.match) {
+        // Telegram alert — admin can intervene with manual override (rate-limited 1/5min per customer+order)
+        try {
+          sendVerifyFailureTelegram_({
+            type: 'verify_failed',
+            order_ref: data.orderRef || data.order_ref || '(chưa tạo đơn)',
+            customer_name: data.name || '',
+            customer_email: data.email || '',
+            customer_phone: data.phone || '',
+            expected_amount: data.total,
+            detected_amount: verifyRes.detected_amount,
+            reason: verifyRes.reason,
+            checks: verifyRes.checks,
+            raw_text: verifyRes.raw_text
+          });
+        } catch (tge) { Logger.log('TG verify_failed err: ' + tge); }
         return buildResponse({
           success: false,
           error: 'verify_failed',
@@ -285,6 +344,18 @@ function doPost(e) {
       }
       // Urgent Telegram alert — admin must confirm within 24h
       try { sendManualReviewTelegramAlert_(orderNoM, data); } catch(te) { Logger.log('TG manual err: ' + te); }
+      // Secondary verify-funnel alert (rate-limited) — flags the manual-review fallback path
+      try {
+        sendVerifyFailureTelegram_({
+          type: 'manual_review_pending',
+          order_ref: '#' + orderNoM,
+          customer_name: data.name || '',
+          customer_email: data.email || '',
+          customer_phone: data.phone || '',
+          expected_amount: data.total,
+          fail_count: data.verify_fail_count || 0
+        });
+      } catch (tgme) { Logger.log('TG manual_review_pending err: ' + tgme); }
       return buildResponse({ success: true, orderNo: orderNoM, manual_review: true, status: 'pending_manual_review' });
     }
 
@@ -867,10 +938,16 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
     if (!fullText) { result.reason = 'AI không đọc được text trong ảnh (ảnh mờ hoặc không có chữ)'; return result; }
 
     // ── Layer 1: EXACT amount match ──
-    var amountRegex = /(?:¥|￥|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円)?/g;
+    // Normalize full-width digits ０-９ → 0-9 BEFORE regex matching
+    var normalizedText = fullText.replace(/[０-９]/g, function(ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+    });
+    // Allow optional whitespace between yen symbol and digits; match ¥, ￥, JPY;
+    // accept trailing 円 (full-width) or ｴﾝ (half-width katakana)
+    var amountRegex = /(?:[¥￥]\s*|JPY\s*)?(\d{1,3}(?:[,，]\d{3})+|\d{4,})\s*(?:円|ｴﾝ)?/g;
     var matches = [];
     var m;
-    while ((m = amountRegex.exec(fullText)) !== null) {
+    while ((m = amountRegex.exec(normalizedText)) !== null) {
       var n = parseInt(m[1].replace(/[,，]/g, ''), 10);
       if (n >= 100 && n <= 10000000) matches.push(n);
     }
@@ -1354,6 +1431,14 @@ function testVerifyDebugRunner() {
 function checkRecipientName_(text) {
   // Patterns covering PayPay name, full-width / half-width katakana, romaji, account/symbol numbers
   var patterns = [
+    // PayPay personal-transfer prefix patterns (UI styling: "Thanghoang さんに送る", "Thanghoang 様", etc.)
+    { regex: /Thanghoang.{0,3}(?:さん|様)/i,                                              name: 'Thanghoang さん/様 (PayPay UI)' },
+    { regex: /(?:送金先|宛先|送り先|To)[:\s]*Thanghoang/i,                                 name: '送金先/宛先: Thanghoang' },
+    { regex: /Thanghoang.{0,3}に送/i,                                                     name: 'Thanghoang ...に送る/送りました' },
+    // OCR tolerance — match if 8+ consecutive chars of "Thanghoang" appear (handles 1-2 char OCR errors, e.g. "Thanghoarq")
+    { regex: /T[hH][a-z0-9]{1,2}n[a-z0-9]{0,2}h[a-z0-9]{0,2}o[a-z0-9]{1,3}n[gq]/i,        name: 'Thanghoang (OCR fuzzy)' },
+    // Bank transfer prefix patterns for タカハラ (振込先/受取人/名義人/お振込先/お受取り)
+    { regex: /(?:振込先|受取人|名義人|お振込先|お受取り)[:\s]*(?:タカハラ|ﾀｶﾊﾗ|Takahara)/i,   name: '振込先/受取人: タカハラ' },
     { regex: /thanghoang/i,                    name: 'Thanghoang' },
     { regex: /thang\s*hoang/i,                 name: 'Thang Hoang' },
     { regex: /タカハラ/,                        name: 'タカハラ' },
@@ -1405,7 +1490,7 @@ function checkPaymentSource_(text) {
 function checkCompletionKeyword_(text) {
   // 完了 = completed; 送金 = remit; 振込 = transfer; 支払 = payment; 領収 = receipt
   // Also accept 成功 / done / success for international bills
-  var keywords = /完了|送金|振込|お振込|支払|お支払|領収|決済|送付|成功|済|success|completed|paid/i;
+  var keywords = /完了|送り(?:ました)?|送金|送信|送付|振込|お振込|振替|支払|お支払|受取|受け取(?:り)?|領収|決済|成功|済(?:み)?|完済|success|completed|paid|sent/i;
   return { matched: keywords.test(text) };
 }
 
@@ -2995,6 +3080,82 @@ function sendStockAlertTelegram_(alerts) {
       muteHttpExceptions: true
     });
   } catch(e) { Logger.log('Stock alert TG err: ' + e); }
+}
+
+// ---- Telegram alert when AI verify fails OR khách dùng manual-review fallback ----
+// payload.type = 'verify_failed' | 'manual_review_pending'
+// Rate-limited: 1 alert per 5 min per customer+order combo (key in ScriptProperties).
+// Silently skips if Telegram bot not configured.
+function sendVerifyFailureTelegram_(payload) {
+  var botToken = _prop('TELEGRAM_BOT_TOKEN', '');
+  var chatId = _prop('TELEGRAM_CHAT_ID', '');
+  if (!botToken || !chatId) return;  // not configured → silent skip
+  if (!payload || !payload.type) return;
+  try {
+    // ── Rate limit: hash(customerKey + orderRef) bucketed by 5-min window ──
+    var customerKey = (payload.customer_email || payload.customer_phone || payload.customer_name || 'anon')
+      .toString().toLowerCase().replace(/\s+/g, '').slice(0, 40);
+    var orderKey = (payload.order_ref || '').toString().replace(/[^a-zA-Z0-9#]/g, '').slice(0, 30);
+    var bucket = Math.floor(Date.now() / (5 * 60 * 1000));  // 5-min bucket
+    var rateKey = ('tg_verify_' + payload.type + '_' + customerKey + '_' + orderKey + '_' + bucket).slice(0, 100);
+    var props = PropertiesService.getScriptProperties();
+    if (props.getProperty(rateKey)) {
+      Logger.log('TG verify alert rate-limited: ' + rateKey);
+      return;
+    }
+    props.setProperty(rateKey, '1');
+
+    // ── Build message based on type ──
+    var text;
+    var dashUrl = 'https://www.thuyjapan.com/thuythang';
+    if (payload.type === 'manual_review_pending') {
+      // URGENT: customer used Agent 4's submit-anyway fallback
+      text = '🚨 *URGENT — Manual Review Pending*\n\n' +
+        '📦 Đơn: ' + (payload.order_ref || '(?)') + '\n' +
+        '👤 Khách: ' + (payload.customer_name || '(?)') + '\n' +
+        '💵 Số tiền: ¥' + Number(payload.expected_amount || 0).toLocaleString() + '\n' +
+        '📞 ' + (payload.customer_phone || '(không có)') + '\n' +
+        (payload.fail_count ? '🔄 AI verify đã fail ' + payload.fail_count + ' lần\n' : '') +
+        '\n⚠️ *Khách đã pay ngoài hệ thống — cần review*\n\n' +
+        '👉 [Mở /thuythang để duyệt](' + dashUrl + ')';
+    } else {
+      // verify_failed: which layer? amount mismatch? text excerpt?
+      var failedLayer = '(unknown)';
+      if (payload.checks && typeof payload.checks === 'object') {
+        var layerOrder = ['amount', 'recipient', 'duplicate', 'source', 'completion', 'date', 'transaction_ref', 'no_editor_signature'];
+        for (var i = 0; i < layerOrder.length; i++) {
+          var k = layerOrder[i];
+          if (payload.checks[k] === false) { failedLayer = k; break; }
+        }
+        if (failedLayer === '(unknown)' && payload.checks.amount !== true) failedLayer = 'amount (no match found)';
+      }
+      var excerpt = (payload.raw_text || '').toString().replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (excerpt.length === 200) excerpt += '...';
+      // Escape underscores/asterisks in excerpt to avoid breaking Markdown
+      excerpt = excerpt.replace(/([_*\[\]`])/g, '\\$1');
+
+      text = '⚠️ *AI Verify Failed*\n\n' +
+        '📦 Đơn ref: ' + (payload.order_ref || '(chưa tạo đơn)') + '\n' +
+        '👤 Khách: ' + (payload.customer_name || '(?)') + '\n' +
+        '📞 ' + (payload.customer_phone || '(không có)') + '\n' +
+        '💵 Expected: ¥' + Number(payload.expected_amount || 0).toLocaleString() + '\n' +
+        '💳 Detected: ' + (payload.detected_amount != null
+          ? '¥' + Number(payload.detected_amount).toLocaleString()
+          : '(không đọc được)') + '\n' +
+        '❌ Layer fail: *' + failedLayer + '*\n' +
+        (excerpt ? '\n📄 _Trích OCR:_ ' + excerpt + '\n' : '') +
+        '\n👉 [Mở /thuythang để override](' + dashUrl + ')';
+    }
+
+    UrlFetchApp.fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' }),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    Logger.log('sendVerifyFailureTelegram_ err: ' + e);
+  }
 }
 
 // ---- Luu don hang vao sheet "Don Hang" ----

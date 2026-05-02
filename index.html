@@ -1363,6 +1363,120 @@ window.addEventListener('scroll', function() {
   window._verifyFailCount = 0;
   const VERIFY_FAIL_THRESHOLD = 2;
 
+  // Maps backend reason text → structured customer-facing error category.
+  // Backend reasons come from verifyReceiptStandalone_ in google-apps-script.js
+  // (8 fraud-check layers, each with its own VN reason string).
+  // We pattern-match the reason text to pick icon + brief title + actionable hints.
+  function categorizeVerifyError(reasonText){
+    const t = String(reasonText || '');
+    // Layer 1: amount mismatch — "❌ Số tiền không khớp. Bill có ¥X nhưng đơn cần ¥Y"
+    if (/Số tiền không khớp|không tìm thấy số tiền hợp lệ/i.test(t)) {
+      return {
+        icon: '💰',
+        title: 'Số tiền không khớp',
+        hints: [
+          'Kiểm tra lại số tiền đã chuyển trên app PayPay/ngân hàng',
+          'Nếu đã chuyển đúng — chụp lại screenshot toàn màn hình (không crop)',
+          'Đảm bảo ảnh rõ nét, không bị mờ'
+        ]
+      };
+    }
+    // Layer 2: recipient name missing — "Bill không có tên người nhận đúng"
+    if (/tên người nhận|Thanghoang|タカハラ|2168488/i.test(t)) {
+      return {
+        icon: '👤',
+        title: 'Bill không có tên Thanghoang',
+        hints: [
+          'Đảm bảo bill có chữ "Thanghoang" (PayPay) hiện rõ',
+          'Hoặc tên "タカハラ ケイイチロウ" / số tài khoản 2168488 (chuyển khoản)',
+          'Chụp lại screenshot đầy đủ thông tin người nhận, không crop phần tên'
+        ]
+      };
+    }
+    // Layer 3: duplicate hash — "Biên lai này đã được dùng cho đơn #..."
+    if (/đã được dùng cho đơn|đã dùng/i.test(t)) {
+      return {
+        icon: '🔁',
+        title: 'Bill này đã dùng cho đơn khác',
+        hints: [
+          'Mỗi biên lai chỉ được dùng cho 1 đơn duy nhất',
+          'Vui lòng chuyển khoản lại và upload bill mới',
+          'Nếu nghĩ đây là nhầm lẫn — liên hệ Thuỷ để kiểm tra'
+        ]
+      };
+    }
+    // Layer 4: source not recognized — "Bill không phải từ PayPay hoặc ngân hàng Nhật"
+    if (/không phải từ PayPay|ngân hàng Nhật được hỗ trợ/i.test(t)) {
+      return {
+        icon: '📱',
+        title: 'Bill không từ PayPay/ngân hàng',
+        hints: [
+          'Chỉ chấp nhận screenshot từ app PayPay hoặc app ngân hàng Nhật',
+          'Hệ thống nhận: PayPay, ゆうちょ, Mizuho, MUFG, SMBC, りそな, セブン, 楽天 銀行, v.v.',
+          'Không gửi ảnh chụp tin nhắn hay ảnh từ web'
+        ]
+      };
+    }
+    // Layer 5: completion missing — "Bill chưa thể hiện giao dịch hoàn tất"
+    if (/chưa thể hiện giao dịch hoàn tất|完了|送金|振込|支払/i.test(t)) {
+      return {
+        icon: '⚠️',
+        title: 'Giao dịch chưa hoàn tất',
+        hints: [
+          'Chụp screenshot SAU KHI giao dịch đã thành công',
+          'Bill phải có chữ "完了" (hoàn tất) / "送金" / "振込" / "支払"',
+          'Nếu app báo "đang xử lý" — chờ giao dịch xong rồi mới chụp'
+        ]
+      };
+    }
+    // Layer 6: date too old/future — "Bill có vẻ là giao dịch CŨ"
+    if (/giao dịch CŨ|trong vòng 48 giờ|timezone/i.test(t)) {
+      return {
+        icon: '📅',
+        title: 'Bill quá cũ hoặc sai ngày',
+        hints: [
+          'Chỉ chấp nhận bill được tạo trong vòng 48 giờ',
+          'Nếu vừa chuyển nhưng bill báo cũ — kiểm tra timezone trên điện thoại',
+          'Đảm bảo điện thoại đặt giờ Nhật Bản (JST)'
+        ]
+      };
+    }
+    // Layer 7: transaction ID missing — "Bill thiếu mã giao dịch"
+    if (/thiếu mã giao dịch|取引ID|受付番号/i.test(t)) {
+      return {
+        icon: '🔢',
+        title: 'Bill thiếu mã giao dịch',
+        hints: [
+          'Bill thật từ PayPay/ngân hàng luôn có mã giao dịch dài (取引ID hoặc 受付番号)',
+          'Chụp lại screenshot toàn màn hình — đừng crop phần dưới',
+          'Có thể cần kéo xuống để thấy mã giao dịch'
+        ]
+      };
+    }
+    // Layer 8: editor signature — "Phát hiện ảnh có thể đã bị chỉnh sửa"
+    if (/đã bị chỉnh sửa|Photoshop|GIMP|chỉnh ảnh/i.test(t)) {
+      return {
+        icon: '🚫',
+        title: 'Phát hiện ảnh đã chỉnh sửa',
+        hints: [
+          'Vui lòng upload screenshot GỐC trực tiếp từ app',
+          'Không gửi ảnh qua Photoshop / GIMP / app chỉnh ảnh',
+          'Không chụp lại màn hình từ ảnh khác — chụp trực tiếp app'
+        ]
+      };
+    }
+    // Fallback: OCR/blurred/AI not configured/unknown
+    return {
+      icon: '❓',
+      title: 'Không xác minh được biên lai',
+      hints: [
+        'Chụp lại screenshot toàn màn hình PayPay/ngân hàng (không crop)',
+        'Đảm bảo ảnh rõ nét, không bị mờ hay che khuất',
+        'Nếu vẫn lỗi — liên hệ Thuỷ để được hỗ trợ'
+      ]
+    };
+  }
+
   async function submitOrder(){
     const name=document.getElementById('f-name').value.trim();
     const email=document.getElementById('f-email').value.trim();
@@ -1543,18 +1657,67 @@ window.addEventListener('scroll', function() {
 
       if (!data.success) {
         if (data.error === 'verify_failed') {
-          // Backend's verifyReceiptStandalone_ already returns a friendly Vietnamese reason
-          // covering: amount mismatch / missing recipient name / duplicate hash / OCR fail
+          // Backend's verifyReceiptStandalone_ returns a friendly VN reason for one of
+          // 8 fraud-check layers. We pattern-match → structured card with icon, title,
+          // full reason, and 1-3 specific actions the customer can take.
           window._verifyFailCount = (window._verifyFailCount || 0) + 1;
           const detail = data.detail || {};
           const reason = detail.reason || 'Không xác minh được biên lai';
-          // Convert \n to <br> for multiline reasons
-          const reasonHtml = String(reason).replace(/\n/g, '<br>');
-          let html = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:8px;padding:10px;color:#991B1B;font-weight:500;text-align:left;font-size:13px;line-height:1.5">'
-            + reasonHtml
-            + '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #FCA5A5;color:#7F1D1D;font-size:12px">💡 Vui lòng chọn ảnh biên lai khác và thử lại.</div>'
+          const cat = categorizeVerifyError(reason);
+          // Strip any leading ❌ from backend reason (we already show our own icon)
+          const cleanReason = String(reason).replace(/^❌\s*/, '').replace(/\n/g, '<br>');
+          // Escape HTML in dynamic strings to keep card safe even if backend reason
+          // contains stray characters. We trust backend text but defense-in-depth.
+          const esc = function(s){
+            return String(s).replace(/[&<>"']/g, function(c){
+              return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+            });
+          };
+          const hintsHtml = cat.hints.map(function(h){
+            return '<li style="margin-bottom:4px">' + esc(h) + '</li>';
+          }).join('');
+
+          let html = ''
+            // Card header — icon + brief category title
+            + '<div style="background:#FFFFFF;border:1px solid #DC2626;border-radius:12px;'
+            + 'overflow:hidden;text-align:left;font-size:13px;line-height:1.5;'
+            + 'box-shadow:0 2px 8px rgba(220,38,38,0.12)">'
+            + '  <div style="background:#FEF2F2;padding:10px 12px;border-bottom:1px solid #FCA5A5;'
+            + 'display:flex;align-items:center;gap:8px">'
+            + '    <span style="font-size:22px;line-height:1">' + cat.icon + '</span>'
+            + '    <span style="font-weight:700;color:#991B1B;font-size:14px">' + esc(cat.title) + '</span>'
+            + '  </div>'
+            // Body — full backend reason (multi-line preserved)
+            + '  <div style="padding:10px 12px;color:#7F1D1D;font-size:12.5px;'
+            + 'background:#FFFAFA">' + cleanReason + '</div>'
+            // Actions — bullet list of concrete next steps
+            + '  <div style="padding:10px 12px;background:#FFFFFF;border-top:1px dashed #FCA5A5">'
+            + '    <div style="font-weight:700;color:#374151;margin-bottom:6px;font-size:12px">'
+            + '      💡 Anh/chị có thể thử:'
+            + '    </div>'
+            + '    <ul style="margin:0;padding-left:20px;color:#4B5563;font-size:12.5px">'
+            +        hintsHtml
+            + '    </ul>'
+            + '  </div>'
+            // Buttons — try again + contact Thuỷ
+            + '  <div style="padding:10px 12px;background:#F9FAFB;display:flex;gap:8px;'
+            + 'border-top:1px solid #E5E7EB">'
+            + '    <button onclick="document.getElementById(\'receipt-file-input\').click()" '
+            + 'style="flex:1;background:#DC2626;color:#fff;font-weight:700;padding:10px 12px;'
+            + 'border:none;border-radius:8px;cursor:pointer;font-size:13px">'
+            + '      🔄 Thử ảnh khác'
+            + '    </button>'
+            + '    <a href="https://zalo.me/+818051156688" target="_blank" '
+            + 'style="flex:1;background:#FFFFFF;color:#374151;font-weight:600;padding:10px 12px;'
+            + 'border:1px solid #D1D5DB;border-radius:8px;text-decoration:none;text-align:center;'
+            + 'font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px">'
+            + '      💬 Liên hệ Thuỷ'
+            + '    </a>'
+            + '  </div>'
             + '</div>';
+
           // After N failures, offer manual-review fallback so customer isn't stuck
+          // (Agent 4's "submit anyway after 2 fails" — preserved as separate card below)
           if (window._verifyFailCount >= VERIFY_FAIL_THRESHOLD) {
             html += '<div style="margin-top:10px;background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:10px;text-align:left;font-size:13px;line-height:1.5;color:#78350F">'
               + '<div style="font-weight:700;margin-bottom:6px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'

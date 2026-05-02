@@ -191,6 +191,7 @@
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="campaign" onclick="switchTab('campaign')">📢 Gửi Tin</button>
       <button class="tab" data-tab="inventory" onclick="switchTab('inventory')">📦 Tồn Kho <span id="inv-low-badge" class="hidden" style="background:#F59E0B;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
+      <button class="tab" data-tab="testbill" onclick="switchTab('testbill')" title="Test bill image qua 8 layer AI verify">🧪 Test Bill</button>
     </div>
   </div>
 
@@ -686,6 +687,62 @@
       </p>
     </div>
 
+    <!-- TEST BILL TAB (Verify dry-run admin tool) -->
+    <div id="tab-testbill" class="hidden">
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
+          <div>
+            <h3 style="margin:0 0 4px;font-size:16px;font-weight:800;">🧪 Verify Dry-Run · Test Bill</h3>
+            <p style="font-size:12px;color:#6B7280;margin:0;">Paste URL ảnh bill (Supabase Storage hoặc public HTTPS) + số tiền dự kiến → chạy đủ 8 layer AI verify mà KHÔNG tạo đơn / KHÔNG ghi DB. Dùng để debug bill bị reject.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">🖼️ URL ảnh bill (HTTPS)</label>
+            <input id="tb-image-url" type="url" class="input"
+                   placeholder="https://curcsvwvjkjewtonkhnr.supabase.co/storage/v1/object/public/payment-proofs/..."
+                   style="font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+            <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Có thể paste từ payment_confirmations.image_url hoặc bất kỳ URL ảnh public nào.</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">💴 Số tiền dự kiến (¥)</label>
+              <input id="tb-expected-amount" type="number" class="input" placeholder="vd: 5500" style="font-size:14px;">
+            </div>
+            <button id="tb-run-btn" onclick="runVerifyDryRun()" class="btn btn-primary" style="padding:10px 20px;font-size:14px;font-weight:700;min-width:140px;">
+              🚀 Chạy Test
+            </button>
+          </div>
+          <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400E;">
+            ⚠️ Test này KHÔNG tạo đơn, KHÔNG ghi DB. Hash check sẽ vẫn báo nếu ảnh đã từng dùng cho đơn cũ — đó là tính năng thật, không phải bug.
+          </div>
+        </div>
+      </div>
+
+      <!-- Result panel -->
+      <div id="tb-result-panel" class="hidden">
+        <!-- Summary card -->
+        <div id="tb-summary" class="card" style="margin-bottom:12px;"></div>
+
+        <!-- 8 layer cards -->
+        <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">🛡️ 8 Lớp Verify</div>
+        <div id="tb-layers" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;"></div>
+
+        <!-- Detected fields -->
+        <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">🎯 Giá trị extracted</div>
+        <div id="tb-detected" class="card" style="font-size:13px;"></div>
+
+        <!-- Raw OCR text -->
+        <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">📝 OCR Text (1500 chars đầu)</div>
+        <div class="card" style="padding:0;">
+          <pre id="tb-raw-text" style="margin:0;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;color:#374151;background:#F9FAFB;border-radius:8px;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;"></pre>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -877,6 +934,65 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button onclick="closeExportModal()" class="btn btn-ghost">Hủy</button>
       <button onclick="doExportExcel()" id="export-btn" class="btn btn-primary">📥 Tải file .xlsx</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORCE APPROVE PAYMENT MODAL (admin manual override) -->
+<div id="force-approve-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeForceApproveModal()">
+  <div class="modal" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Phê duyệt thủ công</div>
+        <h3 style="margin:4px 0 0;font-size:20px;color:#1C1C1E;">🛡️ Override AI verify</h3>
+        <div style="font-size:12px;color:#6B7280;margin-top:4px;">Đơn <strong id="fa-order-no">#</strong> · Hoá đơn <strong id="fa-conf-id">#</strong></div>
+      </div>
+      <button onclick="closeForceApproveModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <!-- Bill image preview -->
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📸 Ảnh bill khách gửi</label>
+      <a id="fa-img-link" href="#" target="_blank" style="display:block;">
+        <img id="fa-img-preview" src="" style="width:100%;max-height:240px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#F9FAFB;">
+      </a>
+      <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;text-align:center;">Click ảnh để xem full size</p>
+    </div>
+
+    <!-- AI reason callout -->
+    <div id="fa-ai-reason-box" style="background:#FEE2E2;border:1px solid #EF4444;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#991B1B;">
+      <div style="font-weight:700;margin-bottom:4px;">🤖 Vì sao AI từ chối?</div>
+      <div id="fa-ai-reason-text">-</div>
+      <div id="fa-ai-amounts" style="margin-top:6px;font-size:11px;color:#7F1D1D;"></div>
+    </div>
+
+    <!-- Reason picker -->
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">📝 Lý do duyệt thủ công <span style="color:#EF4444;">*</span></label>
+      <select id="fa-reason-template" class="select" onchange="onForceApproveReasonChange()" style="font-size:13px;">
+        <option value="">-- Chọn lý do --</option>
+        <option value="Anh đã verify thủ công, bill đúng">Anh đã verify thủ công, bill đúng</option>
+        <option value="AI lỗi false negative, bill thật">AI lỗi false negative, bill thật</option>
+        <option value="Khách thanh toán bằng cách khác">Khách thanh toán bằng cách khác</option>
+        <option value="Bill bị crop nên AI không đọc được">Bill bị crop nên AI không đọc được</option>
+        <option value="__custom__">✏️ Tự nhập lý do khác...</option>
+      </select>
+    </div>
+
+    <!-- Custom reason input (hidden until "custom" picked) -->
+    <div id="fa-custom-reason-wrap" class="hidden" style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Lý do tuỳ chọn</label>
+      <input id="fa-custom-reason" type="text" class="input" placeholder="Vd: Đã gọi điện xác nhận với khách..." style="font-size:13px;" onkeydown="if(event.key==='Enter'){event.preventDefault();doForceApproveSubmit();}">
+      <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Nhấn Enter để duyệt nhanh</p>
+    </div>
+
+    <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:11px;color:#78350F;">
+      ⚠️ Thao tác này sẽ: đánh dấu hoá đơn = manual_approved · cập nhật đơn → "Khách đã TT" · ghi log audit (ai duyệt, khi nào, vì sao).
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeForceApproveModal()" class="btn btn-ghost">Huỷ</button>
+      <button id="fa-submit-btn" onclick="doForceApproveSubmit()" class="btn btn-primary" style="background:#3B82F6;">🛡️ Phê duyệt</button>
     </div>
   </div>
 </div>
@@ -1621,7 +1737,7 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','messages','campaign','inventory'].forEach(t => {
+  ['dashboard','orders','customers','messages','campaign','inventory','testbill'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
@@ -1637,7 +1753,7 @@ function switchTab(name) {
 function restoreAdminTabs() {
   try {
     const savedTab = localStorage.getItem('admin_tab');
-    if (savedTab && ['dashboard','orders','customers','messages','campaign','inventory'].includes(savedTab) && savedTab !== 'dashboard') {
+    if (savedTab && ['dashboard','orders','customers','messages','campaign','inventory','testbill'].includes(savedTab) && savedTab !== 'dashboard') {
       switchTab(savedTab);
     }
     const savedSub = localStorage.getItem('admin_orders_subtab');
@@ -2436,8 +2552,19 @@ async function openOrderModal(orderNo) {
           }
 
           // "Phê duyệt thủ công" button — only when AI rejected (mismatch/failed) and conf still submitted.
+          // Stash AI reason + screenshot URL on a hidden global keyed by confId so the modal can read them
+          // without us having to escape long strings into onclick attrs (CSP/quoting safer).
+          window.__forceApproveCtx = window.__forceApproveCtx || {};
+          window.__forceApproveCtx[c.id] = {
+            screenshotUrl: c.screenshot_url || '',
+            aiReason: c.ai_reason || '',
+            aiMatch: c.ai_match,
+            aiVerifiedAmount: c.ai_verified_amount,
+            claimedAmount: c.claimed_amount,
+            orderTotal: o.total
+          };
           const forceApproveBtnHtml = (canForceApprove && c.status === 'submitted')
-            ? '<button onclick="doForceApprovePayment(' + c.id + ', \'' + o.order_no + '\', ' + o.total + ')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;margin-top:6px;">🛡️ Phê duyệt thủ công</button>'
+            ? '<button onclick="openForceApproveModal(' + c.id + ', \'' + o.order_no + '\', ' + o.total + ')" class="btn" style="padding:6px 12px;font-size:12px;background:#3B82F6;color:white;margin-top:6px;">🛡️ Phê duyệt thủ công</button>'
             : '';
 
           return '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:10px;margin-bottom:8px;">' +
@@ -2848,22 +2975,112 @@ async function doReVerifyAI(confId, imageUrl, expectedAmount, orderNo) {
   }
 }
 
+// ============ FORCE APPROVE MODAL (admin manual override) ============
+// State held while modal is open — populated by openForceApproveModal, consumed by doForceApproveSubmit.
+let _forceApprovePending = null;  // { confId, orderNo, expectedAmount }
+
+// Open the manual-override modal: prefill image preview, AI reason, reset reason picker.
+function openForceApproveModal(confId, orderNo, expectedAmount) {
+  const ctx = (window.__forceApproveCtx && window.__forceApproveCtx[confId]) || {};
+  _forceApprovePending = { confId, orderNo, expectedAmount };
+
+  // Header
+  document.getElementById('fa-order-no').textContent = '#' + orderNo;
+  document.getElementById('fa-conf-id').textContent = '#' + confId;
+
+  // Bill image preview
+  const imgEl = document.getElementById('fa-img-preview');
+  const linkEl = document.getElementById('fa-img-link');
+  if (ctx.screenshotUrl) {
+    imgEl.src = ctx.screenshotUrl;
+    linkEl.href = ctx.screenshotUrl;
+    imgEl.style.display = '';
+  } else {
+    imgEl.removeAttribute('src');
+    linkEl.removeAttribute('href');
+    imgEl.style.display = 'none';
+  }
+
+  // AI reason callout — describe which "layer" failed so admin makes informed call.
+  const aiReasonText = document.getElementById('fa-ai-reason-text');
+  const aiAmountsEl = document.getElementById('fa-ai-amounts');
+  let layerLabel;
+  if (ctx.aiMatch === false) {
+    layerLabel = 'Layer 2 (so khớp số tiền) — AI đọc được nhưng không khớp đơn.';
+  } else if (ctx.aiMatch === null || typeof ctx.aiMatch === 'undefined') {
+    layerLabel = 'Layer 1 (OCR) — AI không đọc được số tiền trong ảnh.';
+  } else {
+    layerLabel = 'AI đã từ chối hoá đơn này.';
+  }
+  aiReasonText.textContent = (ctx.aiReason ? ctx.aiReason + ' · ' : '') + layerLabel;
+  if (ctx.aiVerifiedAmount != null && ctx.aiMatch === false) {
+    aiAmountsEl.textContent =
+      'AI đọc được: ¥' + Number(ctx.aiVerifiedAmount).toLocaleString() +
+      ' · Đơn: ¥' + Number(ctx.orderTotal || expectedAmount).toLocaleString() +
+      ' · Khách khai: ¥' + Number(ctx.claimedAmount || 0).toLocaleString();
+  } else {
+    aiAmountsEl.textContent = 'Đơn: ¥' + Number(ctx.orderTotal || expectedAmount).toLocaleString() +
+      (ctx.claimedAmount ? ' · Khách khai: ¥' + Number(ctx.claimedAmount).toLocaleString() : '');
+  }
+
+  // Reset reason picker
+  document.getElementById('fa-reason-template').value = '';
+  document.getElementById('fa-custom-reason').value = '';
+  document.getElementById('fa-custom-reason-wrap').classList.add('hidden');
+  document.getElementById('fa-submit-btn').disabled = false;
+
+  document.getElementById('force-approve-modal').classList.remove('hidden');
+}
+
+function closeForceApproveModal() {
+  document.getElementById('force-approve-modal').classList.add('hidden');
+  _forceApprovePending = null;
+}
+
+// Show/hide custom reason input when "custom" picked in the dropdown, and focus it.
+function onForceApproveReasonChange() {
+  const sel = document.getElementById('fa-reason-template');
+  const wrap = document.getElementById('fa-custom-reason-wrap');
+  const inp = document.getElementById('fa-custom-reason');
+  if (sel.value === '__custom__') {
+    wrap.classList.remove('hidden');
+    setTimeout(() => inp.focus(), 50);
+  } else {
+    wrap.classList.add('hidden');
+  }
+}
+
+// Submit handler — resolve picked-or-custom reason, then call the original API path.
+async function doForceApproveSubmit() {
+  if (!_forceApprovePending) { closeForceApproveModal(); return; }
+  const sel = document.getElementById('fa-reason-template');
+  const customInp = document.getElementById('fa-custom-reason');
+  let reason = '';
+  if (sel.value === '__custom__') {
+    reason = (customInp.value || '').trim();
+  } else {
+    reason = (sel.value || '').trim();
+  }
+  if (!reason) {
+    showToast('❌ Phải chọn hoặc nhập lý do duyệt thủ công', 'error');
+    if (sel.value === '__custom__') customInp.focus();
+    else sel.focus();
+    return;
+  }
+  const { confId, orderNo, expectedAmount } = _forceApprovePending;
+  document.getElementById('fa-submit-btn').disabled = true;
+  closeForceApproveModal();
+  await doForceApprovePayment(confId, orderNo, expectedAmount, reason);
+}
+
 // Admin manual override: approve a payment confirmation that AI verify rejected (false negative).
 // Calls Apps Script doPost type='admin_force_approve_payment' which patches DB
 // + bumps order status pending → customer_paid. Full audit trail in payment_confirmations.
-async function doForceApprovePayment(confId, orderNo, expectedAmount) {
-  const reason = prompt(
-    'Lý do duyệt thủ công?\n\n' +
-    '(Vd: "Đã kiểm tra MoMo/PayPay, tiền đã vào", "Khách gửi screenshot rõ", v.v.)\n' +
-    'Lý do này sẽ được lưu lại để audit.',
-    ''
-  );
-  if (reason === null) return;            // cancel
-  if (!reason.trim()) {
+// `reason` is now passed in from the modal (no native prompt). Kept as a separate function so
+// the API call shape is preserved unchanged.
+async function doForceApprovePayment(confId, orderNo, expectedAmount, reason) {
+  if (!reason || !reason.trim()) {
     showToast('❌ Phải nhập lý do duyệt thủ công', 'error');
-    return;
-  }
-  if (!confirm('Xác nhận DUYỆT THỦ CÔNG hóa đơn #' + confId + ' cho đơn ' + orderNo + '?\n\nThao tác này sẽ:\n• Đánh dấu hoá đơn = đã khớp (manual_approved)\n• Cập nhật đơn → "Khách đã TT"\n• Ghi log audit (ai duyệt, khi nào, tại sao)')) {
     return;
   }
 
@@ -2904,6 +3121,138 @@ async function doForceApprovePayment(confId, orderNo, expectedAmount) {
   } catch (e) {
     showToast('❌ Lỗi gọi server: ' + (e.message || e), 'error');
   }
+}
+
+// ============ VERIFY DRY-RUN (Test Bill admin tool) ============
+// Sends image_url + expected_amount to Apps Script doPost type='verify_dry_run',
+// renders 8-layer pass/fail breakdown without touching any DB row.
+async function runVerifyDryRun() {
+  const urlInput = document.getElementById('tb-image-url');
+  const amtInput = document.getElementById('tb-expected-amount');
+  const btn = document.getElementById('tb-run-btn');
+  const panel = document.getElementById('tb-result-panel');
+  const url = (urlInput.value || '').trim();
+  const amt = parseInt(amtInput.value, 10);
+
+  if (!url || !/^https?:\/\//i.test(url)) {
+    showToast('❌ Cần URL ảnh hợp lệ (https://...)', 'error');
+    urlInput.focus();
+    return;
+  }
+  if (!amt || amt < 100 || amt > 10000000) {
+    showToast('❌ Số tiền dự kiến không hợp lệ (100 ~ 10,000,000)', 'error');
+    amtInput.focus();
+    return;
+  }
+
+  btn.disabled = true;
+  const origLabel = btn.innerHTML;
+  btn.innerHTML = '⏳ Đang test... (~5s)';
+  panel.classList.add('hidden');
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'verify_dry_run',
+        image_url: url,
+        expected_amount: amt
+      })
+    });
+    const j = await res.json();
+    if (!j || j.success === false) {
+      showToast('❌ Lỗi: ' + (j && j.error ? j.error : 'unknown'), 'error');
+      btn.disabled = false;
+      btn.innerHTML = origLabel;
+      return;
+    }
+    renderVerifyDryRunResult(j);
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    showToast('❌ Lỗi gọi server: ' + (e.message || e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origLabel;
+  }
+}
+
+// Render the 8 layer cards + summary + detected fields + raw OCR.
+function renderVerifyDryRunResult(j) {
+  const checks = j.checks || {};
+  // Summary card
+  const summaryBox = document.getElementById('tb-summary');
+  const matched = !!j.match;
+  summaryBox.style.background = matched ? '#ECFDF5' : '#FEF2F2';
+  summaryBox.style.border = '2px solid ' + (matched ? '#10B981' : '#EF4444');
+  summaryBox.innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <div style="font-size:42px;line-height:1;">${matched ? '✅' : '❌'}</div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:13px;font-weight:700;color:${matched ? '#065F46' : '#991B1B'};margin-bottom:2px;">
+          ${matched ? 'MATCH — tất cả 8 layer pass' : 'FAIL — bill bị reject'}
+        </div>
+        <div style="font-size:13px;color:#374151;white-space:pre-line;">${escapeHtml(j.reason || '')}</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:6px;">
+          ⏱️ ${j.elapsed_ms || 0}ms · 💴 expected ¥${(j.expected_amount || 0).toLocaleString()}
+          ${j.detected_amount != null ? ' · detected ¥' + j.detected_amount.toLocaleString() : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // 8 layer cards. checks object may have undefined keys for layers that didn't run
+  // (pipeline short-circuits on first fail). Treat undefined = skipped (gray).
+  const layerSpecs = [
+    { key: 'amount',               num: 1, title: 'Số tiền',             desc: 'Khớp ¥ chính xác (±¥1)' },
+    { key: 'recipient',            num: 2, title: 'Tên người nhận',      desc: 'Thanghoang / タカハラ / 2168488' },
+    { key: 'duplicate',            num: 3, title: 'Hash trùng lặp',      desc: 'SHA-256 chưa từng dùng' },
+    { key: 'source',               num: 4, title: 'Nguồn thanh toán',    desc: 'PayPay / ngân hàng JP' },
+    { key: 'completion',           num: 5, title: 'Đã hoàn tất',         desc: '完了 / 送金 / 振込 / 支払' },
+    { key: 'date',                 num: 6, title: 'Ngày giao dịch',      desc: 'Trong vòng 48h gần đây' },
+    { key: 'transaction_ref',      num: 7, title: 'Mã giao dịch',        desc: '取引ID / 受付番号' },
+    { key: 'no_editor_signature', num: 8, title: 'Không bị chỉnh sửa',   desc: 'EXIF không có Photoshop/GIMP' }
+  ];
+  const layersBox = document.getElementById('tb-layers');
+  layersBox.innerHTML = layerSpecs.map(spec => {
+    const v = checks[spec.key];
+    let icon, color, bg, border, status;
+    if (v === true) {
+      icon = '✓'; color = '#065F46'; bg = '#ECFDF5'; border = '#10B981'; status = 'PASS';
+    } else if (v === false) {
+      icon = '✗'; color = '#991B1B'; bg = '#FEF2F2'; border = '#EF4444'; status = 'FAIL';
+    } else {
+      icon = '–'; color = '#6B7280'; bg = '#F9FAFB'; border = '#D1D5DB'; status = 'SKIP';
+    }
+    return `
+      <div style="background:${bg};border:1.5px solid ${border};border-radius:10px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-size:11px;font-weight:700;color:${color};letter-spacing:0.4px;">LAYER ${spec.num}</div>
+          <div style="font-size:18px;font-weight:800;color:${color};line-height:1;">${icon} <span style="font-size:11px;letter-spacing:0.5px;">${status}</span></div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#1F2937;margin-bottom:2px;">${escapeHtml(spec.title)}</div>
+        <div style="font-size:11px;color:#6B7280;">${escapeHtml(spec.desc)}</div>
+      </div>`;
+  }).join('');
+
+  // Detected fields card
+  const detBox = document.getElementById('tb-detected');
+  const detRows = [
+    ['💴 Số tiền AI đọc',    j.detected_amount != null ? '¥' + j.detected_amount.toLocaleString() : '(không đọc được)'],
+    ['📅 Ngày trong bill',   j.detected_date || '(không đọc được)'],
+    ['💳 Nguồn thanh toán',  j.detected_source || '(chưa pass đến layer này)'],
+    ['🔢 Mã giao dịch',      j.detected_ref || '(chưa pass đến layer này)'],
+    ['🔐 SHA-256 hash',      j.hash ? j.hash.slice(0, 16) + '…' + j.hash.slice(-8) : '(chưa tính)']
+  ];
+  detBox.innerHTML = '<div style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;">'
+    + detRows.map(r =>
+        `<div style="color:#6B7280;font-weight:600;">${escapeHtml(r[0])}</div>` +
+        `<div style="color:#1F2937;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;">${escapeHtml(r[1])}</div>`
+      ).join('')
+    + '</div>';
+
+  // Raw OCR text
+  document.getElementById('tb-raw-text').textContent = j.raw_text || '(OCR text rỗng)';
 }
 
 // ============ PAYMENT PROOF VERIFY ============
