@@ -313,33 +313,31 @@
 <section id="dashboard-section" class="hidden py-10 px-4">
   <div class="max-w-2xl mx-auto">
 
-    <!-- Top Bar: Home + Logout (cung kich thuoc) -->
-    <div class="flex justify-between items-center mb-4">
+    <!-- Top Bar: Home (left) + Logout + Points (right column) -->
+    <div class="flex justify-between items-start mb-4">
       <a href="/" class="flex items-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-700 hover:text-white hover:border-gray-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm no-underline">
         ← Trang Chủ
       </a>
-      <button onclick="doLogout()" class="flex items-center gap-2 bg-white border-2 border-brand-red text-brand-red hover:bg-brand-red hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
-        🚪 Đăng Xuất
-      </button>
+      <div class="flex flex-col items-end gap-1">
+        <button onclick="doLogout()" class="flex items-center gap-2 bg-white border-2 border-brand-red text-brand-red hover:bg-brand-red hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
+          🚪 Đăng Xuất
+        </button>
+        <button onclick="switchDashTab('points')" class="text-amber-600 hover:text-amber-700 text-xs font-bold transition px-2 py-0.5">
+          <span id="dash-points-big">0</span> điểm
+        </button>
+      </div>
     </div>
 
-    <!-- Compact Welcome Header (Amazon-style) -->
+    <!-- Compact Welcome Header (only name + msg badge, no points pill) -->
     <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-4 mb-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="min-w-0 flex-1">
           <p class="text-gray-500 text-xs">Xin chào,</p>
           <h2 id="dash-name" class="text-lg font-bold text-brand-dark truncate"></h2>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <button onclick="switchDashTab('messages')" id="msg-unread-pill" class="hidden bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 transition">
-            💬 <span id="msg-unread-count">0</span>
-          </button>
-          <button onclick="switchDashTab('points')" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-full shadow-sm transition flex items-center gap-1">
-            <span>⭐</span>
-            <span id="dash-points-big">0</span>
-            <span class="text-xs opacity-90">điểm</span>
-          </button>
-        </div>
+        <button onclick="switchDashTab('messages')" id="msg-unread-pill" class="hidden bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 transition">
+          💬 <span id="msg-unread-count">0</span> tin nhắn mới
+        </button>
       </div>
     </div>
 
@@ -359,14 +357,6 @@
       <div class="flex items-center justify-between mb-3">
         <h4 class="font-bold text-gray-700 text-sm">📦 Lịch Sử Mua Hàng</h4>
         <button onclick="loadDashboard()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg transition">🔄 Làm mới</button>
-      </div>
-      <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4">
-        <p class="text-xs text-yellow-800"><strong>📌 Quy định hủy đơn:</strong></p>
-        <ul class="text-xs text-yellow-700 mt-1 ml-4 list-disc space-y-0.5">
-          <li>Trong vòng <strong>30 phút</strong> sau khi đặt: anh/chị có thể tự hủy đơn</li>
-          <li>Sau 30 phút: cần liên hệ shop trực tiếp</li>
-          <li>Không thể hủy đơn đã được xác nhận thanh toán hoặc đã gửi hàng</li>
-        </ul>
       </div>
       <!-- Debug panel — an` by default, only visible on ?debug=1 URL param -->
       <div id="order-debug" class="hidden bg-gray-900 text-green-300 text-xs rounded-xl p-3 mb-3 font-mono" style="font-family:monospace;max-height:200px;overflow-y:auto;display:none"></div>
