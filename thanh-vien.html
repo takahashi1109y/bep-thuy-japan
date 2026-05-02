@@ -786,7 +786,6 @@
             <p id="tracking-carrier-name" class="text-brand-dark font-bold">-</p>
             <p class="text-gray-500 text-xs mt-2">Mã vận đơn:</p>
             <p id="tracking-number" class="font-mono font-semibold text-sm break-all">-</p>
-            <a id="tracking-external-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 14px;background:linear-gradient(135deg,#000,#1f2937);color:#fff;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,0.2)">🔗 Xem realtime trên Yamato →</a>
           </div>
 
           <!-- Card 2: Delivery address -->
@@ -814,10 +813,14 @@
               <h4 class="font-bold text-brand-dark">📍 Lịch trình vận chuyển</h4>
               <button onclick="refreshTrackingEvents()" class="text-xs text-brand-red hover:underline">🔄 Làm mới</button>
             </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:6px">
+              <span style="font-size:14px">ⓘ</span>
+              <span>ヤマト運輸の配送状況をリアルタイム表示</span>
+            </div>
             <div id="tracking-timeline" class="space-y-3">
               <p class="text-gray-400 text-sm text-center py-4">Đang tải lịch trình...</p>
             </div>
-            <p class="text-gray-400 text-xs mt-3 text-center">時間は現地時間で表示されます · Thời gian theo giờ địa phương</p>
+            <p class="text-gray-400 text-xs mt-3 text-center">時間は現地時間で表示されます · 5分ごとに自動更新</p>
           </div>
         </div>
 
@@ -2503,24 +2506,17 @@ async function showTrackingModal(orderNo) {
   }
   _currentTrackingOrder = order;
 
-  // Determine carrier
+  // Determine carrier (carrierName + carrierKey only — external link button removed)
   const rawCarrier = (order.carrier || '').toLowerCase();
   let carrierName = 'Yamato Cool 宅急便';
   let carrierKey = 'yamato';  // lowercase key for fetchTrackingEvents
-  let externalUrl = '';
-
-  // Strip dashes — Yamato/Sagawa cần format số liền (3898-5807-6156 → 389858076156)
-  const cleanTrackingNo = String(order.tracking_number || '').replace(/[^0-9]/g, '');
 
   if (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) {
     carrierName = '佐川急便 (Sagawa)';
     carrierKey = 'sagawa';
-    externalUrl = 'https://k2k.sagawa-exp.co.jp/p/sagawa/web/okurijoinput.jsp?okurijoNo=' + cleanTrackingNo;
   } else {
-    // Default Yamato
     carrierName = 'ヤマト運輸 (Yamato Cool 宅急便)';
     carrierKey = 'yamato';
-    externalUrl = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + cleanTrackingNo;
   }
 
   // Populate modal fields
@@ -2544,14 +2540,6 @@ async function showTrackingModal(orderNo) {
 
   document.getElementById('tracking-carrier-name').textContent = carrierName;
   document.getElementById('tracking-number').textContent = order.tracking_number || '(chưa có)';
-
-  const extLink = document.getElementById('tracking-external-link');
-  if (order.tracking_number) {
-    extLink.href = externalUrl;
-    extLink.style.display = 'inline-flex';
-  } else {
-    extLink.style.display = 'none';
-  }
 
   document.getElementById('tracking-recipient-name').textContent = order.recipient_name || order.customer_name || '-';
   const addr = (order.ship_postal ? '〒' + order.ship_postal + '\n' : '')
@@ -3316,7 +3304,7 @@ function renderTrackingTimeline(events) {
   // Render
   const dates = Object.keys(byDate).sort().reverse();  // newest first
   return dates.map(d => {
-    const dateLabel = formatDateVN(d);  // "4 月 27 日 月曜日" or Vietnamese
+    const dateLabel = formatDateJP(d);  // "5月2日（土）" Japanese format Amazon-style
     const eventsHtml = byDate[d].map((e, i) => {
       const isFirst = (d === dates[0] && i === 0);
       const dotClass = e.type === 'delivered' ? 'delivered'
@@ -3343,12 +3331,13 @@ function renderTrackingTimeline(events) {
   }).join('');
 }
 
-function formatDateVN(isoDate) {
-  // isoDate: "2026-04-27"
+function formatDateJP(isoDate) {
+  // isoDate: "2026-05-02" → "5月2日（土）" Amazon JP style
   try {
     const d = new Date(isoDate + 'T00:00:00');
-    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-    return d.getDate() + ' tháng ' + (d.getMonth() + 1) + ' (' + dayNames[d.getDay()] + ')';
+    if (isNaN(d.getTime())) return isoDate;
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dayNames[d.getDay()] + '）';
   } catch(e) { return isoDate; }
 }
 
