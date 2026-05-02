@@ -763,9 +763,9 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- TRACKING DETAIL MODAL (Amazon-style) -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="tracking-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" style="background:rgba(0,0,0,0.5);" onclick="if(event.target===this)closeTrackingModal()">
-    <div class="min-h-screen flex items-start justify-center p-4 pt-12">
-      <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden" onclick="event.stopPropagation()">
+  <div id="tracking-modal" class="hidden fixed inset-0 z-[9999] overflow-y-auto" style="background:rgba(0,0,0,0.5);" onclick="if(event.target===this)closeTrackingModal()">
+    <div class="min-h-screen flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
 
         <!-- Header -->
         <div class="bg-gradient-to-r from-brand-dark to-red-900 px-6 py-4 flex justify-between items-start">
