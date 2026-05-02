@@ -4552,13 +4552,24 @@ function testYamatoScraperHealth() {
 
 // Chạy 1 lần để cài trigger weekly Tuesday 09:00 JST
 // (Apps Script Editor → chọn function này từ dropdown → click Run)
+//
+// LƯU Ý: Function này cần scope `script.scriptapp` (manage triggers).
+// Lần đầu Run, Apps Script sẽ prompt authorization. Nếu fail với
+// "Specified permissions are not sufficient" → dùng UI manual thay:
+//   Apps Script Editor → ⏰ Triggers (sidebar) → + Add Trigger → chọn
+//   testYamatoScraperHealth, Time-driven, Week timer, Tuesday, 9am-10am
 function createYamatoMonitoringTrigger() {
-  // Cleanup duplicate triggers nếu chạy lại
-  ScriptApp.getProjectTriggers().forEach(function(t) {
-    if (t.getHandlerFunction() === 'testYamatoScraperHealth') {
-      ScriptApp.deleteTrigger(t);
-    }
-  });
+  // Cleanup duplicate triggers nếu chạy lại — graceful degradation nếu scope chưa grant
+  try {
+    ScriptApp.getProjectTriggers().forEach(function(t) {
+      if (t.getHandlerFunction() === 'testYamatoScraperHealth') {
+        ScriptApp.deleteTrigger(t);
+      }
+    });
+  } catch (err) {
+    Logger.log('[YAMATO-TRIGGER] Skip cleanup (scope chưa grant lần đầu): ' + err);
+  }
+  // Tạo trigger mới — sẽ prompt auth lần đầu
   ScriptApp.newTrigger('testYamatoScraperHealth')
     .timeBased()
     .everyWeeks(1)
