@@ -1409,22 +1409,23 @@ function checkCompletionKeyword_(text) {
   return { matched: keywords.test(text) };
 }
 
-// Layer 6: Date in OCR text within last 48 hours
-// Tries common Japanese / international date formats
+// Layer 6: Date in OCR within last 72 hours.
+// CRITICAL FIX: Bills have multiple dates including 有効期限 (expiry, future date).
+// Old logic picked LATEST → would pick expiry → fail "future date" check.
+// FIX: skip dates near expiry keywords; prefer dates near transaction keywords;
+// fallback to OLDEST when no keyword context.
 function checkRecentDate_(text) {
   var now = new Date();
-  var cutoff = now.getTime() - (48 * 60 * 60 * 1000); // 48 hours ago
-  var detected = null;
+  var cutoff = now.getTime() - (72 * 60 * 60 * 1000); // 72h (was 48; lenient)
 
   var patterns = [
-    // 2026/04/29  2026-04-29  2026.04.29
     /(20\d{2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/g,
-    // 2026年4月29日
     /(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
-    // 04/29/2026 (less common in Japan)
     /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](20\d{2})/g
   ];
 
+  // Collect all dates with positional + keyword context
+  var allDates = [];
   for (var p = 0; p < patterns.length; p++) {
     var rgx = patterns[p];
     var m;
@@ -1434,17 +1435,33 @@ function checkRecentDate_(text) {
       else { y = +m[3]; mo = +m[1]; d = +m[2]; }
       if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2024 || y > 2030) continue;
       var dt = new Date(y, mo - 1, d);
-      if (!isNaN(dt.getTime())) {
-        // Pick the latest (most likely the actual transaction date)
-        if (!detected || dt > detected) detected = dt;
-      }
+      if (isNaN(dt.getTime())) continue;
+
+      // Examine 60 chars BEFORE this date for context keywords
+      var ctxStart = Math.max(0, m.index - 60);
+      var ctxBefore = text.substring(ctxStart, m.index);
+      var hasExpiry = /有効期限|期限切れ|期限|expir|valid.{0,5}until/i.test(ctxBefore);
+      var hasTxn = /取引完了|取引日|送信日|完了日|決済日|支払日|お振込日|受け取り完了|送金日|送りました|発行日|paid.{0,5}on|completed|transaction/i.test(ctxBefore);
+
+      allDates.push({ date: dt, position: m.index, hasExpiry: hasExpiry, hasTxn: hasTxn });
     }
   }
 
-  if (!detected) return { recent: true, detected_date: null }; // unknown — don't penalize
+  if (allDates.length === 0) return { recent: true, detected_date: null }; // unknown — pass
+
+  // Step 1: filter out expiry-context dates
+  var nonExpiry = allDates.filter(function(d) { return !d.hasExpiry; });
+  if (nonExpiry.length === 0) nonExpiry = allDates; // fallback
+
+  // Step 2: prefer transaction-context dates
+  var txnDates = nonExpiry.filter(function(d) { return d.hasTxn; });
+  var candidates = txnDates.length > 0 ? txnDates : nonExpiry;
+
+  // Step 3: pick OLDEST (transaction usually earlier than expiry/future dates)
+  candidates.sort(function(a, b) { return a.date - b.date; });
+  var detected = candidates[0].date;
 
   var detectedTs = detected.getTime();
-  // Future dates (timezone errors): allow up to 1 day in future
   if (detectedTs > now.getTime() + 24 * 60 * 60 * 1000) {
     return { recent: false, detected_date: Utilities.formatDate(detected, 'Asia/Tokyo', 'yyyy/MM/dd') };
   }
