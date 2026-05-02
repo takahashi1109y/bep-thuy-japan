@@ -772,6 +772,7 @@
             <p class="text-amber-200 text-xs uppercase tracking-wide font-semibold">Tình trạng vận chuyển</p>
             <h3 id="tracking-modal-title" class="text-white text-xl font-bold mt-1">Đơn #----</h3>
             <p id="tracking-modal-status" class="text-amber-100 text-sm mt-1">Đang tải...</p>
+            <p id="tracking-modal-shipped-date" class="text-amber-50 text-xs mt-1" style="display:none">📅 Đã giao Yamato: <span></span></p>
           </div>
           <button onclick="closeTrackingModal()" class="text-white text-2xl hover:text-amber-200 leading-none">×</button>
         </div>
@@ -785,7 +786,7 @@
             <p id="tracking-carrier-name" class="text-brand-dark font-bold">-</p>
             <p class="text-gray-500 text-xs mt-2">Mã vận đơn:</p>
             <p id="tracking-number" class="font-mono font-semibold text-sm break-all">-</p>
-            <a id="tracking-external-link" href="#" target="_blank" class="text-brand-red text-xs underline mt-2 inline-block">Xem trên website hãng →</a>
+            <a id="tracking-external-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 14px;background:linear-gradient(135deg,#000,#1f2937);color:#fff;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,0.2)">🔗 Xem realtime trên Yamato →</a>
           </div>
 
           <!-- Card 2: Delivery address -->
@@ -2508,15 +2509,18 @@ async function showTrackingModal(orderNo) {
   let carrierKey = 'yamato';  // lowercase key for fetchTrackingEvents
   let externalUrl = '';
 
+  // Strip dashes — Yamato/Sagawa cần format số liền (3898-5807-6156 → 389858076156)
+  const cleanTrackingNo = String(order.tracking_number || '').replace(/[^0-9]/g, '');
+
   if (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) {
     carrierName = '佐川急便 (Sagawa)';
     carrierKey = 'sagawa';
-    externalUrl = 'https://k2k.sagawa-exp.co.jp/p/sagawa/web/okurijoinput.jsp?okurijoNo=' + encodeURIComponent(order.tracking_number || '');
+    externalUrl = 'https://k2k.sagawa-exp.co.jp/p/sagawa/web/okurijoinput.jsp?okurijoNo=' + cleanTrackingNo;
   } else {
     // Default Yamato
     carrierName = 'ヤマト運輸 (Yamato Cool 宅急便)';
     carrierKey = 'yamato';
-    externalUrl = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + encodeURIComponent(order.tracking_number || '');
+    externalUrl = 'https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number=' + cleanTrackingNo;
   }
 
   // Populate modal fields
@@ -2526,13 +2530,25 @@ async function showTrackingModal(orderNo) {
     : order.status === 'confirmed' ? '✅ Đã xác nhận, sắp ship'
     : 'Đang xử lý';
 
+  // Shipped date pill — show khi đã có tracking_number (status shipped/delivered)
+  const shippedAt = order.shipped_at || order.tracking_number_added_at || order.updated_at;
+  const shipPill = document.getElementById('tracking-modal-shipped-date');
+  if (shippedAt && order.tracking_number && (order.status === 'shipped' || order.status === 'delivered')) {
+    try {
+      shipPill.querySelector('span').textContent = new Date(shippedAt).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric'});
+      shipPill.style.display = 'block';
+    } catch(e) { shipPill.style.display = 'none'; }
+  } else {
+    shipPill.style.display = 'none';
+  }
+
   document.getElementById('tracking-carrier-name').textContent = carrierName;
   document.getElementById('tracking-number').textContent = order.tracking_number || '(chưa có)';
 
   const extLink = document.getElementById('tracking-external-link');
   if (order.tracking_number) {
     extLink.href = externalUrl;
-    extLink.style.display = 'inline-block';
+    extLink.style.display = 'inline-flex';
   } else {
     extLink.style.display = 'none';
   }
@@ -3264,10 +3280,30 @@ function escapeHtmlMsg(s) {
   return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ===== Empty state (status-aware, friendly) =====
+function renderEmptyTimelineMessage(status) {
+  const map = {
+    shipped:   { icon:'📦', title:'Hàng đã giao cho Yamato',   body:'Yamato chưa scan vào hệ thống của họ. Anh/chị F5 lại sau 30 phút - 1 giờ. Hoặc click nút "Xem realtime trên Yamato" bên trên.' },
+    confirmed: { icon:'🍳', title:'Đang chuẩn bị đóng gói',     body:'Bếp Thuỷ đang làm hàng. Mã vận đơn vừa cập nhật, sắp giao cho Yamato.' },
+    delivered: { icon:'✅', title:'Đơn đã giao thành công!',    body:'Cảm ơn anh/chị đã ủng hộ Bếp Thuỷ 💝 — anh/chị có thể click "Mua lại" để đặt thêm.' },
+    pending:       { icon:'⏳', title:'Chờ thanh toán',         body:'Đơn chưa được thanh toán. Vui lòng hoàn tất thanh toán trước.' },
+    customer_paid: { icon:'💰', title:'Đã chuyển — chờ Bếp Thuỷ xác nhận', body:'Bếp Thuỷ sẽ kiểm tra biên lai và xác nhận sớm.' },
+    cancelled: { icon:'❌', title:'Đơn đã huỷ',                 body:'Đơn này đã bị huỷ. Liên hệ shop nếu có thắc mắc.' },
+    unknown:   { icon:'📋', title:'Chưa có lịch trình',         body:'Hãng vận chuyển sẽ cập nhật khi nhận hàng.' }
+  };
+  const m = map[status] || map.unknown;
+  return `<div style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border:2px solid #fbbf24;border-radius:12px;padding:24px 20px;text-align:center">
+    <div style="font-size:44px;margin-bottom:10px;line-height:1">${m.icon}</div>
+    <h4 style="color:#7c2d12;font-weight:700;margin-bottom:8px;font-size:16px">${m.title}</h4>
+    <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0">${m.body}</p>
+  </div>`;
+}
+
 // ===== Tracking timeline (Amazon-style) =====
 function renderTrackingTimeline(events) {
   if (!events || events.length === 0) {
-    return '<p class="text-gray-400 text-sm text-center py-4">Chưa có lịch trình. Hãng vận chuyển sẽ cập nhật khi nhận hàng.</p>';
+    const status = (_currentTrackingOrder && _currentTrackingOrder.status) || 'unknown';
+    return renderEmptyTimelineMessage(status);
   }
 
   // Group by date (events are { date, time, status, location, type? })
