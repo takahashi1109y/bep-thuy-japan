@@ -260,3 +260,19 @@ Em phân 10 agents thành 3 waves:
 Total 10 agents. Zero file conflict. Zero rework.
 
 **Lesson**: Khi spawn nhiều agents song song, em làm SINGLE WRITER (em apply edits), agents chỉ research/spec/review/doc. Tránh 2 agents Edit cùng 1 file.
+
+---
+
+## Case Study — Duplicate Phone Resolve (2026-05-03 chiều)
+
+Anh's rule (clear không quote chính xác):
+"Khách dùng cùng phone cho nhiều email → CLEAR ALL → login bằng email → modal prompt update phone mới"
+
+10 agents non-conflict (theo pattern Phone Login V2 sáng):
+- Wave 1 (4 read-only research): SQL clear / Frontend spec / RPC spec / Customer outreach
+- Wave 2 (em single writer): 2 SQL files + 5 HTML diffs
+- Wave 3+4 (6): code review + test + security + memory + V8 + workflow
+
+**Lesson lặp lại**: SINGLE WRITER pattern hoạt động ổn định lần 2. 0 file conflict.
+
+**Lesson MỚI**: Khi anh request rule lớn (vd "clear duplicate"), em phải spawn agent design CUSTOMER OUTREACH ngay từ Wave 1, không để Wave 4. Vì outreach cần coordinate với anh email blast — không thể đợi code xong rồi mới làm.

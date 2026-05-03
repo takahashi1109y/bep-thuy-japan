@@ -1,5 +1,13 @@
 # Customer Migration — Phone Format Update (2026-05-03)
 
+> **⚠️ Note 2026-05-03 chiều**: File này dành cho khách có phone **format SAI** (vd `090-1234-5678` có dấu) bị auto-backfill set NULL.
+>
+> **NẾU khách bị clear phone do DUPLICATE** (1 phone dùng 2 email), xem file riêng: [`CUSTOMER-OUTREACH-DUPLICATE-PHONE.md`](./CUSTOMER-OUTREACH-DUPLICATE-PHONE.md). Lý do clear khác → message khác.
+>
+> **Anh mở file nào?**
+> - Khách có `phone_original` chứa dấu `-`/space → dùng FILE NÀY
+> - Khách có `reason='duplicate_phone'` (từ table `_phone_dup_backup_2026_05_03`) → dùng FILE OUTREACH
+
 > **Mục đích**: Hướng dẫn anh nhắc khách có phone format sai cập nhật về 11 digits chuẩn
 > **Trigger**: Sau khi anh chạy `supabase-phone-backfill.sql` Block 6 export CSV
 > **Audience**: Khách hàng có phone bị set NULL (data không cứu được tự động)
