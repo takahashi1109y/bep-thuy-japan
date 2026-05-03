@@ -245,3 +245,18 @@ File này là **living document** — em sẽ thêm Lessons Learned mỗi khi g�
 
 — Em (Claude agent của anh Thắng)
 — Bản đầu: 2026-05-03
+
+---
+
+## Case Study — Phone Login Fix (2026-05-03)
+
+Anh request: "Gọi 10 agent ra giải quyết, tránh xung đột, mỗi agent 1 việc."
+
+Em phân 10 agents thành 3 waves:
+- **Wave 1 (4 agents read-only)**: Diagnose SQL, frontend spec, RPC spec, backfill spec — parallel, không đụng nhau
+- **Wave 2 (em apply edits)**: Em là single writer, không spawn agent, tránh conflict file
+- **Wave 3 + 4 (6 agents)**: Code review + test plan + security audit + handover doc + customer migration + memory update — mỗi agent 1 file riêng
+
+Total 10 agents. Zero file conflict. Zero rework.
+
+**Lesson**: Khi spawn nhiều agents song song, em làm SINGLE WRITER (em apply edits), agents chỉ research/spec/review/doc. Tránh 2 agents Edit cùng 1 file.
