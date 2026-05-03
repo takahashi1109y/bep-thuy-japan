@@ -12,14 +12,14 @@ Anh check Block 4 output:
 
 - Tổng accounts cleared: ~18 (gồm test accounts)
 - Cần liên hệ thật: chỉ ~8 (4 phones × 2 khách)
-- KH dùng phone của anh `09042376886` (test): ignore
+- KH dùng phone của anh `09012345678` (test): ignore
 - KH dùng phone test `08012345678`: ignore
 
 **Breakdown 5 phones bị clear**:
 
 | Phone | Số accounts | Loại | Action |
 |---|---|---|---|
-| `09042376886` | 9 | Test (anh's accounts) | Skip |
+| `09012345678` | 9 | Test (anh's accounts) | Skip |
 | `08012345678` | 3 | Test accounts | Skip |
 | `08016417132` | 2 | KH thật ("Ly") | Liên hệ |
 | `07042204406` | 2 | KH thật ("Khánh Chi" + "Thanh Tâm") | Liên hệ — có thể vợ chồng |
@@ -49,7 +49,7 @@ Em là Thuỷ — Bếp Thuỷ Japan. Em viết email này để báo anh/chị 
 📲 **Cách cập nhật** (1 phút):
 
 1. Đăng nhập vào https://www.thuyjapan.com/thanh-vien bằng email [email_khach]
-2. Hệ thống sẽ tự động hỏi anh/chị nhập số đt → nhập theo format chuẩn JP: **11 số viết liền nhau** (vd 09042376886)
+2. Hệ thống sẽ tự động hỏi anh/chị nhập số đt → nhập theo format chuẩn JP: **11 số viết liền nhau** (vd 09012345678)
 3. Click **Lưu**
 
 ✅ Sau đó anh/chị có thể đăng nhập bằng số đt thay vì email cho tiện ạ.
@@ -75,7 +75,7 @@ Số đt [PHONE] của anh/chị đang được 2 tài khoản khác nhau dùng 
 
 Anh/chị bớt 1 phút giúp em:
 1. Vào thuyjapan.com/thanh-vien → đăng nhập bằng email
-2. Hệ thống sẽ tự động hỏi nhập số đt mới → nhập 11 số liền nhau (vd 09042376886)
+2. Hệ thống sẽ tự động hỏi nhập số đt mới → nhập 11 số liền nhau (vd 09012345678)
 3. Lưu lại
 
 Sau đó đăng nhập bằng số đt cho nhanh ạ. Em xin lỗi 💝
@@ -126,7 +126,7 @@ Mở Excel/Google Sheets, thêm cột **"loại"**:
 
 | email | tên | phone_cũ | loại |
 |---|---|---|---|
-| (anh's email) | Test | `09042376886` | **Test (skip)** |
+| (anh's email) | Test | `09012345678` | **Test (skip)** |
 | ... | ... | `08012345678` | **Test (skip)** |
 | ly@... | Ly | `08016417132` | **Cần liên hệ** |
 | khanhchi@... | Khánh Chi | `07042204406` | **Cần liên hệ — vợ chồng?** |

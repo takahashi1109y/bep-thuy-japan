@@ -55,14 +55,14 @@ trong tài khoản giúp em ạ.
 Lý do:
 Bên em vừa cập nhật hệ thống đăng nhập bằng số điện thoại. Số của anh/chị đăng ký
 lúc trước có format hơi khác (vd có dấu "-" hoặc dấu "+81"), bây giờ hệ thống cần
-format chuẩn JP: 11 số viết liền nhau, vd 09042376886.
+format chuẩn JP: 11 số viết liền nhau, vd 09012345678.
 
 Cách cập nhật (1 phút):
 
 1. Đăng nhập vào https://www.thuyjapan.com/thanh-vien bằng email [email_khach]
 2. Click tab "Hồ sơ" (Profile)
 3. Tìm ô "Số Điện Thoại" → nhập lại theo format chuẩn: 11 số liền nhau
-   (vd 09042376886 — KHÔNG có dấu gạch ngang, KHÔNG có +81)
+   (vd 09012345678 — KHÔNG có dấu gạch ngang, KHÔNG có +81)
 4. Click "Lưu"
 
 Sau đó anh/chị có thể đăng nhập bằng SĐT thay vì email cho tiện ạ.
@@ -80,14 +80,14 @@ Bếp Thuỷ Japan
 
 <p>Em là Thuỷ — Bếp Thuỷ Japan. Em viết email này để nhờ anh/chị cập nhật lại số điện thoại trong tài khoản giúp em ạ.</p>
 
-<p><strong>Lý do</strong>: Bên em vừa cập nhật hệ thống đăng nhập bằng số điện thoại. Số của anh/chị đăng ký lúc trước có format hơi khác (vd có dấu <code>-</code> hoặc dấu <code>+81</code>), bây giờ hệ thống cần format chuẩn JP: <strong>11 số viết liền nhau</strong>, vd <code>09042376886</code>.</p>
+<p><strong>Lý do</strong>: Bên em vừa cập nhật hệ thống đăng nhập bằng số điện thoại. Số của anh/chị đăng ký lúc trước có format hơi khác (vd có dấu <code>-</code> hoặc dấu <code>+81</code>), bây giờ hệ thống cần format chuẩn JP: <strong>11 số viết liền nhau</strong>, vd <code>09012345678</code>.</p>
 
 <p><strong>Cách cập nhật</strong> (1 phút):</p>
 
 <ol>
   <li>Đăng nhập vào <a href="https://www.thuyjapan.com/thanh-vien">thuyjapan.com/thanh-vien</a> bằng email <strong>[email_khach]</strong></li>
   <li>Click tab <strong>"Hồ sơ"</strong> (Profile)</li>
-  <li>Tìm ô <strong>Số Điện Thoại</strong> → nhập lại theo format chuẩn: 11 số liền nhau (vd <code>09042376886</code>)</li>
+  <li>Tìm ô <strong>Số Điện Thoại</strong> → nhập lại theo format chuẩn: 11 số liền nhau (vd <code>09012345678</code>)</li>
   <li>Click <strong>Lưu</strong></li>
 </ol>
 
@@ -114,7 +114,7 @@ Anh/chị bớt 1 phút giúp em:
 
 1. Vào thuyjapan.com/thanh-vien
 2. Đăng nhập bằng email
-3. Tab Hồ sơ → Số ĐT → nhập lại 11 số liền nhau (vd 09042376886)
+3. Tab Hồ sơ → Số ĐT → nhập lại 11 số liền nhau (vd 09012345678)
 4. Lưu lại
 
 Sau đó anh/chị đăng nhập bằng SĐT cho nhanh ạ. Em xin lỗi nha!
@@ -133,7 +133,7 @@ trong hệ thống có dấu cách / dấu gạch nên em chưa convert tự đ�
 Chị giúp em 1 phút nha:
 - Vào thuyjapan.com/thanh-vien
 - Login email cũ
-- Tab Hồ sơ → sửa SĐT → 11 số liền (vd 09042376886) → Lưu
+- Tab Hồ sơ → sửa SĐT → 11 số liền (vd 09012345678) → Lưu
 
 Xong chị login bằng SĐT cho nhanh. Em cảm ơn chị nhiều ạ!
 ```
@@ -258,7 +258,7 @@ trong tài khoản thuyjapan.com — em check lại thấy anh/chị chưa làm.
 Nếu anh/chị bận, không sao ạ — anh/chị vẫn login bằng email được bình thường.
 Nhưng nếu muốn login nhanh bằng SĐT, anh/chị bớt 1 phút:
 
-→ thuyjapan.com/thanh-vien → Hồ sơ → SĐT → 11 số liền (vd 09042376886) → Lưu
+→ thuyjapan.com/thanh-vien → Hồ sơ → SĐT → 11 số liền (vd 09012345678) → Lưu
 
 Cảm ơn anh/chị!
 — Thuỷ

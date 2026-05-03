@@ -318,8 +318,8 @@
     <div id="form-login" class="p-6 space-y-4">
       <div>
         <label class="field-label">Email hoặc Số điện thoại</label>
-        <input id="login-identifier" type="text" inputmode="email" autocomplete="username" placeholder="email@gmail.com hoặc 09042376886" class="field-input">
-        <p class="text-xs text-gray-500 mt-1">💡 Email hoặc SĐT đã đăng ký. SĐT JP: <strong>11 số viết liền nhau</strong> (vd: 09042376886) — không có dấu <code>-</code> hoặc khoảng trắng.</p>
+        <input id="login-identifier" type="text" inputmode="email" autocomplete="username" placeholder="email@gmail.com hoặc 09012345678" class="field-input">
+        <p class="text-xs text-gray-500 mt-1">💡 Email hoặc SĐT đã đăng ký</p>
         <p id="login-phone-hint" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1"></p>
       </div>
       <div>
@@ -364,8 +364,8 @@
       </div>
       <div>
         <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
-        <input id="reg-phone" type="tel" inputmode="numeric" pattern="0[0-9]{10}" maxlength="11" placeholder="09042376886" class="field-input">
-        <p class="text-xs text-gray-500 mt-1">📱 SĐT JP: <strong>11 số viết liền nhau</strong>, bắt đầu bằng <code>0</code>, không có dấu <code>-</code> hoặc khoảng trắng (vd: 09042376886).</p>
+        <input id="reg-phone" type="tel" inputmode="numeric" pattern="0[0-9]{10}" maxlength="11" placeholder="09012345678" class="field-input">
+        <p class="text-xs text-gray-500 mt-1">📱 SĐT JP: <strong>11 số viết liền nhau</strong>, bắt đầu bằng <code>0</code>, không có dấu <code>-</code> hoặc khoảng trắng (vd: 09012345678).</p>
         <p id="reg-phone-hint" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1"></p>
       </div>
 
@@ -592,8 +592,8 @@
         </div>
         <div style="margin-bottom:16px">
           <label style="display:block;font-weight:600;margin-bottom:6px">Số điện thoại JP <span style="color:#dc2626">*</span></label>
-          <input id="phone-update-input" type="tel" inputmode="numeric" pattern="0[0-9]{10}" maxlength="11" placeholder="09042376886" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px">
-          <p style="font-size:12px;color:#666;margin-top:6px">📱 11 số viết liền nhau, bắt đầu bằng 0 (vd 09042376886)</p>
+          <input id="phone-update-input" type="tel" inputmode="numeric" pattern="0[0-9]{10}" maxlength="11" placeholder="09012345678" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px">
+          <p style="font-size:12px;color:#666;margin-top:6px">📱 11 số viết liền nhau, bắt đầu bằng 0 (vd 09012345678)</p>
           <p id="phone-update-error" style="display:none;color:#dc2626;font-size:13px;margin-top:6px"></p>
           <p id="phone-update-hint" style="display:none;font-size:12px;margin-top:6px;padding:6px 10px;border-radius:6px"></p>
         </div>
@@ -1609,8 +1609,8 @@ const PW_ERR = 'Mật khẩu cần ít nhất 6 ký tự.';
 // Reject "-", " ", "+81" formats — make user re-type to learn canonical format
 const PHONE_REGEX = /^0\d{10}$/;
 const PHONE_SEP_REGEX = /[-\s+()]/;  // detect separators / country code prefix
-const PHONE_ERR_FORMAT = 'Số điện thoại phải là 11 số viết LIỀN NHAU, bắt đầu bằng 0, không có dấu cách hoặc gạch ngang. Ví dụ đúng: 09042376886';
-const PHONE_ERR_SEP    = 'Anh/chị xoá dấu - (hoặc khoảng trắng / +81) và nhập 11 số liền nhau. Ví dụ đúng: 09042376886';
+const PHONE_ERR_FORMAT = 'Số điện thoại phải là 11 số viết LIỀN NHAU, bắt đầu bằng 0, không có dấu cách hoặc gạch ngang. Ví dụ đúng: 09012345678';
+const PHONE_ERR_SEP    = 'Anh/chị xoá dấu - (hoặc khoảng trắng / +81) và nhập 11 số liền nhau. Ví dụ đúng: 09012345678';
 
 async function doLogin() {
   hideError('login-error');
@@ -1934,7 +1934,7 @@ async function submitForgotPassword() {
       hint.classList.remove('text-green-700', 'bg-green-50', 'border-green-200');
       hint.classList.add('text-amber-700', 'bg-amber-50', 'border-amber-200');
       if (PHONE_SEP_REGEX.test(v)) {
-        hint.textContent = 'ℹ️ Vui lòng xoá dấu - và nhập 11 số liền nhau (vd: 09042376886).';
+        hint.textContent = 'ℹ️ Vui lòng xoá dấu - và nhập 11 số liền nhau (vd: 09012345678).';
         hint.classList.remove('hidden');
       } else if (v.length > 0 && v.length < 11 && /^\d+$/.test(v)) {
         hint.textContent = 'ℹ️ Còn ' + (11 - v.length) + ' số nữa…';
@@ -1970,7 +1970,7 @@ function checkAndPromptPhoneUpdate() {
   if (!phone || phone === '') {
     reason = 'Số điện thoại của anh/chị đã bị xoá khỏi hệ thống do trùng với tài khoản khác. Vui lòng nhập lại số điện thoại để có thể đăng nhập bằng SĐT thay vì email.';
   } else if (!PHONE_REGEX.test(phone)) {
-    reason = 'Bếp Thuỷ vừa nâng cấp hệ thống — số điện thoại cần đúng định dạng JP: 11 số viết liền nhau (vd 09042376886). Số hiện tại của anh/chị: ' + phone;
+    reason = 'Bếp Thuỷ vừa nâng cấp hệ thống — số điện thoại cần đúng định dạng JP: 11 số viết liền nhau (vd 09012345678). Số hiện tại của anh/chị: ' + phone;
   }
 
   if (reason) {
