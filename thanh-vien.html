@@ -318,8 +318,9 @@
     <div id="form-login" class="p-6 space-y-4">
       <div>
         <label class="field-label">Email hoặc Số điện thoại</label>
-        <input id="login-identifier" type="text" inputmode="email" autocomplete="username" placeholder="email@gmail.com hoặc 080-1234-5678" class="field-input">
-        <p class="text-xs text-gray-500 mt-1">💡 Có thể dùng email hoặc số điện thoại đã đăng ký</p>
+        <input id="login-identifier" type="text" inputmode="email" autocomplete="username" placeholder="email@gmail.com hoặc 09042376886" class="field-input">
+        <p class="text-xs text-gray-500 mt-1">💡 Email hoặc SĐT đã đăng ký. SĐT JP: <strong>11 số viết liền nhau</strong> (vd: 09042376886) — không có dấu <code>-</code> hoặc khoảng trắng.</p>
+        <p id="login-phone-hint" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1"></p>
       </div>
       <div>
         <label class="field-label">Mật Khẩu</label>
@@ -363,7 +364,9 @@
       </div>
       <div>
         <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
-        <input id="reg-phone" type="tel" placeholder="080-XXXX-XXXX" class="field-input">
+        <input id="reg-phone" type="tel" inputmode="numeric" pattern="0[0-9]{10}" maxlength="11" placeholder="09042376886" class="field-input">
+        <p class="text-xs text-gray-500 mt-1">📱 SĐT JP: <strong>11 số viết liền nhau</strong>, bắt đầu bằng <code>0</code>, không có dấu <code>-</code> hoặc khoảng trắng (vd: 09042376886).</p>
+        <p id="reg-phone-hint" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1"></p>
       </div>
 
       <!-- Optional fields hidden by default; expand on click -->
@@ -1589,6 +1592,13 @@ async function resendConfirmEmail(email) {
 const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@*#!$%&^?+=_\-]).{8,}$/;
 const PW_ERR = 'Mật khẩu cần ≥8 ký tự, có chữ HOA, chữ thường, số và 1 ký tự đặc biệt (vd: @ * # ! $).';
 
+// Phone validation: JP mobile = 11 digits, starts with 0, no separators (Anh's spec 2026-05-03)
+// Reject "-", " ", "+81" formats — make user re-type to learn canonical format
+const PHONE_REGEX = /^0\d{10}$/;
+const PHONE_SEP_REGEX = /[-\s+()]/;  // detect separators / country code prefix
+const PHONE_ERR_FORMAT = 'Số điện thoại phải là 11 số viết LIỀN NHAU, bắt đầu bằng 0, không có dấu cách hoặc gạch ngang. Ví dụ đúng: 09042376886';
+const PHONE_ERR_SEP    = 'Anh/chị xoá dấu - (hoặc khoảng trắng / +81) và nhập 11 số liền nhau. Ví dụ đúng: 09042376886';
+
 async function doLogin() {
   hideError('login-error');
   const identifier = document.getElementById('login-identifier').value.trim();
@@ -1606,20 +1616,41 @@ async function doLogin() {
     return;
   }
 
-  // Auto-detect: contains @ → email; else phone (normalize to digits → RPC lookup email)
+  // Auto-detect: contains @ → email; else phone (STRICT format → RPC lookup email)
+  // Anh's spec 2026-05-03: JP phone = 11 digits liền nhau, no separators.
+  // Reject input có "-" / space / "+81" và bắt user fix — KHÔNG auto-strip để user học format chuẩn.
   let email = identifier;
   let loginMethod = 'email';
   if (!identifier.includes('@')) {
-    const phoneDigits = identifier.replace(/\D/g, '');
-    if (phoneDigits.length < 9 || phoneDigits.length > 15) {
-      showError('login-error', 'Số điện thoại không hợp lệ.');
+    // Step 1: Reject separators/prefix với message hướng dẫn cụ thể
+    if (PHONE_SEP_REGEX.test(identifier)) {
+      showError('login-error', PHONE_ERR_SEP);
       btn.disabled = false; btn.textContent = 'Đăng Nhập';
       return;
     }
+    // Step 2: Reject sai format (không phải 11 digits bắt đầu bằng 0)
+    if (!PHONE_REGEX.test(identifier)) {
+      showError('login-error', PHONE_ERR_FORMAT);
+      btn.disabled = false; btn.textContent = 'Đăng Nhập';
+      return;
+    }
+    // Step 3: Format đúng → call RPC lookup email
     btn.innerHTML = '<span class="spin">⏳</span> Đang tra cứu số điện thoại...';
-    const { data: rpcEmail, error: rpcErr } = await sb.rpc('find_email_by_phone', { p_phone: phoneDigits });
-    if (rpcErr || !rpcEmail) {
-      showError('login-error', 'Số điện thoại chưa đăng ký hoặc sai mật khẩu.');
+    const { data: rpcEmail, error: rpcErr } = await sb.rpc('find_email_by_phone', { p_phone: identifier });
+
+    // Tách rõ 3 trường hợp (KHÔNG gộp như trước):
+    if (rpcErr) {
+      const errMsg = (rpcErr.message || '').toLowerCase();
+      if (errMsg.indexOf('does not exist') !== -1 || errMsg.indexOf('not found') !== -1) {
+        showError('login-error', 'Hệ thống đang cập nhật, vui lòng thử lại sau ít phút hoặc đăng nhập bằng email.');
+      } else {
+        showError('login-error', 'Lỗi máy chủ khi tra cứu SĐT. Vui lòng thử lại hoặc đăng nhập bằng email.');
+      }
+      btn.disabled = false; btn.textContent = 'Đăng Nhập';
+      return;
+    }
+    if (!rpcEmail) {
+      showError('login-error', 'Số điện thoại ' + identifier + ' chưa đăng ký tài khoản. Anh/chị kiểm tra lại số hoặc dùng email để đăng nhập.');
       btn.disabled = false; btn.textContent = 'Đăng Nhập';
       return;
     }
@@ -1710,6 +1741,9 @@ async function doRegister() {
   if (password !== password2) { showError('reg-error', 'Mật khẩu xác nhận không khớp.'); return; }
   if (!name) { showError('reg-error', 'Vui lòng nhập họ tên.'); return; }
   if (!phone) { showError('reg-error', 'Vui lòng nhập số điện thoại.'); return; }
+  // Anh's spec 2026-05-03: JP phone strict format — 11 digits liền nhau, no separators
+  if (PHONE_SEP_REGEX.test(phone)) { showError('reg-error', PHONE_ERR_SEP); return; }
+  if (!PHONE_REGEX.test(phone)) { showError('reg-error', PHONE_ERR_FORMAT); return; }
 
   const btn = document.getElementById('reg-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang xác minh...';
@@ -1870,6 +1904,41 @@ async function submitForgotPassword() {
   document.getElementById('forgot-success').classList.remove('hidden');
   btn.disabled = false; btn.textContent = 'Gửi Link Đặt Lại Mật Khẩu';
 }
+
+// === Live phone-format hint (login + signup) — Anh's spec 2026-05-03 ===
+// Hiển thị hint amber khi user gõ "-" / space / "+" — không block submit,
+// chỉ nhắc khéo. Submit-time validation ở doLogin/doRegister mới là gate cứng.
+(function attachPhoneHints() {
+  function bind(inputId, hintId) {
+    const input = document.getElementById(inputId);
+    const hint = document.getElementById(hintId);
+    if (!input || !hint) return;
+    input.addEventListener('input', function() {
+      const v = this.value;
+      // Skip nếu đang gõ email (có @)
+      if (v.includes('@')) { hint.classList.add('hidden'); return; }
+      // Reset color classes
+      hint.classList.remove('text-green-700', 'bg-green-50', 'border-green-200');
+      hint.classList.add('text-amber-700', 'bg-amber-50', 'border-amber-200');
+      if (PHONE_SEP_REGEX.test(v)) {
+        hint.textContent = 'ℹ️ Vui lòng xoá dấu - và nhập 11 số liền nhau (vd: 09042376886).';
+        hint.classList.remove('hidden');
+      } else if (v.length > 0 && v.length < 11 && /^\d+$/.test(v)) {
+        hint.textContent = 'ℹ️ Còn ' + (11 - v.length) + ' số nữa…';
+        hint.classList.remove('hidden');
+      } else if (v.length === 11 && PHONE_REGEX.test(v)) {
+        hint.textContent = '✅ Số điện thoại đúng định dạng.';
+        hint.classList.remove('text-amber-700', 'bg-amber-50', 'border-amber-200');
+        hint.classList.add('text-green-700', 'bg-green-50', 'border-green-200');
+        hint.classList.remove('hidden');
+      } else {
+        hint.classList.add('hidden');
+      }
+    });
+  }
+  bind('login-identifier', 'login-phone-hint');
+  bind('reg-phone', 'reg-phone-hint');
+})();
 
 function doLogout() {
   console.log('[logout] clicked');
