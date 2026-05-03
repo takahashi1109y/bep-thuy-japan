@@ -350,8 +350,8 @@
       <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
         <div>
           <label class="field-label">Mật Khẩu <span class="text-brand-red">*</span></label>
-          <input id="reg-password" type="password" placeholder="8+ ký tự, có @ * # ..." class="field-input" autocomplete="new-password" minlength="8">
-          <p class="text-xs text-gray-500 mt-1">💡 Cần ≥8 ký tự, có chữ HOA, chữ thường, số và 1 ký tự đặc biệt (vd: <code>@ * # ! $</code>)</p>
+          <input id="reg-password" type="password" placeholder="Ít nhất 6 ký tự" class="field-input" autocomplete="new-password" minlength="6">
+          <p class="text-xs text-gray-500 mt-1">💡 Cần ít nhất 6 ký tự</p>
         </div>
         <div>
           <label class="field-label">Xác Nhận <span class="text-brand-red">*</span></label>
@@ -509,8 +509,8 @@
 
       <div id="reset-pw-form-wrap" class="space-y-4">
         <div>
-          <label class="field-label">Mật khẩu mới <span class="text-brand-red">*</span> <span class="text-gray-400 font-normal text-xs">(8+ ký tự + 1 ký tự đặc biệt @ * #)</span></label>
-          <input id="reset-pw-new" type="password" placeholder="8+ ký tự, có @ * # ..." class="field-input" autocomplete="new-password" minlength="8">
+          <label class="field-label">Mật khẩu mới <span class="text-brand-red">*</span> <span class="text-gray-400 font-normal text-xs">(ít nhất 6 ký tự)</span></label>
+          <input id="reset-pw-new" type="password" placeholder="Ít nhất 6 ký tự" class="field-input" autocomplete="new-password" minlength="6">
         </div>
         <div>
           <label class="field-label">Xác nhận mật khẩu mới <span class="text-brand-red">*</span></label>
@@ -574,19 +574,6 @@
       <button onclick="switchDashTab('address')" class="dash-tab" data-tab="address">📍 Địa Chỉ</button>
       <button onclick="switchDashTab('password')" class="dash-tab" data-tab="password">🔐 Mật Khẩu</button>
       <button onclick="switchDashTab('points')" class="dash-tab" data-tab="points">📊 Điểm Thưởng</button>
-    </div>
-
-    <!-- Password upgrade banner (cho user cũ created < 2026-05-03 password rule update) -->
-    <div id="pw-upgrade-banner" style="display:none;background:linear-gradient(135deg,#fef3c7,#fed7aa);border:1px solid #fbbf24;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-size:24px">🔒</span>
-      <div style="flex:1;min-width:200px">
-        <p style="font-weight:700;color:#7c2d12;margin:0;font-size:14px">Khuyến nghị nâng cấp mật khẩu</p>
-        <p style="color:#78350f;font-size:12px;margin:2px 0 0 0">Bếp Thuỷ vừa nâng yêu cầu mật khẩu mạnh hơn. Đổi mật khẩu mới (≥8 ký tự + @ * #) để bảo vệ tài khoản tốt hơn.</p>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="document.querySelector('[data-tab=\'password\']')?.click(); document.getElementById('pw-upgrade-banner').style.display='none'" style="background:#C8102E;color:#fff;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;border:none;cursor:pointer">Đổi ngay</button>
-        <button onclick="document.getElementById('pw-upgrade-banner').style.display='none'; localStorage.setItem('bepthuy_pw_banner_dismissed','1')" style="background:transparent;color:#78350f;font-size:12px;padding:8px 10px;border:none;cursor:pointer">Để sau</button>
-      </div>
     </div>
 
     <!-- Phone update reminder banner (subtle, sau khi user dismiss modal) -->
@@ -786,8 +773,8 @@
       <h4 class="font-bold text-gray-700 mb-4">Đổi Mật Khẩu</h4>
       <div class="space-y-4">
         <div>
-          <label class="field-label">Mật Khẩu Mới <span class="text-gray-400 font-normal text-xs">(8+ ký tự + 1 ký tự đặc biệt @ * #)</span></label>
-          <input id="pw-new" type="password" placeholder="8+ ký tự, có @ * # ..." class="field-input" autocomplete="new-password" minlength="8">
+          <label class="field-label">Mật Khẩu Mới <span class="text-gray-400 font-normal text-xs">(ít nhất 6 ký tự)</span></label>
+          <input id="pw-new" type="password" placeholder="Ít nhất 6 ký tự" class="field-input" autocomplete="new-password" minlength="6">
         </div>
         <div>
           <label class="field-label">Xác Nhận Mật Khẩu Mới</label>
@@ -1613,10 +1600,10 @@ async function resendConfirmEmail(email) {
   }
 }
 
-// Password policy: ≥8 chars + ≥1 lowercase + ≥1 uppercase + ≥1 digit + ≥1 special char
-// Match Supabase server-side enforcement để tránh confusing error
-const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@*#!$%&^?+=_\-]).{8,}$/;
-const PW_ERR = 'Mật khẩu cần ≥8 ký tự, có chữ HOA, chữ thường, số và 1 ký tự đặc biệt (vd: @ * # ! $).';
+// Password policy: Anh's spec 2026-05-03 cuối ngày — revert về Supabase default (không bắt buộc strong password)
+// Khách dễ đăng ký + nhớ password — quan trọng hơn bảo mật cao
+const PW_REGEX = /^.{6,}$/;
+const PW_ERR = 'Mật khẩu cần ít nhất 6 ký tự.';
 
 // Phone validation: JP mobile = 11 digits, starts with 0, no separators (Anh's spec 2026-05-03)
 // Reject "-", " ", "+81" formats — make user re-type to learn canonical format
@@ -1811,7 +1798,7 @@ async function doRegister() {
         lc.indexOf('duplicate') !== -1 || error.code === 'user_already_exists') {
       friendly = '❌ Email này đã được đăng ký. Vui lòng chọn email khác hoặc đăng nhập.';
     } else if (lc.indexOf('password') !== -1 && lc.indexOf('weak') !== -1) {
-      friendly = '❌ Mật khẩu quá yếu. Cần ≥8 ký tự, có chữ HOA, chữ thường, số và 1 ký tự đặc biệt (vd: @ * # ! $).';
+      friendly = '❌ Mật khẩu quá yếu. Cần ít nhất 6 ký tự.';
     } else if (lc.indexOf('rate limit') !== -1) {
       friendly = '⏳ Quá nhiều lần thử. Vui lòng chờ vài phút rồi thử lại.';
     } else if (lc.indexOf('captcha') !== -1) {
@@ -2166,20 +2153,6 @@ async function _loadDashboardImpl(retryAttempt) {
   if (!currentUser) { dbgLog('❌ no currentUser'); return; }
   dbgLog('🚀 loadDashboard start attempt=' + retryAttempt + ' uid=' + currentUser.id.substring(0,8));
   var t_start = Date.now();
-
-  // Password upgrade banner: show cho user đăng ký TRƯỚC 2026-05-03 (rule mới: ≥8 char + special)
-  // Nếu user đã dismiss → skip. Auto-hide khi user đổi password.
-  try {
-    const pwBanner = document.getElementById('pw-upgrade-banner');
-    if (pwBanner && currentUser.created_at) {
-      const createdMs = new Date(currentUser.created_at).getTime();
-      const cutoffMs = new Date('2026-05-03T00:00:00Z').getTime();
-      const dismissed = localStorage.getItem('bepthuy_pw_banner_dismissed') === '1';
-      if (createdMs < cutoffMs && !dismissed) {
-        pwBanner.style.display = 'flex';
-      }
-    }
-  } catch(e) {}
 
   // Check if we have usable cache (TTL 60s — tránh khách iPhone Safari thấy data cũ)
   var hasCache = false;
