@@ -826,7 +826,7 @@
           <div class="border-t border-gray-200 pt-4">
             <div class="flex justify-between items-center mb-3">
               <h4 class="font-bold text-brand-dark">📍 Lịch trình vận chuyển</h4>
-              <button onclick="refreshTrackingEvents()" class="text-xs text-brand-red hover:underline">🔄 Làm mới</button>
+              <button id="tracking-refresh-btn" onclick="refreshTrackingEvents()" class="text-xs text-brand-red hover:underline" style="cursor:pointer">🔄 Làm mới</button>
             </div>
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:6px">
               <span style="font-size:14px">ⓘ</span>
@@ -984,6 +984,10 @@ const SUPABASE_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
+// Cache TTL — tránh khách iPhone Safari thấy data cũ (orders cache stale)
+const ORDERS_CACHE_TTL_MS = 60 * 1000;        // 60s — chỉ dùng cache nếu < 60s
+const BFCACHE_REFRESH_THRESHOLD_MS = 30 * 1000; // 30s — debounce auto-refresh khi user back to tab
+
 // Capture recovery flag BEFORE Supabase createClient (which clears the hash via detectSessionInUrl).
 // Without this, init() never sees type=recovery and user gets auto-logged-in instead of reset form.
 const _IS_RECOVERY_URL = (() => {
@@ -1106,12 +1110,16 @@ function renderDashboardFromCache() {
       setIfExists('addr-postal', m.postal);
       setIfExists('addr-address', m.address);
 
-      // Render orders from cache (if any) — show INSTANTLY
+      // Render orders from cache (if any) — show INSTANTLY (TTL 60s để tránh stale)
       try {
         const cachedOrders = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
-        if (cachedOrders && Array.isArray(cachedOrders.orders) && cachedOrders.userId === m.userId) {
+        const cacheAge = cachedOrders && typeof cachedOrders.ts === 'number' ? (Date.now() - cachedOrders.ts) : Infinity;
+        const cacheFresh = cacheAge < ORDERS_CACHE_TTL_MS;
+        if (cachedOrders && Array.isArray(cachedOrders.orders) && cachedOrders.userId === m.userId && cacheFresh) {
           renderOrdersToUI(cachedOrders.orders);
-          console.log('[cache] rendered', cachedOrders.orders.length, 'orders from cache');
+          console.log('[cache] rendered', cachedOrders.orders.length, 'orders from cache (age:', Math.round(cacheAge/1000) + 's)');
+        } else if (cachedOrders && !cacheFresh) {
+          console.log('[cache] skip render — orders cache stale (age:', Math.round(cacheAge/1000) + 's, ttl: 60s)');
         }
       } catch(e) {}
 
@@ -1964,15 +1972,19 @@ async function _loadDashboardImpl(retryAttempt) {
     }
   } catch(e) {}
 
-  // Check if we have usable cache
+  // Check if we have usable cache (TTL 60s — tránh khách iPhone Safari thấy data cũ)
   var hasCache = false;
   if (retryAttempt === 0) {
     try {
       const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
-      if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders) && cached.orders.length > 0) {
+      const cacheAge = cached && typeof cached.ts === 'number' ? (Date.now() - cached.ts) : Infinity;
+      const cacheFresh = cacheAge < ORDERS_CACHE_TTL_MS;
+      if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders) && cached.orders.length > 0 && cacheFresh) {
         renderOrdersToUI(cached.orders);
         hasCache = true;
-        dbgLog('⚡ instant-render from cache (' + cached.orders.length + ' orders)');
+        dbgLog('⚡ instant-render from cache (' + cached.orders.length + ' orders, age: ' + Math.round(cacheAge/1000) + 's)');
+      } else if (cached && !cacheFresh) {
+        dbgLog('⚠ cache stale (age: ' + Math.round(cacheAge/1000) + 's > 60s), skipping instant-render');
       }
     } catch(e) {}
   }
@@ -2119,15 +2131,20 @@ async function _loadDashboardImpl(retryAttempt) {
       }
     }
 
-    // SAFETY: Neu van khong co orders data sau tat ca -> render cache neu co
+    // SAFETY: Neu van khong co orders data sau tat ca -> render cache neu co (TTL 60s)
     if (!ordersRes.data) {
       console.warn('[loadDashboard] no orders data after all attempts, trying cache');
       try {
         const cached = JSON.parse(localStorage.getItem('bepthuy_orders_cache') || 'null');
-        if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders)) {
+        const cacheAge = cached && typeof cached.ts === 'number' ? (Date.now() - cached.ts) : Infinity;
+        const cacheFresh = cacheAge < ORDERS_CACHE_TTL_MS;
+        if (cached && cached.userId === currentUser.id && Array.isArray(cached.orders) && cacheFresh) {
           ordersRes = { data: cached.orders, error: null };
-          console.log('[loadDashboard] using cached orders:', cached.orders.length);
+          console.log('[loadDashboard] using cached orders:', cached.orders.length, '(age:', Math.round(cacheAge/1000) + 's)');
         } else {
+          if (cached && !cacheFresh) {
+            console.log('[loadDashboard] cache stale (age:', Math.round(cacheAge/1000) + 's > 60s), skipping fallback');
+          }
           ordersRes = { data: [], error: null }; // empty but not null
         }
       } catch(e) { ordersRes = { data: [], error: null }; }
@@ -2550,6 +2567,143 @@ function closePaymentUpload() {
 // ═══════════════ TRACKING MODAL ═══════════════
 let _currentTrackingOrder = null;
 
+// Helper: re-fetch 1 order single từ Supabase (dùng pattern fallback iOS Safari đã có)
+// Returns: fresh order object | null (không tìm thấy) | throws (network/auth error)
+async function refetchSingleOrder(orderNo) {
+  if (!currentUser || !currentUser.id) throw new Error('NOT_AUTHENTICATED');
+  if (!orderNo) return null;
+
+  const uid = currentUser.id;
+  const orderNoStr = String(orderNo);
+
+  // Step 1: try Supabase JS client (5s race timeout)
+  let order = null;
+  let jsClientFailed = false;
+  try {
+    const jsPromise = sb.from('orders')
+      .select('*')
+      .eq('order_no', orderNo)
+      .eq('user_id', uid)
+      .single();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('JS_CLIENT_TIMEOUT')), 5000)
+    );
+    const { data, error } = await Promise.race([jsPromise, timeoutPromise]);
+    if (error) {
+      if (error.code === 'PGRST116') return null; // no row, not an error
+      jsClientFailed = true;
+      console.warn('[refetchSingleOrder] JS client error:', error.message);
+    } else {
+      order = data;
+    }
+  } catch (e) {
+    jsClientFailed = true;
+    console.warn('[refetchSingleOrder] JS client timeout/exception:', e.message);
+  }
+
+  // Step 2: direct REST fallback (iOS Safari pattern)
+  if (jsClientFailed) {
+    let accessToken = null;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            accessToken = parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token);
+            if (accessToken) break;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[refetchSingleOrder] localStorage parse err:', e.message);
+    }
+    if (!accessToken) throw new Error('SESSION_EXPIRED');
+
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const url = SUPABASE_URL + '/rest/v1/orders?order_no=eq.' + encodeURIComponent(orderNoStr)
+        + '&user_id=eq.' + encodeURIComponent(uid) + '&limit=1';
+      const resp = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + accessToken,
+          'Accept': 'application/json'
+        },
+        signal: ctrl.signal
+      });
+      if (!resp.ok) throw new Error('REST_HTTP_' + resp.status);
+      const arr = await resp.json();
+      order = (Array.isArray(arr) && arr.length) ? arr[0] : null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  // Step 3: sync window.allOrders
+  if (order && Array.isArray(window.allOrders)) {
+    const idx = window.allOrders.findIndex(o => String(o.order_no) === orderNoStr);
+    if (idx >= 0) window.allOrders[idx] = order;
+    else window.allOrders.unshift(order);
+  }
+
+  return order;
+}
+
+// Helper: populate tracking modal fields từ order object (DRY: dùng cho cả showTrackingModal + refreshTrackingEvents)
+// Returns: carrierKey để caller dùng cho loadTrackingEvents
+function populateTrackingModalFields(order) {
+  // Determine carrier
+  const rawCarrier = (order.carrier || '').toLowerCase();
+  let carrierName, carrierKey;
+  if (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) {
+    carrierName = '佐川急便 (Sagawa)';
+    carrierKey = 'sagawa';
+  } else {
+    carrierName = 'ヤマト運輸 (Yamato Cool 宅急便)';
+    carrierKey = 'yamato';
+  }
+
+  // Title + status
+  document.getElementById('tracking-modal-title').textContent = 'Đơn #' + (order.order_no || '----');
+  document.getElementById('tracking-modal-status').textContent = order.status === 'delivered' ? '✓ Đã giao'
+    : order.status === 'shipped' ? '🚚 Đang giao'
+    : order.status === 'confirmed' ? '✅ Đã xác nhận, sắp ship'
+    : 'Đang xử lý';
+
+  // Shipped date pill
+  const shippedAt = order.shipped_at || order.tracking_number_added_at || order.updated_at;
+  const shipPill = document.getElementById('tracking-modal-shipped-date');
+  if (shippedAt && order.tracking_number && (order.status === 'shipped' || order.status === 'delivered')) {
+    try {
+      shipPill.querySelector('span').textContent = new Date(shippedAt).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric'});
+      shipPill.style.display = 'block';
+    } catch(e) { shipPill.style.display = 'none'; }
+  } else {
+    shipPill.style.display = 'none';
+  }
+
+  document.getElementById('tracking-carrier-name').textContent = carrierName;
+  document.getElementById('tracking-number').textContent = order.tracking_number || '(chưa có)';
+  document.getElementById('tracking-recipient-name').textContent = order.recipient_name || order.customer_name || '-';
+  const addr = (order.ship_postal ? '〒' + order.ship_postal + '\n' : '')
+             + (order.ship_prefecture || '')
+             + (order.ship_address || '');
+  document.getElementById('tracking-address').textContent = addr;
+  document.getElementById('tracking-order-no').textContent = '#' + (order.order_no || '----');
+  document.getElementById('tracking-order-total').textContent = '¥' + Number(order.total || 0).toLocaleString();
+
+  // Items summary
+  const itemsArr = Array.isArray(order.items) ? order.items : [];
+  const itemsText = itemsArr.slice(0, 3).map(it => (it.name || '').replace(/^\[[^\]]+\]\s*/, '') + ' (' + (it.size || '') + ')').join(', ')
+    + (itemsArr.length > 3 ? ', ...' : '');
+  document.getElementById('tracking-order-items').textContent = itemsText || '-';
+
+  return carrierKey;
+}
+
 async function showTrackingModal(orderNo) {
   // Race: user click trước khi orders load xong
   if (typeof window.allOrders === 'undefined') {
@@ -2564,55 +2718,8 @@ async function showTrackingModal(orderNo) {
   }
   _currentTrackingOrder = order;
 
-  // Determine carrier (carrierName + carrierKey only — external link button removed)
-  const rawCarrier = (order.carrier || '').toLowerCase();
-  let carrierName = 'Yamato Cool 宅急便';
-  let carrierKey = 'yamato';  // lowercase key for fetchTrackingEvents
-
-  if (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) {
-    carrierName = '佐川急便 (Sagawa)';
-    carrierKey = 'sagawa';
-  } else {
-    carrierName = 'ヤマト運輸 (Yamato Cool 宅急便)';
-    carrierKey = 'yamato';
-  }
-
-  // Populate modal fields
-  document.getElementById('tracking-modal-title').textContent = 'Đơn #' + (order.order_no || '----');
-  document.getElementById('tracking-modal-status').textContent = order.status === 'delivered' ? '✓ Đã giao'
-    : order.status === 'shipped' ? '🚚 Đang giao'
-    : order.status === 'confirmed' ? '✅ Đã xác nhận, sắp ship'
-    : 'Đang xử lý';
-
-  // Shipped date pill — show khi đã có tracking_number (status shipped/delivered)
-  const shippedAt = order.shipped_at || order.tracking_number_added_at || order.updated_at;
-  const shipPill = document.getElementById('tracking-modal-shipped-date');
-  if (shippedAt && order.tracking_number && (order.status === 'shipped' || order.status === 'delivered')) {
-    try {
-      shipPill.querySelector('span').textContent = new Date(shippedAt).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric'});
-      shipPill.style.display = 'block';
-    } catch(e) { shipPill.style.display = 'none'; }
-  } else {
-    shipPill.style.display = 'none';
-  }
-
-  document.getElementById('tracking-carrier-name').textContent = carrierName;
-  document.getElementById('tracking-number').textContent = order.tracking_number || '(chưa có)';
-
-  document.getElementById('tracking-recipient-name').textContent = order.recipient_name || order.customer_name || '-';
-  const addr = (order.ship_postal ? '〒' + order.ship_postal + '\n' : '')
-             + (order.ship_prefecture || '')
-             + (order.ship_address || '');
-  document.getElementById('tracking-address').textContent = addr;
-
-  document.getElementById('tracking-order-no').textContent = '#' + (order.order_no || '----');
-  document.getElementById('tracking-order-total').textContent = '¥' + Number(order.total || 0).toLocaleString();
-
-  // Items summary
-  const itemsArr = Array.isArray(order.items) ? order.items : [];
-  const itemsText = itemsArr.slice(0, 3).map(it => (it.name || '').replace(/^\[[^\]]+\]\s*/, '') + ' (' + (it.size || '') + ')').join(', ')
-    + (itemsArr.length > 3 ? ', ...' : '');
-  document.getElementById('tracking-order-items').textContent = itemsText || '-';
+  // Populate all modal fields (returns carrierKey for timeline load)
+  const carrierKey = populateTrackingModalFields(order);
 
   // Show modal (inline style flex để bypass Tailwind purge issue)
   document.getElementById('tracking-modal').style.display = 'flex';
@@ -2630,9 +2737,72 @@ function closeTrackingModal() {
 
 async function refreshTrackingEvents() {
   if (!_currentTrackingOrder) return;
-  const rawCarrier = (_currentTrackingOrder.carrier || '').toLowerCase();
-  const carrierKey = (rawCarrier.includes('sagawa') || rawCarrier.includes('飛脚') || rawCarrier.includes('佐川')) ? 'sagawa' : 'yamato';
-  loadTrackingEvents(carrierKey, _currentTrackingOrder.tracking_number, true);
+
+  const orderNo = _currentTrackingOrder.order_no;
+  const previousUserId = _currentTrackingOrder.user_id;
+  const btn = document.getElementById('tracking-refresh-btn');
+  const originalLabel = btn ? btn.textContent : '🔄 Làm mới';
+
+  // UI loading state — disable button + change text
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    btn.textContent = '⏳ Đang làm mới...';
+  }
+
+  try {
+    // Re-fetch order data từ Supabase (giải quyết bug cache stale trên iPhone Safari)
+    const freshOrder = await refetchSingleOrder(orderNo);
+
+    // Edge: đơn không tìm thấy / bị xoá / RLS reject
+    if (!freshOrder) {
+      alert('Không tìm thấy đơn ' + orderNo + ' nữa. Có thể đơn đã bị xoá hoặc anh/chị đăng nhập sai tài khoản.');
+      closeTrackingModal();
+      return;
+    }
+
+    // Edge: security — user_id phải match (đề phòng race với logout/switch account)
+    if (previousUserId && freshOrder.user_id && String(freshOrder.user_id) !== String(previousUserId)) {
+      console.warn('[refreshTrackingEvents] user_id mismatch — closing modal');
+      closeTrackingModal();
+      return;
+    }
+
+    // Update global state — replace order trong window.allOrders + _currentTrackingOrder
+    if (Array.isArray(window.allOrders)) {
+      const idx = window.allOrders.findIndex(o => String(o.order_no) === String(orderNo));
+      if (idx !== -1) {
+        window.allOrders[idx] = freshOrder;
+      } else {
+        window.allOrders.push(freshOrder);
+      }
+    }
+    _currentTrackingOrder = freshOrder;
+
+    // Re-populate visible fields với fresh data → mã vận đơn mới sẽ hiện
+    const carrierKey = populateTrackingModalFields(freshOrder);
+
+    // Reload timeline events với tracking_number mới (forceRefresh = true)
+    loadTrackingEvents(carrierKey, freshOrder.tracking_number, true);
+  } catch (err) {
+    console.error('[refreshTrackingEvents] re-fetch failed:', err);
+    if (err && err.message === 'SESSION_EXPIRED') {
+      alert('Phiên đăng nhập đã hết hạn. Anh/chị đăng nhập lại nhé.');
+      closeTrackingModal();
+      return;
+    }
+    alert('Không kết nối được tới máy chủ. Anh/chị kiểm tra mạng rồi thử lại nhé.');
+    // Giữ nguyên data cũ — không touch _currentTrackingOrder hay window.allOrders
+  } finally {
+    // Restore button state
+    if (btn) {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = 'pointer';
+      btn.textContent = originalLabel;
+    }
+  }
 }
 
 async function loadTrackingEvents(carrierKey, trackingNo, forceRefresh) {
@@ -3460,6 +3630,44 @@ function clearTrackingCache() {
     if (k.startsWith('tracking_')) localStorage.removeItem(k);
   });
 }
+
+// ═══════════════ AUTO-REFRESH WHEN USER RETURNS TO TAB/APP ═══════════════
+// Fix iOS Safari BFCache + persistent localStorage stale-data bug
+(function () {
+  var lastFetchAt = Date.now(); // page vừa load = vừa fetch xong
+
+  function refreshIfStale(reason) {
+    if (typeof loadDashboard !== 'function') return;
+    if (typeof currentUser === 'undefined' || !currentUser) return; // chưa đăng nhập
+    var now = Date.now();
+    if (now - lastFetchAt < BFCACHE_REFRESH_THRESHOLD_MS) return; // debounce
+    lastFetchAt = now;
+    console.log('[auto-refresh] triggered by:', reason);
+    try { loadDashboard(); } catch (e) { console.warn('[auto-refresh]', reason, e); }
+  }
+
+  // Hook vào loadDashboard để cập nhật lastFetchAt mỗi lần fetch (tránh double-fetch)
+  var _origLoad = window.loadDashboard;
+  if (typeof _origLoad === 'function') {
+    window.loadDashboard = function () {
+      lastFetchAt = Date.now();
+      return _origLoad.apply(this, arguments);
+    };
+  }
+
+  // 1) BFCache restore (Back/Forward navigation) — iOS Safari aggressive cache
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) refreshIfStale('bfcache-restore');
+  });
+
+  // 2) Tab switch / app resume from background
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') refreshIfStale('tab-visible');
+  });
+
+  // 3) Fallback cho iOS Safari — visibilitychange đôi khi không fire khi vào tab switcher
+  window.addEventListener('focus', function () { refreshIfStale('window-focus'); });
+})();
 
 // Start — wait for Supabase JS (deferred) to finish loading first
 if (document.readyState === 'complete') {
