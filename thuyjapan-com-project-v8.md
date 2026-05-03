@@ -84,6 +84,21 @@ Báo "Em đã đọc xong, sẵn sàng tiếp tục."
 
 → **Em đã spawn 10 agents tổng cho phone login fix.**
 
+### (d) Duplicate Phones Resolved + Mandatory Update Flow (2026-05-03 chiều)
+
+V1 migration báo 5 phones duplicate (18 accounts) → anh quyết clear all → KH login bằng email → frontend modal prompt cập nhật.
+
+**Phương pháp**:
+- SQL clear all 18 accounts (backup table với RLS)
+- RPC `update_user_phone` validate + unique check + jsonb response
+- Frontend modal mandatory + reminder banner subtle khi dismiss
+- Customer outreach: email/Zalo template với case "vợ chồng share phone"
+
+**10 agents non-conflict**:
+- Wave 1 (4): SQL spec + frontend spec + RPC spec + outreach
+- Wave 2 (em): apply 2 SQL files + 5 frontend diffs
+- Wave 3+4 (6): code review + test plan + security audit + memory + V8 update + workflow case
+
 ### (c) Quy trình verification 4 phases (NEW PERMANENT)
 
 **Trigger**: Bug Tú #0149 lộ ra anh + em đã ship Cache TTL fix nhưng chưa có quy trình verify systematic → khách phát hiện trước em.
