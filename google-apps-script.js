@@ -2550,11 +2550,12 @@ function buildManualReviewEmailHtml_(d) {
   // Build items list as readable HTML
   var itemsHtml = '';
   if (Array.isArray(d.cartItems) && d.cartItems.length) {
+    // Use size string ("2 hộp", "0.5kg") which already encodes total quantity.
+    // Avoids "× 1" confusion for byBox products (cart normalized to qty=1).
     itemsHtml = d.cartItems.map(function(it) {
       var nm = escapeHtml_(it.name || '');
-      var qty = Number(it.qty || 0);
-      var wt = it.wt ? (' × ' + it.wt + 'kg') : '';
-      return '• ' + nm + wt + ' × ' + qty;
+      var sz = escapeHtml_(it.size || '');
+      return '• ' + nm + (sz ? ' — ' + sz : '');
     }).join('<br>');
   } else {
     itemsHtml = '(không có chi tiết)';
@@ -3259,8 +3260,9 @@ function buildOrderItems(cartItems) {
     const code = match[1];
     const mapped = CODE_MAP[code];
     if (!mapped) return;
-    // byBox: tinh so hop; con lai: tinh kg (qty x wt)
-    const amount = mapped.byBox ? item.qty : item.qty * item.wt;
+    // byBox: cart stores wt = boxCount * 0.5; box count = qty * wt / 0.5
+    // kg: total kg = qty * wt
+    const amount = mapped.byBox ? (item.qty * item.wt / 0.5) : (item.qty * item.wt);
     totals[code] = (totals[code] || 0) + amount;
   });
   const parts = [];
@@ -3612,7 +3614,9 @@ function buildProductSummary(cartItems) {
     const rawCode = match[1];
     const mapped  = CODE_MAP[rawCode];
     if (!mapped) return;
-    const amount = mapped.byBox ? item.qty : item.qty * item.wt;
+    // byBox: cart stores wt = boxCount * 0.5; box count = qty * wt / 0.5
+    // kg: total kg = qty * wt
+    const amount = mapped.byBox ? (item.qty * item.wt / 0.5) : (item.qty * item.wt);
     totals[rawCode] = (totals[rawCode] || 0) + amount;
   });
 
@@ -3651,6 +3655,83 @@ function testSaveYamato() {
   };
   saveYamato('TEST', mockData);
   Logger.log('testSaveYamato: DONE - kiem tra sheet Yamato');
+}
+
+// ============================================================
+// TEST FIX byBox - Verify Nem/Pte hien thi dung so hop
+// Run truoc khi push production de chac chan formula dung.
+// Bug truoc fix: 2 hop Pate hien thi "1 pte" (sai). Sau fix: "2 pte".
+// ============================================================
+function testByBoxFix() {
+  Logger.log('=== TEST byBox fix ===');
+  var pass = 0, fail = 0;
+
+  function assertEq(label, actual, expected) {
+    var ok = actual === expected;
+    Logger.log((ok ? '✓ PASS' : '✗ FAIL') + ' ' + label
+      + ' | expected="' + expected + '" actual="' + actual + '"');
+    ok ? pass++ : fail++;
+  }
+
+  // Case 1: Modern cart - 2 hop Pate (qty=1, wt=1.0 = 2 hop * 0.5)
+  var cart1 = [{ name: '[Pte] Pa Te Pho Co', qty: 1, wt: 1.0, size: '2 hộp' }];
+  assertEq('modern 2 hop Pate -> buildProductSummary', buildProductSummary(cart1), '2 pte');
+  assertEq('modern 2 hop Pate -> buildOrderItems',     buildOrderItems(cart1),     '2 Pte');
+
+  // Case 2: Modern cart - 2 hop Nem
+  var cart2 = [{ name: '[Nem] Nem Lui Hue', qty: 1, wt: 1.0, size: '2 hộp' }];
+  assertEq('modern 2 hop Nem -> buildProductSummary', buildProductSummary(cart2), '2 nem');
+
+  // Case 3: Legacy cart format - 2 hop Nem (qty=2, wt=0.5 per box)
+  var cart3 = [{ name: '[Nem] Nem Lui Hue', qty: 2, wt: 0.5, size: '0.5kg' }];
+  assertEq('legacy 2 hop Nem -> buildProductSummary', buildProductSummary(cart3), '2 nem');
+
+  // Case 4: Mixed cart (anh's exact bug case): 2 hop Pate + 2 hop Nem + 0.5kg Gio
+  var cart4 = [
+    { name: '[Pte] Pa Te Pho Co', qty: 1, wt: 1.0, size: '2 hộp' },
+    { name: '[Nem] Nem Lui Hue',  qty: 1, wt: 1.0, size: '2 hộp' },
+    { name: '[GT] Gio Co Tieu',   qty: 1, wt: 0.5, size: '0.5kg' }
+  ];
+  assertEq('mixed cart -> buildProductSummary', buildProductSummary(cart4), '0.5g 2 nem 2 pte');
+  assertEq('mixed cart -> buildOrderItems',     buildOrderItems(cart4),     '0.5 GT 2 Nem 2 Pte');
+
+  // Case 5: kg product unchanged
+  var cart5 = [{ name: '[CKT] Cha que khong tieu', qty: 1, wt: 1.0, size: '1kg' }];
+  assertEq('kg product (CKT 1kg) -> buildProductSummary', buildProductSummary(cart5), '1ckt');
+
+  // Case 6: Multiple boxes aggregated (3 hop Pate split into 2 cart lines)
+  var cart6 = [
+    { name: '[Pte] Pa Te Pho Co', qty: 1, wt: 1.0, size: '2 hộp' },
+    { name: '[Pte] Pa Te Pho Co', qty: 1, wt: 0.5, size: '1 hộp' }
+  ];
+  assertEq('split Pate 2+1 -> buildProductSummary', buildProductSummary(cart6), '3 pte');
+
+  Logger.log('=== Test done: ' + pass + ' pass, ' + fail + ' fail ===');
+  return { pass: pass, fail: fail };
+}
+
+// ---- Test saveYamato voi cart byBox format thuc te (anh's bug case) ----
+// Sau khi run, kiem tra row "TEST-BB" trong Yamato sheet.
+// Cot AB phai la "2 nem 2 pte" (sau fix), KHONG phai "1 nem 1 pte" (truoc fix).
+function testSaveYamatoByBoxFix() {
+  const mockData = {
+    name: 'TEST BYBOX FIX',
+    phone: '09042376886',
+    postal: '2700034',
+    prefecture: '千葉県',
+    address: '松戸市新松戸６－１１８－２',
+    note: 'TEST BYBOX FIX - DELETE AFTER VERIFY',
+    deliveryTime: '0812',
+    cartItems: [
+      { name: '[Pte] Pa Te Pho Co', qty: 1, wt: 1.0, size: '2 hộp', price: 1600 },
+      { name: '[Nem] Nem Lui Hue',  qty: 1, wt: 1.0, size: '2 hộp', price: 1600 }
+    ]
+  };
+  saveYamato('TEST-BB', mockData);
+  Logger.log('testSaveYamatoByBoxFix: DONE');
+  Logger.log('  -> Mo Yamato sheet, tim row "TEST-BB"');
+  Logger.log('  -> Cot AB phai la "2 nem 2 pte" (sau fix)');
+  Logger.log('  -> Neu thay "1 nem 1 pte" -> fix CHUA chay (redeploy lai)');
 }
 
 // ============================================================
@@ -4051,9 +4132,16 @@ function sendOrderNotification(orderNo, data) {
   var subject = '[B\u1ebfp Thu\u1ef7 Japan] \u0110\u01a1n m\u1edbi #' + orderNo + ' - ' + name;
 
   var rows = cart.map(function(i) {
+    // byBox: SL = box count = qty * wt / 0.5 (cart normalized to qty=1, wt encodes box count).
+    // kg: SL = qty (raw).
+    var match = (i.name || '').match(/^\[([^\]]+)\]/);
+    var mapped = match ? CODE_MAP[match[1]] : null;
+    var displayQty = (mapped && mapped.byBox)
+      ? Math.max(1, Math.round((Number(i.qty)||1) * (Number(i.wt)||0) / 0.5))
+      : i.qty;
     return '<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">' + i.name + ' (' + (i.size||'') + ')</td>' +
-           '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">' + i.qty + '</td>' +
-           '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + ((i.price||0) * i.qty).toLocaleString() + ' \xa5</td></tr>';
+           '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">' + displayQty + '</td>' +
+           '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + ((i.price||0) * (Number(i.qty)||1)).toLocaleString() + ' \xa5</td></tr>';
   }).join('');
 
   var htmlBody =
@@ -4113,10 +4201,16 @@ function sendCustomerConfirmation(orderNo, data) {
   var subject = '[B\u1ebfp Thu\u1ef7 Japan] C\u1ea3m \u01a1n b\u1ea1n \u0111\u00e3 \u0111\u1eb7t h\u00e0ng! \u0110\u01a1n #' + orderNo;
 
   var rows = cart.map(function(i) {
+    // byBox: SL = box count = qty * wt / 0.5; kg: SL = qty.
+    var match = (i.name || '').match(/^\[([^\]]+)\]/);
+    var mapped = match ? CODE_MAP[match[1]] : null;
+    var displayQty = (mapped && mapped.byBox)
+      ? Math.max(1, Math.round((Number(i.qty)||1) * (Number(i.wt)||0) / 0.5))
+      : i.qty;
     return '<tr>' +
       '<td style="padding:8px;border-bottom:1px solid #f0e0d0">' + i.name + ' (' + (i.size||'') + ')</td>' +
-      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:center">' + i.qty + '</td>' +
-      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:right">' + ((i.price||0)*i.qty).toLocaleString() + ' \xa5</td>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:center">' + displayQty + '</td>' +
+      '<td style="padding:8px;border-bottom:1px solid #f0e0d0;text-align:right">' + ((i.price||0) * (Number(i.qty)||1)).toLocaleString() + ' \xa5</td>' +
       '</tr>';
   }).join('');
 

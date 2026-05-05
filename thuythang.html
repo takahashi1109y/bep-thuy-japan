@@ -1376,10 +1376,11 @@ async function computeInventorySales30d() {
       const code = m[1];
       // Mirror google-apps-script.js CODE_MAP byBox flag
       const isByBox = (code === 'Nem' || code === 'Pte');
-      // For boxes: amount = qty (count of boxes); for kg: amount = qty * wt
+      // byBox: cart stores wt = boxCount * 0.5; box count = qty * wt / 0.5
+      // kg: total kg = qty * wt
       const wt = Number(it.wt) || 0;
       const qty = Number(it.qty) || 0;
-      const amt = isByBox ? Math.max(qty, wt / 0.5) : (qty * wt);
+      const amt = isByBox ? (qty * wt / 0.5) : (qty * wt);
       if (amt > 0) totals[code] = (totals[code] || 0) + amt;
     });
   });
