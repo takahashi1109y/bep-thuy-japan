@@ -2758,18 +2758,25 @@ async function openOrderModal(orderNo) {
             (warnings.length > 0 ? '<div style="background:#FEF3C7;border:1px solid #FBBF24;border-radius:6px;padding:6px;margin:6px 0;font-size:11px;color:#78350F;">' + warnings.join('<br>') + '</div>' : '') +
             (rawImg
               ? (function(){
-                  // Apps Script Option B → image_url is a full https URL → use directly.
-                  // /thanh-vien upload → screenshot_url is a full signed URL → use directly.
-                  // Legacy bare-path rows → defer to async signed-URL resolution.
+                  // FIX 2026-05-05: defensive URL resolver + 4-fallback onerror handler
+                  const resolved = resolvePaymentImageUrl(rawImg);
                   const isFullUrl = /^https?:\/\//i.test(rawImg);
+                  // Legacy bare-path rows still queue async signed-URL refresh as 2nd-chance
                   if (!isFullUrl) pendingResolves.push({ rawPath: rawImg, imgId: imgId });
-                  // 1×1 transparent gif placeholder while we wait for the async signed URL —
-                  // keeps slot reserved without firing onerror for an empty src.
                   const placeholderSrc = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
-                  const initialSrc = isFullUrl ? escapeHtml(rawImg) : placeholderSrc;
+                  const initialSrc = isFullUrl ? escapeHtml(resolved) : placeholderSrc;
+                  // Stash fallbacks in global keyed by imgId so onerror cycles through
+                  window.__imgFallbacks = window.__imgFallbacks || {};
+                  window.__imgFallbacks[imgId] = {
+                    primary: resolved,
+                    publicTwin: signedToPublicUrl(resolved),
+                    rawDb: rawImg,
+                    attempts: 0
+                  };
                   return '<div id="' + imgId + '-wrap" style="position:relative;margin-top:4px;cursor:zoom-in;min-height:120px;" onclick="(function(el){var i=el.querySelector(\'img\'); if(i&amp;&amp;i.src&amp;&amp;!i.src.startsWith(\'data:\')) openImageLightbox(i.src);})(this)" title="Bấm để phóng to">' +
                     '<img id="' + imgId + '" src="' + initialSrc + '" style="display:block;width:100%;max-height:300px;object-fit:contain;border:1px solid #E5E7EB;border-radius:8px;background:#fff;" ' +
-                      'onerror="this.onerror=null;this.parentElement.outerHTML=\'<div style=&quot;padding:18px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;text-align:center;margin-top:4px;&quot;>❌ Ảnh không tải được</div>\';">' +
+                      'onload="console.log(\'[payment-img OK]\', this.id, this.src.substring(0,80));" ' +
+                      'onerror="handlePaymentImgError(this, \'' + imgId + '\');">' +
                     '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;pointer-events:none;">🔍 Phóng to</div>' +
                   '</div>';
                 })()
@@ -2900,6 +2907,71 @@ async function resolveReceiptImageSrc(rawPath, imgId) {
   } else if (img.parentElement) {
     // Resolution failed → show the same broken-image placeholder.
     img.parentElement.outerHTML = '<div style="padding:18px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;text-align:center;margin-top:4px;">❌ Ảnh không tải được</div>';
+  }
+}
+
+// FIX 2026-05-05 (anh report admin not seeing payment images):
+// Defensive URL resolver — handles signed URLs, public URLs, bare paths.
+function resolvePaymentImageUrl(rawUrl) {
+  if (!rawUrl) return '';
+  const s = String(rawUrl).trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;        // already full URL
+  const cleanPath = s.replace(/^\/+/, '');
+  return SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + cleanPath;
+}
+
+// Convert signed URL → public URL twin (for fallback when signed token fails)
+function signedToPublicUrl(signedUrl) {
+  if (!signedUrl || typeof signedUrl !== 'string') return null;
+  const m = signedUrl.match(/\/storage\/v1\/object\/sign\/payment-proofs\/([^?]+)/i);
+  if (!m) return null;
+  return SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + m[1];
+}
+
+// onerror handler — cycle 4 fallbacks before giving up
+function handlePaymentImgError(imgEl, imgId) {
+  const ctx = (window.__imgFallbacks || {})[imgId];
+  if (!ctx) {
+    imgEl.onerror = null;
+    if (imgEl.parentElement) {
+      imgEl.parentElement.outerHTML = '<div style="padding:18px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;text-align:center;margin-top:4px;">❌ Ảnh không tải được</div>';
+    }
+    return;
+  }
+  ctx.attempts = (ctx.attempts || 0) + 1;
+  console.warn('[payment-img ERR]', imgId, 'attempt', ctx.attempts, 'failed src:', imgEl.src.substring(0, 120));
+
+  // Attempt 1: try public twin nếu URL gốc là signed
+  if (ctx.attempts === 1 && ctx.publicTwin) {
+    console.log('[payment-img RETRY]', imgId, '→ public twin');
+    imgEl.src = ctx.publicTwin;
+    return;
+  }
+  // Attempt 1 (alt): nếu KHÔNG có public twin (URL gốc đã là public/bare) → cache-bust primary
+  if (ctx.attempts === 1 && !ctx.publicTwin && ctx.primary) {
+    console.log('[payment-img RETRY]', imgId, '→ primary + cache-bust');
+    imgEl.src = ctx.primary + (ctx.primary.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + Date.now();
+    return;
+  }
+  // Attempt 2: cache-bust public twin (nếu có)
+  if (ctx.attempts === 2 && ctx.publicTwin) {
+    console.log('[payment-img RETRY]', imgId, '→ public twin + cache-bust');
+    imgEl.src = ctx.publicTwin + (ctx.publicTwin.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + Date.now();
+    return;
+  }
+  // Give up — show error box with clickable URL
+  imgEl.onerror = null;
+  const fallbackHref = ctx.publicTwin || ctx.primary || ctx.rawDb || '';
+  if (imgEl.parentElement) {
+    imgEl.parentElement.outerHTML =
+      '<div style="padding:14px;border:1px dashed #EF4444;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:12px;margin-top:4px;">' +
+        '<div style="font-weight:600;margin-bottom:6px;">❌ Ảnh không tải được trong modal</div>' +
+        (fallbackHref
+          ? '<div style="font-size:11px;color:#6B7280;margin-bottom:6px;">Đã thử ' + ctx.attempts + ' URL. Bấm link bên dưới để mở trực tiếp:</div>' +
+            '<a href="' + escapeHtml(fallbackHref) + '" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:#EF4444;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:12px;">🔗 Mở ảnh trực tiếp</a>'
+          : '<div style="font-size:11px;color:#6B7280;">Không có URL hợp lệ trong DB.</div>') +
+      '</div>';
   }
 }
 

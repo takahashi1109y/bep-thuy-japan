@@ -1819,15 +1819,17 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     order_no: orderNo,
     user_id: data.userId || null,
     claimed_amount: data.total,
-    method: 'auto_verified',
+    method: 'bank_transfer',                                                    // FIX 2026-05-05: was 'auto_verified' — violates CHECK (method IN ('bank_transfer','paypay'))
     screenshot_url: signedUrl,
-    screenshot_hash: data.ai_screenshot_hash || null,
+    screenshot_hash: data.ai_screenshot_hash || ('auto-' + orderNo + '-' + ts), // FIX: schema NOT NULL — fallback nếu AI không hash
+    file_size: bytes.length,                                                    // FIX: column exists, useful cho admin
     note: 'Auto-verified at checkout. AI detected ¥' + (data.ai_detected_amount || data.total).toLocaleString(),
-    ai_status: 'matched',
+    status: 'verified',                                                         // FIX: CHECK status IN ('submitted','verified','rejected'); auto-verified → mark verified
     ai_verified_amount: data.ai_detected_amount || data.total,
     ai_match: true,
     ai_confidence: 0.95,
     ai_verified_at: new Date().toISOString()
+    // REMOVED: ai_status — column doesn't exist (was silently dropped by PostgREST)
   };
   var confRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/payment_confirmations', {
     method: 'post',
@@ -1898,11 +1900,14 @@ function savePaymentProofForManualReview_(orderNo, data) {
     order_no: orderNo,
     user_id: data.userId || null,
     claimed_amount: data.total,
-    method: 'manual_review',
+    method: 'bank_transfer',                                                       // FIX 2026-05-05: was 'manual_review' — violates CHECK
     screenshot_url: signedUrl,
+    screenshot_hash: 'manual-' + orderNo + '-' + ts,                               // FIX: schema NOT NULL — was MISSING entirely → INSERT double-fail
+    file_size: bytes.length,                                                       // FIX: column exists
     note: 'Manual review requested. AI verify failed ' + (data.verify_fail_count || 0) + ' time(s). Admin to inspect.',
-    ai_status: 'manual_review_pending',
+    status: 'submitted',                                                           // FIX: manual flow stays 'submitted' until admin acts
     ai_match: false
+    // REMOVED: ai_status — column doesn't exist
   };
   var confRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/payment_confirmations', {
     method: 'post',
