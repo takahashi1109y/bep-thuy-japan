@@ -1548,8 +1548,14 @@ window.addEventListener('scroll', function() {
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        console.warn('[autoSaveProfile] 0 rows updated — RLS may be blocking UPDATE');
-        return;  // KHÔNG show toast nếu thực tế không save
+        // FIX 2026-05-07: Show RED alert nếu RLS block — admin biết để run migration
+        console.warn('[autoSaveProfile] 0 rows updated — RLS BLOCKS UPDATE');
+        const errToast = document.createElement('div');
+        errToast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#DC2626;color:#fff;padding:14px 22px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 15px rgba(220,38,38,0.4);z-index:99999;max-width:90%;text-align:center;';
+        errToast.innerHTML = '⚠️ KHÔNG lưu được thông tin — admin chạy SQL migration<br><span style="font-weight:400;font-size:11px;">supabase-profile-update-policy.sql</span>';
+        document.body.appendChild(errToast);
+        setTimeout(() => errToast.remove(), 8000);
+        return;
       }
 
       // Update local cache với data trả về từ DB (chính xác)

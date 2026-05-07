@@ -191,7 +191,6 @@
     <div class="container" style="display: flex; gap: 4px; padding: 0;">
       <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tổng Quan</button>
       <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng <span id="tt-pending-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
-      <button class="tab" data-tab="ai_check" onclick="switchTab('ai_check')" style="position:relative;">📋 Check thủ công <span id="ai-check-badge" class="hidden" style="background:#DC2626;color:white;font-size:10px;padding:2px 7px;border-radius:999px;margin-left:4px;font-weight:800;animation:pulse-review 2s ease-in-out infinite;box-shadow:0 0 0 2px rgba(220,38,38,0.2);"></span></button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="campaign" onclick="switchTab('campaign')">📢 Gửi Tin</button>
@@ -473,7 +472,7 @@
         <div class="sub-tabs">
           <button class="sub-tab active" data-tab="all" onclick="setOrdersSubTab('all')">📊 Tổng đơn hàng <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
-          <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">🚨 Cần xem xét <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
+          <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">📋 Check thủ công <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
           <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
@@ -549,16 +548,8 @@
       <div id="orders-pagination" class="pagination"></div>
     </div>
 
-    <!-- AI CHECK TAB (MAIN TAB — moved from sub-tab 2026-05-07) -->
-    <div id="tab-ai_check" class="hidden">
-      <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#78350F;">
-        📋 <strong>Đơn hàng AI verify FAIL</strong> — khách upload ảnh nhưng AI không nhận diện được, đơn chưa vào hệ thống chính.
-        Admin xem ảnh, đối chiếu thủ công với bank, nếu đúng thì click <strong>Tạo đơn thủ công</strong>.
-      </div>
-      <div id="ai-check-list" style="display:grid;gap:12px;">
-        <div style="text-align:center;padding:40px;color:#9CA3AF;">Đang tải...</div>
-      </div>
-    </div>
+    <!-- AI CHECK TAB removed 2026-05-07 (deprecated since auto-log AI fail removed).
+         Đơn manual review giờ hiển thị trong sub-tab "📋 Check thủ công" của Đơn Hàng. -->
 
     <!-- CUSTOMERS TAB -->
     <div id="tab-customers" class="hidden">
@@ -1891,12 +1882,11 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','ai_check','customers','messages','campaign','inventory','testbill'].forEach(t => {
+  ['dashboard','orders','customers','messages','campaign','inventory','testbill'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
   if (name === 'orders' && allOrders.length === 0) loadOrders();
-  if (name === 'ai_check') loadAIVerifyAttempts();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
   if (name === 'campaign') initCampaignTab();
@@ -1908,7 +1898,7 @@ function switchTab(name) {
 function restoreAdminTabs() {
   try {
     const savedTab = localStorage.getItem('admin_tab');
-    if (savedTab && ['dashboard','orders','ai_check','customers','messages','campaign','inventory','testbill'].includes(savedTab) && savedTab !== 'dashboard') {
+    if (savedTab && ['dashboard','orders','customers','messages','campaign','inventory','testbill'].includes(savedTab) && savedTab !== 'dashboard') {
       switchTab(savedTab);
     }
     const savedSub = localStorage.getItem('admin_orders_subtab');
