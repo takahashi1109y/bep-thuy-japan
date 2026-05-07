@@ -2526,32 +2526,93 @@ function renderAIAttempts() {
 }
 
 async function resolveAIAttempt(attemptId, action) {
-  let orderNo = null;
-  let notes = null;
-
-  if (action === 'admin_resolved') {
-    orderNo = prompt('Nhập số đơn (orderNo) đã tạo thủ công cho khách (vd: BTJ-0150).\nNếu chưa tạo, để trống và bấm OK — admin sẽ tự nhớ link sau:', '') || null;
-    notes = prompt('Ghi chú (tuỳ chọn):', '') || null;
-  } else if (action === 'ignored') {
-    if (!confirm('Bỏ qua AI fail này (khách đã đặt lại / không liên lạc được)?')) return;
-    notes = prompt('Lý do bỏ qua (tuỳ chọn):', '') || null;
+  // FEATURE 2026-05-07: 'admin_resolved' giờ AUTO-CREATE order qua Apps Script
+  // (KHÔNG còn prompt orderNo). Admin chỉ confirm xem ảnh đúng → click → đơn full
+  // được tạo + email gửi cho khách + trừ kho + mark resolved.
+  const attempt = _aiAttemptsCache.find(a => a.id === attemptId);
+  if (!attempt) {
+    showToast('❌ Không tìm thấy yêu cầu', 'error');
+    return;
   }
 
-  showToast('⏳ Đang xử lý...', 'success');
-  try {
-    const { data, error } = await sb.rpc('admin_resolve_ai_attempt', {
-      p_attempt_id: attemptId,
-      p_action: action,
-      p_order_no: orderNo,
-      p_notes: notes
-    });
-    if (error) throw error;
-    if (data && data.ok === false) throw new Error(data.error || 'Xử lý thất bại');
+  if (action === 'ignored') {
+    const reason = prompt('Lý do bỏ qua (vd: khách đã đặt lại / không liên lạc được):', '') || '';
+    if (reason === null) return;
+    if (!confirm('Bỏ qua AI fail này?')) return;
 
-    showToast(action === 'admin_resolved' ? '✅ Đã đánh dấu đã tạo đơn' : '🗑️ Đã bỏ qua', 'success');
+    showToast('⏳ Đang xử lý...', 'success');
+    try {
+      const { data, error } = await sb.rpc('admin_resolve_ai_attempt', {
+        p_attempt_id: attemptId,
+        p_action: 'ignored',
+        p_order_no: null,
+        p_notes: reason || null
+      });
+      if (error) throw error;
+      if (data && data.ok === false) throw new Error(data.error || 'Xử lý thất bại');
+      showToast('🗑️ Đã bỏ qua', 'success');
+      await loadAIVerifyAttempts();
+    } catch (e) {
+      showToast('❌ Lỗi: ' + (e.message || e), 'error');
+    }
+    return;
+  }
+
+  // action === 'admin_resolved' → AUTO-CREATE ORDER
+  const items = Array.isArray(attempt.cart_items) ? attempt.cart_items : [];
+  const itemsList = items.map(i => '  • ' + (i.name || '') + ' × ' + (i.qty || 1)).join('\n');
+  const claimedAmt = (attempt.claimed_amount || 0).toLocaleString();
+
+  const confirmed = confirm(
+    '✅ Xác nhận tạo đơn cho khách "' + (attempt.customer_name || 'không tên') + '"?\n\n' +
+    '📞 ' + (attempt.customer_phone || '-') + '\n' +
+    '📧 ' + (attempt.customer_email || '-') + '\n' +
+    '💰 Số tiền: ¥' + claimedAmt + '\n\n' +
+    '🛒 Sản phẩm:\n' + (itemsList || '  (không có chi tiết)') + '\n\n' +
+    '⚠️ Hệ thống sẽ TỰ ĐỘNG:\n' +
+    '  • Tạo đơn hàng mới với status "confirmed"\n' +
+    '  • Lưu vào Google Sheets + Yamato\n' +
+    '  • Gửi email xác nhận cho khách\n' +
+    '  • Trừ tồn kho\n' +
+    '  • Đánh dấu yêu cầu này đã xử lý\n\n' +
+    'Bấm OK để xác nhận tạo đơn.'
+  );
+  if (!confirmed) return;
+
+  const adminNotes = prompt('Ghi chú admin (tuỳ chọn):', '') || '';
+
+  showToast('⏳ Đang tạo đơn... (5-15 giây)', 'success');
+
+  // Disable buttons trong UI để tránh double-click
+  const btns = document.querySelectorAll('[onclick*="resolveAIAttempt(' + attemptId + '"]');
+  btns.forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'admin_create_order_from_ai_attempt',
+        attempt_id: attemptId,
+        admin_email: currentAdmin?.email || 'admin',
+        admin_notes: adminNotes
+      })
+    });
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error + (result.detail ? ': ' + result.detail : ''));
+    }
+
+    showToast('✅ Đã tạo đơn #' + result.orderNo + ' — email đã gửi cho khách', 'success');
     await loadAIVerifyAttempts();
+    // Reload orders tab nếu đang mở để admin thấy đơn mới
+    if (typeof loadOrders === 'function') {
+      try { await loadOrders(); } catch(e) {}
+    }
   } catch (e) {
     showToast('❌ Lỗi: ' + (e.message || e), 'error');
+    btns.forEach(b => { b.disabled = false; b.style.opacity = '1'; });
   }
 }
 

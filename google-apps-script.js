@@ -399,6 +399,147 @@ function doPost(e) {
       return buildResponse({ success: true, orderNo: orderNoM, manual_review: true, status: 'pending_manual_review' });
     }
 
+    // ============================================================
+    // ADMIN_CREATE_ORDER_FROM_AI_ATTEMPT (2026-05-07)
+    // Admin click "Tạo đơn thủ công" trong tab "📋 Check thủ công":
+    //   1. Fetch ai_verify_attempts row by id
+    //   2. Build full order data từ row
+    //   3. Run full create-order flow (giống verify_then_create_order)
+    //      với status='confirmed' (admin đã verify thay AI)
+    //   4. Insert payment_confirmations với receipt_url đã có sẵn
+    //   5. Update ai_verify_attempts row → status='admin_resolved'
+    // ============================================================
+    if (data.type === 'admin_create_order_from_ai_attempt') {
+      var attemptId = data.attempt_id;
+      var adminEmail = data.admin_email || 'admin';
+      var adminNotes = data.admin_notes || '';
+
+      if (!attemptId) {
+        return buildResponse({ success: false, error: 'missing_attempt_id' });
+      }
+
+      // 1) Fetch attempt row
+      var attemptRow = null;
+      try {
+        var fetchUrl = SUPABASE_URL + '/rest/v1/ai_verify_attempts?id=eq.' + encodeURIComponent(attemptId);
+        var fetchRes = UrlFetchApp.fetch(fetchUrl, {
+          method: 'get',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+          },
+          muteHttpExceptions: true
+        });
+        if (fetchRes.getResponseCode() === 200) {
+          var rows = JSON.parse(fetchRes.getContentText() || '[]');
+          attemptRow = rows.length > 0 ? rows[0] : null;
+        }
+      } catch (fe) { Logger.log('Fetch attempt err: ' + fe); }
+
+      if (!attemptRow) {
+        return buildResponse({ success: false, error: 'attempt_not_found' });
+      }
+
+      if (attemptRow.status !== 'pending') {
+        return buildResponse({
+          success: false,
+          error: 'already_resolved',
+          detail: 'Yêu cầu này đã được xử lý (status: ' + attemptRow.status + ')'
+        });
+      }
+
+      // 2) Build data object matching verify_then_create_order shape
+      var addr = attemptRow.customer_address || '';
+      // Parse "270-0034 千葉県 松戸市新松戸6" → postal/prefecture/address
+      var postalMatch = addr.match(/(\d{3}-?\d{4})/);
+      var postal = postalMatch ? postalMatch[1] : '';
+      var pref = '';
+      var rest = addr;
+      if (postal) rest = rest.replace(postalMatch[0], '').trim();
+      var prefMatch = rest.match(/(東京都|北海道|大阪府|京都府|[^\s]+県)/);
+      if (prefMatch) {
+        pref = prefMatch[1];
+        rest = rest.replace(pref, '').trim();
+      }
+
+      var orderData = {
+        name: attemptRow.customer_name || '',
+        email: attemptRow.customer_email || '',
+        phone: attemptRow.customer_phone || '',
+        postal: postal,
+        prefecture: pref,
+        address: rest || addr,
+        note: 'Admin xác nhận thủ công (AI verify fail). ' + (adminNotes || ''),
+        deliveryTime: '',
+        cartItems: attemptRow.cart_items || [],
+        subtotal: Number(attemptRow.claimed_amount || 0),
+        shipping: 0,  // sẽ tính lại trong saveOrder
+        total: Number(attemptRow.claimed_amount || 0),
+        userId: attemptRow.user_id || null,
+        pointsUsed: 0,
+        // Admin override flags
+        status: 'confirmed',
+        ai_verify_passed: false,
+        admin_manual_verified: true,
+        admin_email: adminEmail,
+        attempt_id: attemptId,
+        receipt_url: attemptRow.receipt_url || null,
+        receipt_path: attemptRow.receipt_path || null,
+        receipt_mime: attemptRow.receipt_mime || 'image/jpeg'
+      };
+
+      // 3) Create order full flow (mirror verify_then_create_order success path)
+      var orderNoA = getNextOrderNo(ss);
+      try { saveOrder(ss, orderNoA, orderData); } catch(e) { Logger.log('saveOrder err: ' + e); }
+      try { saveYamato(orderNoA, orderData); } catch(e) { Logger.log('saveYamato err: ' + e); }
+      try { sendOrderNotification(orderNoA, orderData); } catch(e) { Logger.log('sendOrderNotification err: ' + e); }
+      try { sendCustomerConfirmation(orderNoA, orderData); } catch(e) { Logger.log('sendCustomerConfirmation err: ' + e); }
+      try { updateProductStats(ss); } catch(e) { Logger.log('updateProductStats err: ' + e); }
+      try {
+        if (orderData.email) {
+          addToGetResponse(orderData.email, orderData.name, orderData.phone, orderData.prefecture,
+            orderData.userId ? 'member-buyer' : 'buyer');
+        }
+      } catch(ge) { Logger.log('GR err: ' + ge); }
+      try { saveOrderToSupabase(orderNoA, orderData); } catch(soe) { Logger.log('SB err: ' + soe); }
+
+      // 4) Insert payment_confirmations row reusing existing receipt_url
+      try {
+        savePaymentProofForAdminResolved_(orderNoA, orderData);
+      } catch (pe) { Logger.log('Save admin proof err: ' + pe); }
+
+      try { deductStockForOrder_(orderData.cartItems); } catch (dse) { Logger.log('Deduct stock err: ' + dse); }
+
+      // 5) Mark ai_verify_attempts as admin_resolved
+      try {
+        var patchUrl = SUPABASE_URL + '/rest/v1/ai_verify_attempts?id=eq.' + encodeURIComponent(attemptId);
+        UrlFetchApp.fetch(patchUrl, {
+          method: 'patch',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          payload: JSON.stringify({
+            status: 'admin_resolved',
+            resolved_order_no: orderNoA,
+            resolved_by: adminEmail,
+            resolved_at: new Date().toISOString(),
+            admin_notes: adminNotes || null
+          }),
+          muteHttpExceptions: true
+        });
+      } catch (upe) { Logger.log('Update attempt status err: ' + upe); }
+
+      return buildResponse({
+        success: true,
+        orderNo: orderNoA,
+        admin_resolved: true,
+        attempt_id: attemptId
+      });
+    }
+
     // Fetch tracking events from carrier (Yamato/Sagawa)
     // Used by admin tracking tab to display delivery progress for an order
     if (data.type === 'fetch_tracking_events') {
@@ -2061,6 +2202,65 @@ function logAIFailureToSupabase_(data, verifyRes) {
     Logger.log('Log AI fail FAIL HTTP ' + code + ': ' + insertRes.getContentText().slice(0, 500));
   } else {
     Logger.log('Log AI fail OK HTTP ' + code + ' (customer: ' + (data.email || data.phone || 'guest') + ', amount: ¥' + data.total + ')');
+  }
+}
+
+// ============================================================
+// SAVE PAYMENT PROOF FOR ADMIN-RESOLVED AI ATTEMPT (2026-05-07)
+// Admin click "Tạo đơn thủ công" → reuse receipt_url đã có sẵn từ
+// ai_verify_attempts row. KHÔNG re-upload, chỉ insert payment_confirmations
+// row pointing tới existing storage path.
+// ============================================================
+function savePaymentProofForAdminResolved_(orderNo, data) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  if (!data.receipt_url && !data.receipt_path) {
+    Logger.log('No receipt_url/path for admin-resolved order ' + orderNo);
+    return;
+  }
+
+  var ts = Date.now();
+  // Prefer public URL (bucket public, no expiry)
+  var screenshotUrl = data.receipt_url;
+  if (!screenshotUrl && data.receipt_path) {
+    screenshotUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(data.receipt_path);
+  }
+
+  var confPayload = {
+    order_no: orderNo,
+    user_id: data.userId || null,
+    claimed_amount: Number(data.total || 0),
+    method: 'bank_transfer',
+    screenshot_url: screenshotUrl,
+    screenshot_hash: 'admin-' + orderNo + '-' + ts,
+    note: 'Admin verified manually (AI verify failed). ' + (data.admin_email || ''),
+    status: 'verified',
+    admin_confirmer: data.admin_email || 'admin',
+    admin_confirmed_at: new Date().toISOString(),
+    admin_action: 'confirmed',
+    ai_match: false,
+    ai_verified_at: new Date().toISOString()
+  };
+
+  try {
+    var confRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/payment_confirmations', {
+      method: 'post',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify(confPayload),
+      muteHttpExceptions: true
+    });
+    var code = confRes.getResponseCode();
+    if (code >= 300) {
+      Logger.log('Save admin payment_confirmation FAIL HTTP ' + code + ': ' + confRes.getContentText().slice(0, 500));
+    } else {
+      Logger.log('Save admin payment_confirmation OK HTTP ' + code + ' (verified by ' + data.admin_email + ')');
+    }
+  } catch (e) {
+    Logger.log('savePaymentProofForAdminResolved_ err: ' + e);
   }
 }
 
