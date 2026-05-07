@@ -85,7 +85,8 @@ function validatePayload_(data) {
   var ADMIN_TYPES = ['payment_received', 'verify_receipt', 'campaign_email', 'campaign_test',
                      'order_confirmed', 'order_shipped', 'send_production_report',
                      'verify_then_create_order', 'manual_pending_order', 'fetch_tracking_events',
-                     'admin_force_approve_payment', 'verify_dry_run'];
+                     'admin_force_approve_payment', 'verify_dry_run',
+                     'admin_create_order_from_ai_attempt'];  // 2026-05-07: bypass total validator (admin handler tự fetch data từ ai_verify_attempts)
   if (data.type && ADMIN_TYPES.indexOf(data.type) >= 0) return null;
 
   if (data.type === 'member') {
