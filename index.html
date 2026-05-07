@@ -1722,7 +1722,7 @@ window.addEventListener('scroll', function() {
             html += '<div style="margin-top:10px;background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:10px;text-align:left;font-size:13px;line-height:1.5;color:#78350F">'
               + '<div style="font-weight:700;margin-bottom:6px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'
               + '<div style="font-size:12px;margin-bottom:8px">Nếu anh/chị đã thanh toán đúng số tiền, có thể gửi đơn để Bếp Thuỷ kiểm tra thủ công.</div>'
-              + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:#F59E0B;color:#fff;font-weight:700;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px">📋 Gửi đơn cho admin xem (tôi đã pay rồi)</button>'
+              + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:#F59E0B;color:#fff;font-weight:700;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px">📋 Gửi đơn cho Thuỷ xem (tôi đã thanh toán rồi)</button>'
               + '</div>';
           }
           status.innerHTML = html;
@@ -1787,7 +1787,7 @@ window.addEventListener('scroll', function() {
     const manualBtn = document.getElementById('manual-review-btn');
     const finalizeBtn = document.getElementById('finalize-btn');
     const status = document.getElementById('verify-status');
-    if (manualBtn) { manualBtn.disabled = true; manualBtn.innerHTML = '<span class="spin">⏳</span> Đang gửi đơn cho admin...'; }
+    if (manualBtn) { manualBtn.disabled = true; manualBtn.innerHTML = '<span class="spin">⏳</span> Đang gửi đơn cho Thuỷ...'; }
     if (finalizeBtn) { finalizeBtn.disabled = true; finalizeBtn.classList.add('opacity-50'); }
 
     try {
@@ -1847,7 +1847,7 @@ window.addEventListener('scroll', function() {
       console.error('Manual review err:', e);
       if (manualBtn) {
         manualBtn.disabled = false;
-        manualBtn.innerHTML = '📋 Gửi đơn cho admin xem (tôi đã pay rồi)';
+        manualBtn.innerHTML = '📋 Gửi đơn cho Thuỷ xem (tôi đã thanh toán rồi)';
       }
       if (finalizeBtn) { finalizeBtn.disabled = false; finalizeBtn.classList.remove('opacity-50'); }
       alert('❌ Không gửi được đơn: ' + (e.message || e) + '\nVui lòng thử lại hoặc liên hệ Bếp Thuỷ.');
