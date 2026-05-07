@@ -1510,13 +1510,19 @@ async function init() {
     currentUser = session.user;
 
     // Kiem tra link kich hoat tu welcome email (GetResponse)
-    // Anh request 2026-05-07: KHÁCH PHẢI CLICK LINK để nhận 100 điểm,
-    // KHÔNG auto-claim. Email do GetResponse gửi sau signup với URL
-    // ?claim=welcome → khách click → trigger flow này.
+    // Anh request 2026-05-07: KHÁCH PHẢI CLICK LINK để nhận 100 điểm.
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('claim') === 'welcome') {
+    const claimParam = urlParams.get('claim');
+    console.log('[init] URL search=' + window.location.search + ' | claim param=' + claimParam + ' | uid=' + (session.user && session.user.id ? session.user.id.slice(0,8) : '?'));
+    if (claimParam === 'welcome') {
+      console.log('[init] ✓ Welcome claim detected — calling tryClaimWelcomeBonus');
       showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
-      await tryClaimWelcomeBonus();
+      try {
+        await tryClaimWelcomeBonus();
+        console.log('[init] tryClaimWelcomeBonus completed');
+      } catch (e) {
+        console.error('[init] tryClaimWelcomeBonus EXCEPTION:', e);
+      }
       history.replaceState({}, '', '/thanh-vien');
     }
 
