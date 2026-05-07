@@ -2085,8 +2085,23 @@ async function doRegister() {
     }
   });
 
+  // FIX 2026-05-08: Detect Supabase anti-enumeration response cho duplicate email.
+  // Supabase silently returns success với data.user.identities=[] khi email đã tồn tại
+  // và chưa confirmed → KHÔNG có error → code cũ pass thẳng → khách tưởng đăng ký OK.
+  // Mà thực ra Supabase chỉ re-send email confirmation cho user cũ.
+  if (!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    var emailDupBox = document.getElementById('reg-error');
+    if (emailDupBox) {
+      emailDupBox.innerHTML = '📧 <strong>Email này đã được đăng ký.</strong><br><br>Nếu bạn là chủ email này, vui lòng bấm <a onclick="doForgotPassword();return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔑 Quên mật khẩu</a> để lấy lại. Hoặc <a onclick="switchAuthTab(\'forgot-email\');return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔍 Quên email</a> để tìm email từ SĐT.';
+      emailDupBox.classList.remove('hidden');
+    }
+    btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+    return;
+  }
+
   if (error) {
     // FIX 2026-05-07: Friendly error messages với link "Quên mật khẩu" rõ ràng.
+    console.warn('[doRegister] signUp error:', { message: error.message, code: error.code, status: error.status });
     var msg = error.message || '';
     var lc = msg.toLowerCase();
     var friendly = msg;
