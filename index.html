@@ -2201,7 +2201,17 @@ window.addEventListener('scroll', function() {
 
   async function initSupabase() {
     try {
-      sbClient = supabase.createClient(SUPA_URL, SUPA_ANON);
+      // Auth options MUST match thanh-vien.html createClient (line ~1014)
+      // otherwise session won't persist khi navigate giua 2 trang.
+      sbClient = supabase.createClient(SUPA_URL, SUPA_ANON, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          storage: typeof localStorage !== 'undefined' ? localStorage : undefined
+        },
+        realtime: { params: { eventsPerSecond: 1 } }
+      });
       // Sync inventory + prices from product_catalog (no auth required, public read)
       syncProductsFromCatalog();
       const { data: { session } } = await sbClient.auth.getSession();

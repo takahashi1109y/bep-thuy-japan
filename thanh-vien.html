@@ -1701,6 +1701,7 @@ async function doLogin() {
   }
 
   currentUser = data.user;
+  console.log('[login] success uid=' + (data.user && data.user.id ? data.user.id.slice(0, 8) : '?') + ' method=' + loginMethod);
   if (window.btTrack) window.btTrack('login', { method: loginMethod });
 
   // IMMEDIATE PREFETCH: Fire RPC ngay khi co token, parallel voi showSection
@@ -1708,7 +1709,7 @@ async function doLogin() {
   try {
     window._dashboardPrefetch = sb.rpc('get_member_dashboard').catch(() => null);
     console.log('[login] dashboard prefetch started');
-  } catch(e) {}
+  } catch(e) { console.warn('[login] prefetch err:', e); }
 
   // Neu truoc do co ?claim=welcome ma chua dang nhap -> claim ngay sau login
   try {
@@ -1717,11 +1718,21 @@ async function doLogin() {
       showWelcomeClaimPending();  // Immediate visual feedback before RPC
       await tryClaimWelcomeBonus();
     }
-  } catch(e) {}
+  } catch(e) { console.warn('[login] welcome bonus err:', e); }
 
-  // Show dashboard NGAY (don't wait for queries)
-  showSection('dashboard');
-  btn.disabled = false; btn.textContent = 'Đăng Nhập';
+  // CRITICAL: showSection + button reset MUST happen before loadDashboard.
+  // Wrap in try/catch để bug nho (vd ID DOM thieu) khong block transition.
+  // 2026-05-06: anh report button stuck "Dang tra cuu so dien thoai..."
+  // -> showSection co the throw silent, can log de debug.
+  try {
+    showSection('dashboard');
+    console.log('[login] showSection(dashboard) OK');
+  } catch(e) {
+    console.error('[login] showSection FAILED:', e);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Đăng Nhập';
+  btn.innerHTML = 'Đăng Nhập';
 
   // Load data in background — errors won't block the UI
   loadDashboard().catch(e => console.error('loadDashboard err:', e));
@@ -2185,10 +2196,12 @@ async function _loadDashboardImpl(retryAttempt) {
       // Co cache -> chi hien small indicator, ko phan UI chinh
       console.warn('[loadDashboard] slow connection but cache is showing');
     }
-  }, 20000);
+  }, 30000);
 
-  // Helper: timeout 20s (du thoi gian cho Supabase auth/session init lan dau)
-  function withTimeout(promise, label, ms = 20000) {
+  // Helper: timeout 30s (du thoi gian cho Supabase auth/session init lan dau)
+  // Tang tu 20s len 30s vi RPC get_member_dashboard nang + cold connection
+  // 2026-05-06: anh report dashboard_rpc timeout 20s + 5 queries cung timeout
+  function withTimeout(promise, label, ms = 30000) {
     return Promise.race([
       promise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout: ' + label)), ms))
