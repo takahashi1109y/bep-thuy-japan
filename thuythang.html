@@ -1033,7 +1033,20 @@
 const SUPABASE_URL = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// Auth options MUST match thanh-vien.html + index.html createClient
+// otherwise admin session won't persist across page navigation/F5.
+// FIX 2026-05-06: commit 718cc81 fixed thanh-vien.html + index.html
+// nhưng SKIP thuythang.html → admin login broken sau Pro upgrade
+// (Pro regenerates session tokens, in-memory storage không persist).
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined
+  },
+  realtime: { params: { eventsPerSecond: 1 } }
+});
 
 let currentAdmin = null;
 let allOrders = [];
