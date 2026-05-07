@@ -2497,27 +2497,25 @@ function renderAIAttempts() {
 
           <div>
             ${(() => {
-              // FIX 2026-05-07: Fallback build public URL từ receipt_path nếu receipt_url null
-              // hoặc URL signed cũ bị broken. Bucket payment-proofs đã PUBLIC.
-              let imgSrc = row.receipt_url || '';
-              if (!imgSrc && row.receipt_path) {
-                imgSrc = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(row.receipt_path);
-              }
-              // Nếu URL cũ là signed/* và không load được, generate public twin để fallback onerror
-              let publicTwin = '';
+              // FIX 2026-05-07 (v2): LUÔN ưu tiên build public URL từ receipt_path.
+              // Lý do: rows CŨ trong DB có receipt_url là signed URL với token
+              // expired/invalid → 400 InvalidSignature khi click. Bucket public
+              // nên public URL pattern always work, no token, no expiry.
+              let imgSrc = '';
               if (row.receipt_path) {
-                publicTwin = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(row.receipt_path);
+                imgSrc = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(row.receipt_path);
+              } else if (row.receipt_url && row.receipt_url.indexOf('/object/public/') !== -1) {
+                // Fallback: nếu rows mới đã lưu public URL trực tiếp
+                imgSrc = row.receipt_url;
               }
               if (!imgSrc) {
                 return '<div style="padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;">📷 Chưa có ảnh upload</div>';
               }
               const safeSrc = escapeHtml(imgSrc);
-              const safePublic = escapeHtml(publicTwin);
               return `<a href="${safeSrc}" target="_blank" rel="noopener">
                    <img src="${safeSrc}"
-                        data-public-twin="${safePublic}"
                         style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;border:1px solid #E5E5EA;cursor:zoom-in;"
-                        onerror="if(this.dataset.publicTwin && this.src !== this.dataset.publicTwin){this.src=this.dataset.publicTwin;}else{this.outerHTML='<div style=\\'padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;\\'>⚠️ Không tải được ảnh</div>';}" />
+                        onerror="this.outerHTML='<div style=\\'padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;\\'>⚠️ Không tải được ảnh — file có thể đã bị xoá khỏi storage</div>';" />
                  </a>`;
             })()}
           </div>
