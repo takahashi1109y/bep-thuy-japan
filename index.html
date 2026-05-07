@@ -1538,11 +1538,24 @@ window.addEventListener('scroll', function() {
     if (Object.keys(updates).length === 0) return;  // không có thay đổi
 
     try {
-      const { error } = await sbClient.from('profiles').update(updates).eq('id', sbUser.id);
+      // FIX 2026-05-07: dùng .select() để verify thực sự có row được UPDATE
+      // (RLS deny → 0 rows → không error nhưng cũng không update).
+      const { data, error } = await sbClient
+        .from('profiles')
+        .update(updates)
+        .eq('id', sbUser.id)
+        .select();
+
       if (error) throw error;
-      // Update local cache
-      sbProfile = { ...sbProfile, ...updates };
-      // Toast notification (Vietnamese)
+      if (!data || data.length === 0) {
+        console.warn('[autoSaveProfile] 0 rows updated — RLS may be blocking UPDATE');
+        return;  // KHÔNG show toast nếu thực tế không save
+      }
+
+      // Update local cache với data trả về từ DB (chính xác)
+      sbProfile = { ...sbProfile, ...(data[0] || updates) };
+
+      // Toast notification GREEN — đã save thành công thật
       const toast = document.createElement('div');
       toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#10B981;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 4px 15px rgba(16,185,129,0.4);z-index:99999;max-width:90%;text-align:center;';
       toast.innerHTML = '✅ Đã lưu thông tin của bạn — lần sau đặt hàng sẽ tự động điền';
