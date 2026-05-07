@@ -3490,12 +3490,13 @@ async function doConfirmPaymentStep2(confirmationId, orderNo) {
 
   showToast('⏳ Đang xác nhận...', 'success');
   try {
-    const adminEmail = currentAdmin?.email || 'unknown';
+    // FIX 2026-05-07 (Bug J): SQL function signature chi accept 2 params:
+    // (p_confirmation_id bigint, p_notes text). Truoc do FE pass 4 params
+    // -> "Could not find the function" error. Function tu lay admin email
+    // tu JWT claims + order_no tu payment_confirmations row.
     const { data, error } = await sb.rpc('admin_confirm_payment', {
-      p_order_no: orderNo,
       p_confirmation_id: confirmationId,
-      p_admin_email: adminEmail,
-      p_note: note.trim()
+      p_notes: note.trim() || null
     });
     if (error) throw error;
     if (data && data.ok === false) {
@@ -3521,11 +3522,10 @@ async function doRejectPaymentStep2(confirmationId, orderNo) {
 
   showToast('⏳ Đang từ chối...', 'success');
   try {
-    const adminEmail = currentAdmin?.email || 'unknown';
+    // FIX 2026-05-07 (Bug J2): same as Bug J — SQL signature chi accept 2 params
+    // (p_confirmation_id bigint, p_reason text).
     const { data, error } = await sb.rpc('admin_reject_payment', {
-      p_order_no: orderNo,
       p_confirmation_id: confirmationId,
-      p_admin_email: adminEmail,
       p_reason: reason.trim()
     });
     if (error) throw error;
