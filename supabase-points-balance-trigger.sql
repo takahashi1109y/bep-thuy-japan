@@ -1,15 +1,8 @@
 -- ============================================================
--- POINTS BALANCE AUTO-UPDATE TRIGGER (2026-05-07)
+-- POINTS BALANCE AUTO-UPDATE TRIGGER (2026-05-07 v2 — không dùng updated_at)
 -- ============================================================
--- Anh report: khách click email kích hoạt 100 điểm → KHÔNG nhận được điểm.
---
--- ROOT CAUSE: claim_welcome_bonus() RPC INSERT row vào points_transactions
--- nhưng KHÔNG có trigger update points_balance.total_points.
--- → Frontend gọi RPC → return success → INSERT log → BUT balance vẫn 0.
--- → Dashboard read points_balance.total_points → hiển thị 0.
---
--- FIX: Trigger AFTER INSERT trên points_transactions tự re-compute
--- total_points = SUM(points) cho user đó → update points_balance.
+-- Anh report: SQL fail với "column updated_at does not exist".
+-- Em rewrite KHÔNG dùng updated_at — chỉ user_id + total_points.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.recompute_points_balance()
@@ -25,12 +18,11 @@ BEGIN
     FROM public.points_transactions
    WHERE user_id = NEW.user_id;
 
-  -- Upsert vào points_balance
-  INSERT INTO public.points_balance (user_id, total_points, updated_at)
-  VALUES (NEW.user_id, v_total, now())
+  -- Upsert vào points_balance (chỉ user_id + total_points)
+  INSERT INTO public.points_balance (user_id, total_points)
+  VALUES (NEW.user_id, v_total)
   ON CONFLICT (user_id) DO UPDATE
-    SET total_points = EXCLUDED.total_points,
-        updated_at = now();
+    SET total_points = EXCLUDED.total_points;
 
   RETURN NEW;
 END;
@@ -46,29 +38,19 @@ CREATE TRIGGER trg_recompute_points_balance
   EXECUTE FUNCTION public.recompute_points_balance();
 
 -- ============================================================
--- BACKFILL: Recompute balance cho tất cả users đã có transactions
--- (cho khách đã claim welcome trước khi trigger này được tạo)
+-- BACKFILL: Recompute balance cho users đã có transactions
 -- ============================================================
-INSERT INTO public.points_balance (user_id, total_points, updated_at)
-SELECT user_id, COALESCE(SUM(points), 0)::integer, now()
+INSERT INTO public.points_balance (user_id, total_points)
+SELECT user_id, COALESCE(SUM(points), 0)::integer
   FROM public.points_transactions
  GROUP BY user_id
 ON CONFLICT (user_id) DO UPDATE
-  SET total_points = EXCLUDED.total_points,
-      updated_at = now();
+  SET total_points = EXCLUDED.total_points;
 
 -- ============================================================
--- VERIFY
+-- VERIFY trigger active
 -- ============================================================
--- 1. Check trigger exists
 SELECT tgname, tgenabled
   FROM pg_trigger
  WHERE tgrelid = 'public.points_transactions'::regclass
-   AND tgname LIKE '%points_balance%';
-
--- 2. Check khách có balance đúng không (sau backfill)
-SELECT b.user_id, p.display_name, b.total_points, b.updated_at
-  FROM public.points_balance b
-  LEFT JOIN public.profiles p ON p.id = b.user_id
- ORDER BY b.updated_at DESC
- LIMIT 10;
+   AND tgname = 'trg_recompute_points_balance';
