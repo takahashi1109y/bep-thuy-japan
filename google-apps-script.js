@@ -4037,6 +4037,32 @@ function buildProductSummary(cartItems) {
   return parts.join(' ');
 }
 
+// ============================================================
+// TEST EMAIL — chay function nay TRONG EDITOR de check Gmail quota
+// + send test email. Log se hien ngay phia duoi editor.
+// ============================================================
+function testEmailQuota() {
+  Logger.log('=== EMAIL QUOTA TEST ===');
+  Logger.log('Email quota remaining today: ' + MailApp.getRemainingDailyQuota());
+
+  // Try send test email
+  var testEmail = 'thanghoang1109+test98@gmail.com';
+  try {
+    GmailApp.sendEmail(testEmail, '[TEST] Bep Thuy email check', 'This is a test email at ' + new Date(), {
+      from: 'thuyjapan1606@gmail.com',
+      name: 'Bếp Thuỷ Japan TEST'
+    });
+    Logger.log('✓ TEST EMAIL SENT OK to ' + testEmail);
+    Logger.log('  → Check Gmail Sent của thuyjapan1606@gmail.com');
+    Logger.log('  → Check Inbox/Spam của ' + testEmail);
+  } catch (e) {
+    Logger.log('✗ TEST EMAIL FAIL: ' + e.toString());
+    Logger.log('  → Stack: ' + (e.stack || 'no stack'));
+  }
+
+  Logger.log('=== Done. Email quota AFTER: ' + MailApp.getRemainingDailyQuota() + ' ===');
+}
+
 // ---- Ham test: chay thu saveYamato khong can dat don ----
 function testSaveYamato() {
   const mockData = {
