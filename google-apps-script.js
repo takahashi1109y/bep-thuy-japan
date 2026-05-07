@@ -3695,9 +3695,9 @@ function testByBoxFix() {
   assertEq('mixed cart -> buildProductSummary', buildProductSummary(cart4), '0.5g 2 nem 2 pte');
   assertEq('mixed cart -> buildOrderItems',     buildOrderItems(cart4),     '0.5 GT 2 Nem 2 Pte');
 
-  // Case 5: kg product unchanged
+  // Case 5: kg product unchanged. CKT mapped.code='ckt' (len 3) -> with space.
   var cart5 = [{ name: '[CKT] Cha que khong tieu', qty: 1, wt: 1.0, size: '1kg' }];
-  assertEq('kg product (CKT 1kg) -> buildProductSummary', buildProductSummary(cart5), '1ckt');
+  assertEq('kg product (CKT 1kg) -> buildProductSummary', buildProductSummary(cart5), '1 ckt');
 
   // Case 6: Multiple boxes aggregated (3 hop Pate split into 2 cart lines)
   var cart6 = [
