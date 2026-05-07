@@ -1690,11 +1690,28 @@ async function doLogin() {
 
   btn.innerHTML = '<span class="spin">⏳</span> Đang đăng nhập...';
 
-  const { data, error } = await sb.auth.signInWithPassword({
-    email,
-    password,
-    options: { captchaToken: captchaToken }
-  });
+  // FIX 2026-05-06 (Bug F2): Wrap signInWithPassword trong timeout 20s.
+  // Sau Micro restart, auth endpoint co the slow -> button stuck "Dang dang nhap..."
+  // mai mai. 20s du cho cold connection + retry.
+  let data, error;
+  try {
+    const authPromise = sb.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken }
+    });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('auth_timeout')), 20000)
+    );
+    const result = await Promise.race([authPromise, timeoutPromise]);
+    data = result.data;
+    error = result.error;
+  } catch (e) {
+    console.error('[login] signInWithPassword timeout:', e);
+    showError('login-error', 'Hệ thống đang chậm, vui lòng thử lại sau ít phút.');
+    btn.disabled = false; btn.textContent = 'Đăng Nhập';
+    return;
+  }
 
   if (error) {
     const msg = error.message || '';
