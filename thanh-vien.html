@@ -1235,11 +1235,6 @@ async function loadPendingAIAttempts() {
             ${itemsHtml || '<p class="text-xs text-gray-400">(không có chi tiết)</p>'}
             ${moreLine}
           </div>
-          <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
-            <a href="https://zalo.me/+818051156688" target="_blank" rel="noopener" class="inline-flex items-center text-xs font-medium px-3 py-2 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
-              💬 Liên hệ Thuỷ qua Zalo
-            </a>
-          </div>
         </div>
       </div>`;
     }).join('');
@@ -1361,8 +1356,7 @@ function renderOrdersToUI(orders) {
       actions.push(`<button onclick="showTrackingModal('${orderNoSafe}')" class="${outlineBlueCls}">📍 Tình trạng vận chuyển</button>`);
     }
 
-    // 4. Contact shop via Zalo (outline gray)
-    actions.push(`<a href="https://zalo.me/+818051156688" target="_blank" rel="noopener noreferrer" class="${outlineGrayCls}">💬 Liên hệ shop</a>`);
+    // 4. Contact shop via Zalo — REMOVED 2026-05-07 (anh request: bỏ trong order history)
 
     // 5. Cancel (subtle gray text-only) — pending/customer_paid + within 30 min
     let cancelBtnHtml = '';
@@ -1387,7 +1381,7 @@ function renderOrdersToUI(orders) {
         </div>
         <div class="flex flex-col min-w-0 sm:ml-auto">
           <span class="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">MÃ ĐƠN</span>
-          <span class="text-sm sm:text-base font-bold text-brand-red">#${orderNoSafe}</span>
+          <span class="text-xs sm:text-sm font-medium text-gray-600">#${orderNoSafe}</span>
         </div>
       </div>
 

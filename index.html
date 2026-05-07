@@ -972,23 +972,27 @@ window.addEventListener('scroll', function() {
     <!-- Receipt -->
     <div id="order-receipt" class="bg-gray-50 rounded-2xl p-4 text-sm mb-5"></div>
 
-    <!-- Thông báo nếu không có email -->
-    <div id="group-order-box" style="display:none" class="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mb-5">
-      <p class="font-black text-xl mb-2 text-center" style="color:#C8102E">📢 POST ĐƠN HÀNG VÀO NHÓM</p>
-      <p class="text-green-800 font-bold text-base mb-3 text-center">Vui lòng copy tin nhắn bên dưới và post vào comment trong nhóm Facebook để xác nhận đơn nhé!</p>
-      <div class="bg-white border border-green-200 rounded-xl p-3 mb-3 relative">
-        <p class="text-gray-500 text-xs mb-1">Nội dung đơn hàng:</p>
-        <pre id="group-order-text" class="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap" style="font-family:inherit"></pre>
-        <button onclick="copyGroupOrder()" class="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-lg font-semibold hover:bg-green-200">📋 Copy</button>
+    <!-- Thông báo nếu không có email — KHUNG VÀNG NỔI BẬT (FIX 2026-05-07) -->
+    <style>@keyframes postPulse{0%,100%{box-shadow:0 4px 15px rgba(245,158,11,0.3)}50%{box-shadow:0 4px 25px rgba(245,158,11,0.6)}}</style>
+    <div id="group-order-box" style="display:none;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:3px solid #F59E0B;border-radius:16px;padding:18px;margin:16px 0;box-shadow:0 4px 15px rgba(245,158,11,0.3);animation:postPulse 2s ease-in-out infinite;">
+      <div style="text-align:center;margin-bottom:12px">
+        <span style="display:inline-block;background:#DC2626;color:#fff;font-weight:800;padding:4px 14px;border-radius:999px;font-size:11px;letter-spacing:1px">🚀 QUAN TRỌNG!</span>
+        <p style="color:#7F1D1D;font-weight:800;font-size:18px;margin:8px 0 0 0;text-shadow:0 1px 2px rgba(0,0,0,0.1)">📢 POST ĐƠN HÀNG VÀO NHÓM</p>
+        <p style="color:#92400E;font-weight:600;font-size:13px;margin:6px 0 0 0">Vui lòng copy nội dung và post vào nhóm Facebook để xác nhận đơn nhé!</p>
       </div>
-      <div class="flex gap-2">
-        <a id="group-fb-link" href="https://www.facebook.com/groups/253344602723261" target="_blank" class="flex-1 block text-center py-3 rounded-2xl text-white font-bold text-sm" style="background:linear-gradient(135deg,#1877F2,#0d5bbf)">📘 Mở nhóm Facebook</a>
+      <div style="background:#ffffff;border:2px solid #F59E0B;border-radius:12px;padding:12px;margin-bottom:12px;position:relative">
+        <p style="color:#92400E;font-size:12px;margin:0 0 8px 0;font-weight:600">Nội dung đơn hàng:</p>
+        <pre id="group-order-text" style="color:#374151;font-size:13px;line-height:1.6;white-space:pre-wrap;margin:0;font-family:inherit"></pre>
+        <button onclick="copyGroupOrder()" style="position:absolute;top:8px;right:8px;background:#FEF3C7;color:#D97706;border:none;font-size:12px;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer">📋 Copy</button>
       </div>
-      <p class="text-green-500 text-xs mt-2 text-center">Bấm Copy → Mở nhóm → Dán vào comment → Gửi</p>
+      <div style="display:flex;gap:8px">
+        <a id="group-fb-link" href="https://www.facebook.com/groups/253344602723261" target="_blank" style="flex:1;display:block;text-align:center;padding:14px;border-radius:12px;color:#fff;font-weight:800;font-size:15px;background:linear-gradient(135deg,#1877F2,#0050b3);text-decoration:none;box-shadow:0 4px 12px rgba(24,119,242,0.3)">📘 Mở nhóm Facebook</a>
+      </div>
+      <p style="color:#B45309;font-size:12px;margin-top:10px;text-align:center;font-weight:600">Bấm Copy → Mở nhóm → Dán vào comment → Gửi</p>
     </div>
 
-    <!-- Member-only: Link to order history -->
-    <a id="goto-history-btn" href="/thanh-vien?tab=orders" class="hidden block w-full text-center py-3 rounded-2xl text-white font-bold text-sm mb-3" style="background:linear-gradient(135deg,#10B981,#059669)">📋 Xem Lịch Sử Đơn Hàng</a>
+    <!-- Member-only: Link to order history — màu nổi bật hơn (FIX 2026-05-07) -->
+    <a id="goto-history-btn" href="/thanh-vien?tab=orders" class="hidden block w-full text-center py-4 rounded-2xl text-white font-extrabold text-base mb-3" style="background:linear-gradient(135deg,#C8102E,#FF4545);box-shadow:0 4px 15px rgba(200,16,46,0.4);letter-spacing:0.3px">📋 Xem Lịch Sử Đơn Hàng</a>
 
     <a href="https://zalo.me/+818051156688" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#C8102E,#8B3A0F)">💬 Nhắn Zalo Thuỷ: 080-5115-6688</a>
     <a href="https://m.me/ThuyJapaan" target="_blank" class="block w-full text-center py-3 rounded-2xl text-white font-semibold text-sm mb-3" style="background:linear-gradient(135deg,#0084ff,#0050b3)">💬 Nhắn Messenger</a>
@@ -1522,6 +1526,34 @@ window.addEventListener('scroll', function() {
     };
   }
 
+  // FEATURE 2026-05-07: Auto-save profile từ checkout form sau khi order success.
+  // Nếu khách lần đầu đặt hàng (profile rỗng) → form đầy đủ → save → lần sau tự fill.
+  async function autoSaveProfileFromCheckout(formData) {
+    if (!sbUser || !sbClient) return;
+    const updates = {};
+    if (formData.phone && (!sbProfile?.phone || sbProfile.phone !== formData.phone)) updates.phone = formData.phone;
+    if (formData.prefecture && (!sbProfile?.prefecture || sbProfile.prefecture !== formData.prefecture)) updates.prefecture = formData.prefecture;
+    if (formData.postal && (!sbProfile?.postal || sbProfile.postal !== formData.postal)) updates.postal = formData.postal;
+    if (formData.address && (!sbProfile?.address || sbProfile.address !== formData.address)) updates.address = formData.address;
+
+    if (Object.keys(updates).length === 0) return;  // không có thay đổi
+
+    try {
+      const { error } = await sbClient.from('profiles').update(updates).eq('id', sbUser.id);
+      if (error) throw error;
+      // Update local cache
+      sbProfile = { ...sbProfile, ...updates };
+      // Toast notification (Vietnamese)
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#10B981;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 4px 15px rgba(16,185,129,0.4);z-index:99999;max-width:90%;text-align:center;';
+      toast.innerHTML = '✅ Đã lưu thông tin của bạn — lần sau đặt hàng sẽ tự động điền';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    } catch (e) {
+      console.warn('Profile auto-save failed:', e);
+    }
+  }
+
   async function submitOrder(){
     // FIX 2026-05-07 (anh request): BLOCK GUEST CHECKOUT
     // Khách BẮT BUỘC đăng ký thành viên + xác nhận email mới được đặt đơn.
@@ -1792,18 +1824,29 @@ window.addEventListener('scroll', function() {
           // After N failures, offer manual-review fallback so customer isn't stuck
           // (Agent 4's "submit anyway after 2 fails" — preserved as separate card below)
           if (window._verifyFailCount >= VERIFY_FAIL_THRESHOLD) {
-            // FIX 2026-05-07 (anh request): Button ĐỎ TO RÕ với pulse animation,
-            // box border đỏ dashed, font lớn 17px, padding 16px → khách KHÔNG miss được.
+            // FIX 2026-05-07: Button ĐỎ TO RÕ với pulse + auto-scroll vào view.
+            // Đổi "ĐƠN" → "BILL" cho rõ nghĩa với khách.
             html += '<style>@keyframes thuyPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(220,38,38,0.7)}50%{transform:scale(1.03);box-shadow:0 0 0 10px rgba(220,38,38,0)}}</style>'
               + '<div style="margin-top:14px;background:#FEE2E2;border:2px dashed #DC2626;border-radius:10px;padding:14px;text-align:left;color:#7F1D1D">'
               + '<div style="font-weight:800;margin-bottom:8px;font-size:15px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'
-              + '<div style="font-size:13px;margin-bottom:12px;line-height:1.5">Nếu anh/chị đã thanh toán đúng số tiền, bấm nút bên dưới để gửi đơn cho Bếp Thuỷ kiểm tra thủ công:</div>'
+              + '<div style="font-size:13px;margin-bottom:12px;line-height:1.5">Nếu anh/chị đã thanh toán đúng số tiền, bấm nút bên dưới để gửi bill cho Bếp Thuỷ kiểm tra thủ công:</div>'
               + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:linear-gradient(135deg,#EF4444 0%,#DC2626 100%);color:#fff;font-weight:800;padding:18px 14px;border:none;border-radius:10px;cursor:pointer;font-size:17px;box-shadow:0 4px 15px rgba(220,38,38,0.4);animation:thuyPulse 2s infinite;letter-spacing:0.3px;text-shadow:0 1px 2px rgba(0,0,0,0.1)">'
-              + '🚨 GỬI ĐƠN CHO THUỶ XEM<br><span style="font-size:13px;font-weight:600;opacity:0.95">(tôi đã thanh toán rồi)</span>'
+              + '🚨 GỬI BILL CHO THUỶ XEM<br><span style="font-size:13px;font-weight:600;opacity:0.95">(tôi đã thanh toán rồi)</span>'
               + '</button>'
               + '</div>';
           }
           status.innerHTML = html;
+          // FEATURE 2026-05-07: Auto-scroll button manual review vào view
+          // (hiện ở dưới, khách phải vuốt lên → miss). Scroll smooth + focus.
+          if (window._verifyFailCount >= VERIFY_FAIL_THRESHOLD) {
+            setTimeout(() => {
+              const btn = document.getElementById('manual-review-btn');
+              if (btn) {
+                btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                btn.focus();
+              }
+            }, 200);
+          }
           btn.disabled = false; btn.classList.remove('opacity-50');
           btn.innerHTML = '🔄 Thử Ảnh Khác';
           return;
@@ -1815,6 +1858,17 @@ window.addEventListener('scroll', function() {
       window._verifyFailCount = 0;
       orderNo = data.orderNo;
       status.innerHTML = '<span style="color:#10B981;font-weight:700">✓ Đã xác minh — đơn hàng được tạo!</span>';
+
+      // FEATURE 2026-05-07: Auto-save profile từ checkout form
+      // Khách lần đầu đặt hàng → form đầy đủ thông tin → save vào profile
+      // → lần sau auto-fill. Skip nếu khách dùng "địa chỉ khác" cho người nhận.
+      if (sbUser && sbClient && !useOther) {
+        try {
+          await autoSaveProfileFromCheckout({
+            phone: phone, prefecture: pref, postal: postal, address: address
+          });
+        } catch(e) { console.warn('Auto-save profile err:', e); }
+      }
 
       // Optimistic cache for member dashboard
       if (sbUser) {
@@ -1865,7 +1919,7 @@ window.addEventListener('scroll', function() {
     const manualBtn = document.getElementById('manual-review-btn');
     const finalizeBtn = document.getElementById('finalize-btn');
     const status = document.getElementById('verify-status');
-    if (manualBtn) { manualBtn.disabled = true; manualBtn.innerHTML = '<span class="spin">⏳</span> Đang gửi đơn cho Thuỷ...'; }
+    if (manualBtn) { manualBtn.disabled = true; manualBtn.innerHTML = '<span class="spin">⏳</span> Đang gửi bill cho Thuỷ...'; }
     if (finalizeBtn) { finalizeBtn.disabled = true; finalizeBtn.classList.add('opacity-50'); }
 
     try {
@@ -1925,7 +1979,7 @@ window.addEventListener('scroll', function() {
       console.error('Manual review err:', e);
       if (manualBtn) {
         manualBtn.disabled = false;
-        manualBtn.innerHTML = '📋 Gửi đơn cho Thuỷ xem (tôi đã thanh toán rồi)';
+        manualBtn.innerHTML = '📋 Gửi bill cho Thuỷ xem (tôi đã thanh toán rồi)';
       }
       if (finalizeBtn) { finalizeBtn.disabled = false; finalizeBtn.classList.remove('opacity-50'); }
       alert('❌ Không gửi được đơn: ' + (e.message || e) + '\nVui lòng thử lại hoặc liên hệ Bếp Thuỷ.');
