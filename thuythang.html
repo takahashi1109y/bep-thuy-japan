@@ -473,6 +473,7 @@
           <button class="sub-tab active" data-tab="all" onclick="setOrdersSubTab('all')">📊 Tổng đơn hàng <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">🚨 Cần xem xét <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
+          <button class="sub-tab" data-tab="ai_check" onclick="setOrdersSubTab('ai_check')" style="background:#E0E7FF;color:#3730A3;border-color:#6366F1;">📋 Check thủ công <span class="sub-tab-count" style="background:#6366F1;color:white;">0</span></button>
           <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
@@ -546,6 +547,17 @@
         </table>
       </div>
       <div id="orders-pagination" class="pagination"></div>
+
+      <!-- AI CHECK PANEL: hiển thị khi click sub-tab "📋 Check thủ công" -->
+      <div id="orders-ai-check-wrap" class="hidden">
+        <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#78350F;">
+          📋 <strong>Đơn hàng AI verify FAIL</strong> — khách upload ảnh nhưng AI không nhận diện được, đơn chưa vào hệ thống chính.
+          Admin xem ảnh, đối chiếu thủ công với bank, nếu đúng thì click <strong>Tạo đơn thủ công</strong>.
+        </div>
+        <div id="ai-check-list" style="display:grid;gap:12px;">
+          <div style="text-align:center;padding:40px;color:#9CA3AF;">Đang tải...</div>
+        </div>
+      </div>
     </div>
 
     <!-- CUSTOMERS TAB -->
@@ -2394,8 +2406,167 @@ function setOrdersSubTab(tab) {
   ordersSubTab = tab;
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   clearSelection();
-  filterOrders();
+
+  // FEATURE 2026-05-07: tab 'ai_check' load tu bang ai_verify_attempts
+  // KHONG filter allOrders (vi day la don chua duoc tao trong orders table).
+  const aiCheckWrap = document.getElementById('orders-ai-check-wrap');
+  const tblWrap = document.querySelector('#tab-orders .tbl-wrap');
+  const paginationTop = document.getElementById('orders-pagination-top');
+  const paginationBottom = document.getElementById('orders-pagination');
+
+  if (tab === 'ai_check') {
+    if (tblWrap) tblWrap.classList.add('hidden');
+    if (paginationTop) paginationTop.classList.add('hidden');
+    if (paginationBottom) paginationBottom.classList.add('hidden');
+    if (aiCheckWrap) aiCheckWrap.classList.remove('hidden');
+    loadAIVerifyAttempts();
+  } else {
+    if (tblWrap) tblWrap.classList.remove('hidden');
+    if (paginationTop) paginationTop.classList.remove('hidden');
+    if (paginationBottom) paginationBottom.classList.remove('hidden');
+    if (aiCheckWrap) aiCheckWrap.classList.add('hidden');
+    filterOrders();
+  }
+
   try { localStorage.setItem('admin_orders_subtab', tab); } catch(e) {}
+}
+
+// ============================================================
+// AI VERIFY ATTEMPTS — Tab "📋 Check thủ công" (2026-05-07)
+// ============================================================
+let _aiAttemptsCache = [];
+
+async function loadAIVerifyAttempts() {
+  const listEl = document.getElementById('ai-check-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;">Đang tải...</div>';
+
+  try {
+    const { data, error } = await sb
+      .from('ai_verify_attempts')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      listEl.innerHTML = '<div style="color:#DC2626;padding:20px;text-align:center;">Lỗi: ' + escapeHtml(error.message) + '</div>';
+      return;
+    }
+
+    _aiAttemptsCache = data || [];
+    renderAIAttempts();
+    updateAICheckCount();
+  } catch (e) {
+    console.error('loadAIVerifyAttempts err:', e);
+    listEl.innerHTML = '<div style="color:#DC2626;padding:20px;text-align:center;">Lỗi mạng — thử lại sau</div>';
+  }
+}
+
+function renderAIAttempts() {
+  const listEl = document.getElementById('ai-check-list');
+  if (!listEl) return;
+
+  if (_aiAttemptsCache.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;">Không có đơn AI fail nào đang chờ xử lý.</div>';
+    return;
+  }
+
+  listEl.innerHTML = _aiAttemptsCache.map(row => {
+    const created = new Date(row.created_at);
+    const dateStr = created.toLocaleString('vi-VN', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const cartHtml = (row.cart_items || []).map(it => {
+      return '<li>' + escapeHtml(it.name || '') + (it.size ? ' (' + escapeHtml(it.size) + ')' : '') + ' × ' + (it.qty || 1) + '</li>';
+    }).join('');
+    const claimedAmt = (row.claimed_amount || 0).toLocaleString();
+    const detectedAmt = row.ai_detected_amount ? row.ai_detected_amount.toLocaleString() : '?';
+    const reasonShort = (row.ai_fail_reason || 'unknown').slice(0, 100);
+
+    return `
+      <div class="card" style="border-left:4px solid #6366F1;padding:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+          <div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">${escapeHtml(dateStr)}</div>
+            <div style="font-weight:700;color:#1C1C1E;font-size:15px;">${escapeHtml(row.customer_name || '(chưa có tên)')}</div>
+            <div style="font-size:13px;color:#374151;margin-top:2px;">📧 ${escapeHtml(row.customer_email || '-')}</div>
+            <div style="font-size:13px;color:#374151;">📞 ${escapeHtml(row.customer_phone || '-')}</div>
+            <div style="font-size:12px;color:#6B7280;margin-top:4px;">📍 ${escapeHtml(row.customer_address || '-')}</div>
+
+            <div style="margin-top:10px;padding:8px 10px;background:#FEF3C7;border-radius:6px;font-size:12px;color:#78350F;">
+              <strong>AI fail:</strong> ${escapeHtml(reasonShort)}<br>
+              <strong>Khách báo:</strong> ¥${claimedAmt} ・ <strong>AI nhận:</strong> ¥${detectedAmt}
+            </div>
+
+            <div style="margin-top:10px;font-size:12px;">
+              <strong>Sản phẩm:</strong>
+              <ul style="margin:4px 0 0 16px;padding:0;color:#374151;">${cartHtml || '<li>(không có)</li>'}</ul>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button class="btn btn-success" style="flex:1;font-size:13px;" onclick="resolveAIAttempt(${row.id}, 'admin_resolved')">
+                ✅ Tạo đơn thủ công
+              </button>
+              <button class="btn" style="flex:1;font-size:13px;background:#9CA3AF;color:white;" onclick="resolveAIAttempt(${row.id}, 'ignored')">
+                🗑️ Bỏ qua
+              </button>
+            </div>
+          </div>
+
+          <div>
+            ${row.receipt_url
+              ? `<a href="${escapeHtml(row.receipt_url)}" target="_blank" rel="noopener">
+                   <img src="${escapeHtml(row.receipt_url)}" style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;border:1px solid #E5E5EA;cursor:zoom-in;"
+                        onerror="this.outerHTML='<div style=\\'padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;\\'>⚠️ Không tải được ảnh</div>';" />
+                 </a>`
+              : '<div style="padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;">📷 Chưa có ảnh upload</div>'
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function resolveAIAttempt(attemptId, action) {
+  let orderNo = null;
+  let notes = null;
+
+  if (action === 'admin_resolved') {
+    orderNo = prompt('Nhập số đơn (orderNo) đã tạo thủ công cho khách (vd: BTJ-0150).\nNếu chưa tạo, để trống và bấm OK — admin sẽ tự nhớ link sau:', '') || null;
+    notes = prompt('Ghi chú (tuỳ chọn):', '') || null;
+  } else if (action === 'ignored') {
+    if (!confirm('Bỏ qua AI fail này (khách đã đặt lại / không liên lạc được)?')) return;
+    notes = prompt('Lý do bỏ qua (tuỳ chọn):', '') || null;
+  }
+
+  showToast('⏳ Đang xử lý...', 'success');
+  try {
+    const { data, error } = await sb.rpc('admin_resolve_ai_attempt', {
+      p_attempt_id: attemptId,
+      p_action: action,
+      p_order_no: orderNo,
+      p_notes: notes
+    });
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.error || 'Xử lý thất bại');
+
+    showToast(action === 'admin_resolved' ? '✅ Đã đánh dấu đã tạo đơn' : '🗑️ Đã bỏ qua', 'success');
+    await loadAIVerifyAttempts();
+  } catch (e) {
+    showToast('❌ Lỗi: ' + (e.message || e), 'error');
+  }
+}
+
+async function updateAICheckCount() {
+  try {
+    const { count, error } = await sb
+      .from('ai_verify_attempts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    if (error) return;
+    const el = document.querySelector('.sub-tab[data-tab="ai_check"] .sub-tab-count');
+    if (el) el.textContent = count || 0;
+  } catch (e) { /* silent */ }
 }
 
 function updateSubTabCounts() {
@@ -2413,6 +2584,8 @@ function updateSubTabCounts() {
     const el = document.querySelector(`.sub-tab[data-tab="${k}"] .sub-tab-count`);
     if (el) el.textContent = v;
   });
+  // FEATURE 2026-05-07: ai_check count fetch tu DB (async, khong block render)
+  updateAICheckCount();
 }
 
 function renderOrdersTable() {

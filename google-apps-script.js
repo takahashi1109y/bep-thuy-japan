@@ -256,6 +256,13 @@ function doPost(e) {
       }
       var verifyRes = verifyReceiptStandalone_(data.receipt_base64, data.total);
       if (!verifyRes.match) {
+        // FIX 2026-05-07 (Bug K): Log AI fail vào ai_verify_attempts table
+        // de admin xem trong tab "📋 Check thủ công". Truoc do customer KHONG
+        // click "Gui don cho admin" thi don MAT HOAN TOAN.
+        try {
+          logAIFailureToSupabase_(data, verifyRes);
+        } catch (lge) { Logger.log('Log AI fail err: ' + lge); }
+
         // Telegram alert — admin can intervene with manual override (rate-limited 1/5min per customer+order)
         try {
           sendVerifyFailureTelegram_({
@@ -1951,6 +1958,105 @@ function savePaymentProofForManualReview_(orderNo, data) {
     Logger.log('Save manual payment_confirmation FAIL HTTP ' + confCode + ': ' + confRes.getContentText().slice(0, 500));
   } else {
     Logger.log('Save manual payment_confirmation OK HTTP ' + confCode + ' (submitted, signed URL: ' + signedUrl.slice(0, 80) + ')');
+  }
+}
+
+// ============================================================
+// AI VERIFY FAIL TRACKING (2026-05-07 — Bug K)
+// Khi AI verify fail, log vao ai_verify_attempts table de admin xem
+// trong tab "📋 Check thủ công" tren /thuythang.
+// Bao gom: customer info, cart, AI fail reason, receipt screenshot URL.
+// ============================================================
+function logAIFailureToSupabase_(data, verifyRes) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  if (!data || !verifyRes) return;
+
+  // 1) Upload receipt image to payment-proofs/ai-fail/ folder
+  var receiptUrl = '';
+  var receiptPath = '';
+  if (data.receipt_base64) {
+    try {
+      var ts = Date.now();
+      var ext = 'jpg';
+      if (data.receipt_mime === 'image/png') ext = 'png';
+      else if (data.receipt_mime === 'image/webp') ext = 'webp';
+      receiptPath = 'ai-fail/' + ts + '-' + (data.email || data.phone || 'guest').replace(/[^a-zA-Z0-9]/g, '') + '.' + ext;
+      var bytes = Utilities.base64Decode(data.receipt_base64);
+      var uploadUrl = SUPABASE_URL + '/storage/v1/object/payment-proofs/' + encodeURIComponent(receiptPath);
+      var upRes = UrlFetchApp.fetch(uploadUrl, {
+        method: 'post',
+        headers: {
+          'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+          'Content-Type': data.receipt_mime || 'image/jpeg',
+          'x-upsert': 'true'
+        },
+        payload: bytes,
+        muteHttpExceptions: true
+      });
+      if (upRes.getResponseCode() < 300) {
+        // Get signed URL (1 year)
+        try {
+          var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(receiptPath), {
+            method: 'post',
+            headers: {
+              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+              'Content-Type': 'application/json'
+            },
+            payload: JSON.stringify({ expiresIn: 365 * 86400 }),
+            muteHttpExceptions: true
+          });
+          if (signRes.getResponseCode() === 200) {
+            var signData = JSON.parse(signRes.getContentText());
+            var rel = String(signData.signedURL || '');
+            if (rel.indexOf('http') === 0) {
+              receiptUrl = rel;
+            } else if (rel) {
+              receiptUrl = SUPABASE_URL + '/storage/v1' + (rel.charAt(0) === '/' ? rel : '/' + rel);
+            }
+          }
+        } catch(se) { Logger.log('AI-fail sign URL err: ' + se); }
+      } else {
+        Logger.log('AI-fail receipt upload FAIL HTTP ' + upRes.getResponseCode() + ': ' + upRes.getContentText().slice(0, 200));
+      }
+    } catch (ue) { Logger.log('AI-fail receipt upload err: ' + ue); }
+  }
+
+  // 2) Insert row into ai_verify_attempts
+  var payload = {
+    customer_name:      data.name || null,
+    customer_email:     data.email || null,
+    customer_phone:     data.phone || null,
+    customer_address:   ((data.postal || '') + ' ' + (data.prefecture || '') + ' ' + (data.address || '')).trim() || null,
+    user_id:            data.userId || null,
+    claimed_amount:     Number(data.total || 0),
+    cart_items:         data.cartItems || [],
+    ai_fail_reason:     verifyRes.reason || 'unknown',
+    ai_detected_amount: verifyRes.detected_amount ? Number(verifyRes.detected_amount) : null,
+    ai_raw_text:        (verifyRes.raw_text || '').slice(0, 5000),  // truncate to 5KB
+    ai_checks:          verifyRes.checks || {},
+    receipt_url:        receiptUrl || null,
+    receipt_path:       receiptPath || null,
+    receipt_mime:       data.receipt_mime || null,
+    status:             'pending'
+  };
+
+  var insertRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/ai_verify_attempts', {
+    method: 'post',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  var code = insertRes.getResponseCode();
+  if (code >= 300) {
+    Logger.log('Log AI fail FAIL HTTP ' + code + ': ' + insertRes.getContentText().slice(0, 500));
+  } else {
+    Logger.log('Log AI fail OK HTTP ' + code + ' (customer: ' + (data.email || data.phone || 'guest') + ', amount: ¥' + data.total + ')');
   }
 }
 
