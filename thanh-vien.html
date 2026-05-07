@@ -1648,8 +1648,25 @@ async function doLogin() {
       return;
     }
     // Step 3: Format đúng → call RPC lookup email
+    // FIX 2026-05-06 (Bug F): Wrap RPC trong timeout 15s. Truoc do RPC khong co timeout
+    // -> sau khi Supabase Micro restart, cold connection pool keo dai 30s+ -> button
+    // stuck "Dang tra cuu so dien thoai..." mai mai vi promise khong resolve.
     btn.innerHTML = '<span class="spin">⏳</span> Đang tra cứu số điện thoại...';
-    const { data: rpcEmail, error: rpcErr } = await sb.rpc('find_email_by_phone', { p_phone: identifier });
+    let rpcEmail, rpcErr;
+    try {
+      const rpcPromise = sb.rpc('find_email_by_phone', { p_phone: identifier });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('rpc_timeout')), 15000)
+      );
+      const result = await Promise.race([rpcPromise, timeoutPromise]);
+      rpcEmail = result.data;
+      rpcErr = result.error;
+    } catch (e) {
+      console.error('[login] find_email_by_phone timeout/err:', e);
+      showError('login-error', 'Hệ thống đang chậm, vui lòng thử lại sau ít phút hoặc đăng nhập bằng email.');
+      btn.disabled = false; btn.textContent = 'Đăng Nhập';
+      return;
+    }
 
     // Tách rõ 3 trường hợp (KHÔNG gộp như trước):
     if (rpcErr) {
