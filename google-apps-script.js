@@ -1807,7 +1807,17 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     });
     if (signRes.getResponseCode() === 200) {
       var signData = JSON.parse(signRes.getContentText());
-      signedUrl = SUPABASE_URL + signData.signedURL;
+      // FIX 2026-05-06 (Bug C): Supabase signedURL la relative path "/object/sign/...?token=..."
+      // PHAI prepend "/storage/v1" de full URL hop le. Truoc do thieu segment nay
+      // -> URL stored la "https://curcsv.../object/sign/..." (404) -> admin khong xem duoc anh.
+      var rel = String(signData.signedURL || '');
+      if (rel.indexOf('http') === 0) {
+        signedUrl = rel;  // already absolute
+      } else if (rel) {
+        signedUrl = SUPABASE_URL + '/storage/v1' + (rel.charAt(0) === '/' ? rel : '/' + rel);
+      }
+    } else {
+      Logger.log('Sign URL HTTP ' + signRes.getResponseCode() + ': ' + signRes.getContentText().slice(0, 200));
     }
   } catch(e) { Logger.log('Sign URL err: ' + e); }
   // Fallback to bare path if signing failed (admin modal can re-sign)
@@ -1842,7 +1852,13 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     payload: JSON.stringify(confPayload),
     muteHttpExceptions: true
   });
-  Logger.log('Save payment_confirmation: HTTP ' + confRes.getResponseCode());
+  // FIX 2026-05-06 (Bug E): Log full response body khi HTTP fail de debug schema/RLS errors.
+  var confCode = confRes.getResponseCode();
+  if (confCode >= 300) {
+    Logger.log('Save payment_confirmation FAIL HTTP ' + confCode + ': ' + confRes.getContentText().slice(0, 500));
+  } else {
+    Logger.log('Save payment_confirmation OK HTTP ' + confCode + ' (verified, signed URL: ' + signedUrl.slice(0, 80) + ')');
+  }
 }
 
 // Manual-review fallback: persist customer's receipt to Storage and create a
@@ -1891,7 +1907,16 @@ function savePaymentProofForManualReview_(orderNo, data) {
     });
     if (signRes.getResponseCode() === 200) {
       var signData = JSON.parse(signRes.getContentText());
-      signedUrl = SUPABASE_URL + signData.signedURL;
+      // FIX 2026-05-06 (Bug C): mirror generateSignedReceiptUrlForOrder_ pattern
+      // -> prepend /storage/v1 cho relative path. Truoc do URL stored thieu segment.
+      var rel = String(signData.signedURL || '');
+      if (rel.indexOf('http') === 0) {
+        signedUrl = rel;
+      } else if (rel) {
+        signedUrl = SUPABASE_URL + '/storage/v1' + (rel.charAt(0) === '/' ? rel : '/' + rel);
+      }
+    } else {
+      Logger.log('Manual sign URL HTTP ' + signRes.getResponseCode() + ': ' + signRes.getContentText().slice(0, 200));
     }
   } catch(e) { Logger.log('Sign URL err: ' + e); }
   if (!signedUrl) signedUrl = path;
@@ -1920,7 +1945,13 @@ function savePaymentProofForManualReview_(orderNo, data) {
     payload: JSON.stringify(confPayload),
     muteHttpExceptions: true
   });
-  Logger.log('Save manual payment_confirmation: HTTP ' + confRes.getResponseCode());
+  // FIX 2026-05-06 (Bug E): Log full response body khi HTTP fail de debug.
+  var confCode = confRes.getResponseCode();
+  if (confCode >= 300) {
+    Logger.log('Save manual payment_confirmation FAIL HTTP ' + confCode + ': ' + confRes.getContentText().slice(0, 500));
+  } else {
+    Logger.log('Save manual payment_confirmation OK HTTP ' + confCode + ' (submitted, signed URL: ' + signedUrl.slice(0, 80) + ')');
+  }
 }
 
 // Urgent Telegram alert when a customer submits a manual-review order.
