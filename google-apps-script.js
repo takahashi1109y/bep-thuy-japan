@@ -3176,7 +3176,14 @@ function saveOrderToSupabase(orderNo, data) {
     muteHttpExceptions: true
   });
 
-  Logger.log('Da luu don #' + orderNo + ' vao Supabase orders. Status: ' + res.getResponseCode());
+  // FIX 2026-05-07: Log full response body khi HTTP fail để debug.
+  // Trước đó silent fail (chỉ log status code) → không biết constraint reject.
+  var code = res.getResponseCode();
+  if (code >= 300) {
+    Logger.log('[saveOrderToSupabase] FAIL HTTP ' + code + ' for ' + orderNo + ' status=' + payload.status + ': ' + res.getContentText().slice(0, 600));
+  } else {
+    Logger.log('[saveOrderToSupabase] OK HTTP ' + code + ' #' + orderNo + ' status=' + payload.status);
+  }
 }
 
 // ============================================================
