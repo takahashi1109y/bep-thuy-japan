@@ -4037,6 +4037,34 @@ function buildProductSummary(cartItems) {
 }
 
 // ============================================================
+// TEST sendCustomerConfirmation TRỰC TIẾP trong editor
+// Bypass web app deployment để test code hiện tại.
+// ============================================================
+function testSendCustomerConfirmation() {
+  Logger.log('=== TEST sendCustomerConfirmation ===');
+  Logger.log('Email quota: ' + MailApp.getRemainingDailyQuota());
+
+  var fakeOrderNo = 'TEST-' + Date.now();
+  var fakeData = {
+    name: 'Thang Test',
+    email: 'thanghoang1109+test98@gmail.com',
+    phone: '07084560340',
+    postal: '270-0034', prefecture: '千葉県', address: '松戸市新松戸6',
+    note: 'Test', cartItems: [{ name: '[GT] Giò có tiêu', size: '1kg', qty: 1, price: 2300, wt: 1 }],
+    subtotal: 2300, shipping: 500, total: 2800
+  };
+
+  try {
+    sendCustomerConfirmation(fakeOrderNo, fakeData);
+    Logger.log('✓ NO EXCEPTION — check Gmail Sent của takahashi1109y');
+  } catch (e) {
+    Logger.log('✗ EXCEPTION: ' + e.toString());
+    Logger.log('  Stack: ' + (e.stack || ''));
+  }
+  Logger.log('=== Done ===');
+}
+
+// ============================================================
 // TEST EMAIL — chay function nay TRONG EDITOR de check Gmail quota
 // + send test email. Log se hien ngay phia duoi editor.
 // ============================================================
