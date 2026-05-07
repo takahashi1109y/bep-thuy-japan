@@ -191,6 +191,7 @@
     <div class="container" style="display: flex; gap: 4px; padding: 0;">
       <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tổng Quan</button>
       <button class="tab" data-tab="orders" onclick="switchTab('orders')">📦 Đơn Hàng <span id="tt-pending-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700"></span></button>
+      <button class="tab" data-tab="ai_check" onclick="switchTab('ai_check')" style="position:relative;">📋 Check thủ công <span id="ai-check-badge" class="hidden" style="background:#DC2626;color:white;font-size:10px;padding:2px 7px;border-radius:999px;margin-left:4px;font-weight:800;animation:pulse-review 2s ease-in-out infinite;box-shadow:0 0 0 2px rgba(220,38,38,0.2);"></span></button>
       <button class="tab" data-tab="customers" onclick="switchTab('customers')">👥 Khách Hàng</button>
       <button class="tab" data-tab="messages" onclick="switchTab('messages')">💬 Tin Nhắn <span id="msg-unread-badge" class="hidden" style="background:#EF4444;color:white;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;font-weight:700">!</span></button>
       <button class="tab" data-tab="campaign" onclick="switchTab('campaign')">📢 Gửi Tin</button>
@@ -473,7 +474,6 @@
           <button class="sub-tab active" data-tab="all" onclick="setOrdersSubTab('all')">📊 Tổng đơn hàng <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">🚨 Cần xem xét <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
-          <button class="sub-tab" data-tab="ai_check" onclick="setOrdersSubTab('ai_check')" style="background:#E0E7FF;color:#3730A3;border-color:#6366F1;">📋 Check thủ công <span class="sub-tab-count" style="background:#6366F1;color:white;">0</span></button>
           <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
@@ -547,16 +547,16 @@
         </table>
       </div>
       <div id="orders-pagination" class="pagination"></div>
+    </div>
 
-      <!-- AI CHECK PANEL: hiển thị khi click sub-tab "📋 Check thủ công" -->
-      <div id="orders-ai-check-wrap" class="hidden">
-        <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#78350F;">
-          📋 <strong>Đơn hàng AI verify FAIL</strong> — khách upload ảnh nhưng AI không nhận diện được, đơn chưa vào hệ thống chính.
-          Admin xem ảnh, đối chiếu thủ công với bank, nếu đúng thì click <strong>Tạo đơn thủ công</strong>.
-        </div>
-        <div id="ai-check-list" style="display:grid;gap:12px;">
-          <div style="text-align:center;padding:40px;color:#9CA3AF;">Đang tải...</div>
-        </div>
+    <!-- AI CHECK TAB (MAIN TAB — moved from sub-tab 2026-05-07) -->
+    <div id="tab-ai_check" class="hidden">
+      <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#78350F;">
+        📋 <strong>Đơn hàng AI verify FAIL</strong> — khách upload ảnh nhưng AI không nhận diện được, đơn chưa vào hệ thống chính.
+        Admin xem ảnh, đối chiếu thủ công với bank, nếu đúng thì click <strong>Tạo đơn thủ công</strong>.
+      </div>
+      <div id="ai-check-list" style="display:grid;gap:12px;">
+        <div style="text-align:center;padding:40px;color:#9CA3AF;">Đang tải...</div>
       </div>
     </div>
 
@@ -1207,6 +1207,9 @@ async function checkAdminAndLoad(user) {
   setInterval(checkManualReviewCount, 30000);
   // Refresh review-banner counts every 30s (orders needing admin attention)
   setInterval(updateReviewBanner, 30000);
+  // FIX 2026-05-07: AI check count auto-refresh + initial fetch (badge red khi co pending)
+  updateAICheckCount();
+  setInterval(updateAICheckCount, 30000);
 }
 
 // Track last count to detect NEW submissions + play alert
@@ -1888,11 +1891,12 @@ async function adminLogout() {
 // ============ TABS ============
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['dashboard','orders','customers','messages','campaign','inventory','testbill'].forEach(t => {
+  ['dashboard','orders','ai_check','customers','messages','campaign','inventory','testbill'].forEach(t => {
     var el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== name);
   });
   if (name === 'orders' && allOrders.length === 0) loadOrders();
+  if (name === 'ai_check') loadAIVerifyAttempts();
   if (name === 'customers' && allCustomers.length === 0) loadCustomers();
   if (name === 'messages') loadAdminMessages();
   if (name === 'campaign') initCampaignTab();
@@ -1904,7 +1908,7 @@ function switchTab(name) {
 function restoreAdminTabs() {
   try {
     const savedTab = localStorage.getItem('admin_tab');
-    if (savedTab && ['dashboard','orders','customers','messages','campaign','inventory','testbill'].includes(savedTab) && savedTab !== 'dashboard') {
+    if (savedTab && ['dashboard','orders','ai_check','customers','messages','campaign','inventory','testbill'].includes(savedTab) && savedTab !== 'dashboard') {
       switchTab(savedTab);
     }
     const savedSub = localStorage.getItem('admin_orders_subtab');
@@ -2406,28 +2410,7 @@ function setOrdersSubTab(tab) {
   ordersSubTab = tab;
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   clearSelection();
-
-  // FEATURE 2026-05-07: tab 'ai_check' load tu bang ai_verify_attempts
-  // KHONG filter allOrders (vi day la don chua duoc tao trong orders table).
-  const aiCheckWrap = document.getElementById('orders-ai-check-wrap');
-  const tblWrap = document.querySelector('#tab-orders .tbl-wrap');
-  const paginationTop = document.getElementById('orders-pagination-top');
-  const paginationBottom = document.getElementById('orders-pagination');
-
-  if (tab === 'ai_check') {
-    if (tblWrap) tblWrap.classList.add('hidden');
-    if (paginationTop) paginationTop.classList.add('hidden');
-    if (paginationBottom) paginationBottom.classList.add('hidden');
-    if (aiCheckWrap) aiCheckWrap.classList.remove('hidden');
-    loadAIVerifyAttempts();
-  } else {
-    if (tblWrap) tblWrap.classList.remove('hidden');
-    if (paginationTop) paginationTop.classList.remove('hidden');
-    if (paginationBottom) paginationBottom.classList.remove('hidden');
-    if (aiCheckWrap) aiCheckWrap.classList.add('hidden');
-    filterOrders();
-  }
-
+  filterOrders();
   try { localStorage.setItem('admin_orders_subtab', tab); } catch(e) {}
 }
 
@@ -2513,13 +2496,30 @@ function renderAIAttempts() {
           </div>
 
           <div>
-            ${row.receipt_url
-              ? `<a href="${escapeHtml(row.receipt_url)}" target="_blank" rel="noopener">
-                   <img src="${escapeHtml(row.receipt_url)}" style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;border:1px solid #E5E5EA;cursor:zoom-in;"
-                        onerror="this.outerHTML='<div style=\\'padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;\\'>⚠️ Không tải được ảnh</div>';" />
-                 </a>`
-              : '<div style="padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;">📷 Chưa có ảnh upload</div>'
-            }
+            ${(() => {
+              // FIX 2026-05-07: Fallback build public URL từ receipt_path nếu receipt_url null
+              // hoặc URL signed cũ bị broken. Bucket payment-proofs đã PUBLIC.
+              let imgSrc = row.receipt_url || '';
+              if (!imgSrc && row.receipt_path) {
+                imgSrc = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(row.receipt_path);
+              }
+              // Nếu URL cũ là signed/* và không load được, generate public twin để fallback onerror
+              let publicTwin = '';
+              if (row.receipt_path) {
+                publicTwin = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(row.receipt_path);
+              }
+              if (!imgSrc) {
+                return '<div style="padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;">📷 Chưa có ảnh upload</div>';
+              }
+              const safeSrc = escapeHtml(imgSrc);
+              const safePublic = escapeHtml(publicTwin);
+              return `<a href="${safeSrc}" target="_blank" rel="noopener">
+                   <img src="${safeSrc}"
+                        data-public-twin="${safePublic}"
+                        style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;border:1px solid #E5E5EA;cursor:zoom-in;"
+                        onerror="if(this.dataset.publicTwin && this.src !== this.dataset.publicTwin){this.src=this.dataset.publicTwin;}else{this.outerHTML='<div style=\\'padding:20px;text-align:center;color:#9CA3AF;background:#F3F4F6;border-radius:8px;\\'>⚠️ Không tải được ảnh</div>';}" />
+                 </a>`;
+            })()}
           </div>
         </div>
       </div>
@@ -2564,8 +2564,31 @@ async function updateAICheckCount() {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending');
     if (error) return;
-    const el = document.querySelector('.sub-tab[data-tab="ai_check"] .sub-tab-count');
-    if (el) el.textContent = count || 0;
+    // FIX 2026-05-07: target main tab badge thay vi sub-tab.
+    // Hien red badge with pulse khi count > 0 → admin SE THAY NGAY co don can xu ly.
+    const badge = document.getElementById('ai-check-badge');
+    const tabBtn = document.querySelector('.tab[data-tab="ai_check"]');
+    if (badge) {
+      if (count && count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+        // Highlight tab button red khi co pending
+        if (tabBtn) {
+          tabBtn.style.background = '#FEE2E2';
+          tabBtn.style.color = '#991B1B';
+          tabBtn.style.borderColor = '#DC2626';
+          tabBtn.style.fontWeight = '700';
+        }
+      } else {
+        badge.classList.add('hidden');
+        if (tabBtn) {
+          tabBtn.style.background = '';
+          tabBtn.style.color = '';
+          tabBtn.style.borderColor = '';
+          tabBtn.style.fontWeight = '';
+        }
+      }
+    }
   } catch (e) { /* silent */ }
 }
 

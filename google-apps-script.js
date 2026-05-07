@@ -1990,6 +1990,8 @@ function logAIFailureToSupabase_(data, verifyRes) {
   if (!data || !verifyRes) return;
 
   // 1) Upload receipt image to payment-proofs/ai-fail/ folder
+  // FIX 2026-05-07: Use PUBLIC URL pattern (bucket payment-proofs đã PUBLIC).
+  // Đơn giản hơn signed URL, không bao giờ expire, không có URL token issues.
   var receiptUrl = '';
   var receiptPath = '';
   if (data.receipt_base64) {
@@ -1998,7 +2000,9 @@ function logAIFailureToSupabase_(data, verifyRes) {
       var ext = 'jpg';
       if (data.receipt_mime === 'image/png') ext = 'png';
       else if (data.receipt_mime === 'image/webp') ext = 'webp';
-      receiptPath = 'ai-fail/' + ts + '-' + (data.email || data.phone || 'guest').replace(/[^a-zA-Z0-9]/g, '') + '.' + ext;
+      // Sanitize email/phone cho path: chỉ giữ alphanum (avoid path encoding issues)
+      var idStr = (data.email || data.phone || 'guest').replace(/[^a-zA-Z0-9]/g, '');
+      receiptPath = 'ai-fail/' + ts + '-' + idStr + '.' + ext;
       var bytes = Utilities.base64Decode(data.receipt_base64);
       var uploadUrl = SUPABASE_URL + '/storage/v1/object/payment-proofs/' + encodeURIComponent(receiptPath);
       var upRes = UrlFetchApp.fetch(uploadUrl, {
@@ -2012,29 +2016,11 @@ function logAIFailureToSupabase_(data, verifyRes) {
         muteHttpExceptions: true
       });
       if (upRes.getResponseCode() < 300) {
-        // Get signed URL (1 year)
-        try {
-          var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(receiptPath), {
-            method: 'post',
-            headers: {
-              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-              'Content-Type': 'application/json'
-            },
-            payload: JSON.stringify({ expiresIn: 365 * 86400 }),
-            muteHttpExceptions: true
-          });
-          if (signRes.getResponseCode() === 200) {
-            var signData = JSON.parse(signRes.getContentText());
-            var rel = String(signData.signedURL || '');
-            if (rel.indexOf('http') === 0) {
-              receiptUrl = rel;
-            } else if (rel) {
-              receiptUrl = SUPABASE_URL + '/storage/v1' + (rel.charAt(0) === '/' ? rel : '/' + rel);
-            }
-          }
-        } catch(se) { Logger.log('AI-fail sign URL err: ' + se); }
+        // Public URL — bucket payment-proofs đã PUBLIC (no token, no expiry)
+        receiptUrl = SUPABASE_URL + '/storage/v1/object/public/payment-proofs/' + encodeURIComponent(receiptPath);
+        Logger.log('AI-fail receipt uploaded OK: ' + receiptPath);
       } else {
-        Logger.log('AI-fail receipt upload FAIL HTTP ' + upRes.getResponseCode() + ': ' + upRes.getContentText().slice(0, 200));
+        Logger.log('AI-fail receipt upload FAIL HTTP ' + upRes.getResponseCode() + ': ' + upRes.getContentText().slice(0, 300));
       }
     } catch (ue) { Logger.log('AI-fail receipt upload err: ' + ue); }
   }
