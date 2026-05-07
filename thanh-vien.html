@@ -1594,11 +1594,23 @@ async function tryClaimWelcomeBonus(opts = {}) {
     }
     if (data && data.ok) {
       if (!silent) showWelcomeClaimSuccess(data.points || 100);
-      // Refresh points cache so UI updates immediately
+      // FIX 2026-05-08: Force refresh balance từ DB thay vì increment cache.
+      // Cache cũ (từ tests trước) có thể chứa giá trị sai → cộng dồn → wrong total.
       try {
-        const cur = parseInt(localStorage.getItem('bepthuy_points') || '0', 10);
-        localStorage.setItem('bepthuy_points', String(cur + (data.points || 100)));
-      } catch(e) {}
+        const { data: freshBalance } = await sb.from('points_balance')
+          .select('total_points')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+        const newTotal = freshBalance?.total_points || data.points || 100;
+        localStorage.setItem('bepthuy_points', String(newTotal));
+        console.log('[welcome-claim] balance refreshed from DB:', newTotal);
+      } catch(e) {
+        console.warn('[welcome-claim] balance refresh err:', e);
+        // Fallback: dùng RPC return value
+        localStorage.setItem('bepthuy_points', String(data.points || 100));
+      }
+      // Force loadDashboard để render từ fresh DB data (không từ cache)
+      try { await loadDashboard(); } catch(e) { console.warn('Reload dashboard err:', e); }
       return { ok: true, points: data.points || 100 };
     } else if (data && data.error === 'already_claimed') {
       if (!silent) showWelcomeClaimAlreadyClaimed();
