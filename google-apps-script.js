@@ -3614,7 +3614,7 @@ function sendMemberNotification(data) {
     '</div></div>';
 
   try {
-    GmailApp.sendEmail(ADMIN_EMAIL, subject, '', {
+    MailApp.sendEmail(ADMIN_EMAIL, subject, '', {
       htmlBody : htmlBody,
       from     : 'thuyjapan1606@gmail.com',
       name     : 'B\u1ebfp Thu\u1ef7 Japan Members'
@@ -4048,7 +4048,7 @@ function testEmailQuota() {
   // Try send test email
   var testEmail = 'thanghoang1109+test98@gmail.com';
   try {
-    GmailApp.sendEmail(testEmail, '[TEST] Bep Thuy email check', 'This is a test email at ' + new Date(), {
+    MailApp.sendEmail(testEmail, '[TEST] Bep Thuy email check', 'This is a test email at ' + new Date(), {
       from: 'thuyjapan1606@gmail.com',
       name: 'Bếp Thuỷ Japan TEST'
     });
@@ -4526,7 +4526,7 @@ function sendTrackingEmail(email, name, orderNo, trackingNo, address, items, tot
     '<p style="font-size:13px;color:#888">Ch\u00fac b\u1ea1n nh\u1eadn h\u00e0ng ngon, t\u01b0\u01a1i v\u00e0 tr\u1ecdn v\u1eb9n!</p>' +
     '</div></div>';
 
-  GmailApp.sendEmail(email, subject, '', {
+  MailApp.sendEmail(email, subject, '', {
     htmlBody  : htmlBody,
     from      : 'thuyjapan1606@gmail.com',
     replyTo   : 'thuyjapan1606@gmail.com',
@@ -4595,7 +4595,7 @@ function sendOrderNotification(orderNo, data) {
     '</div></div>';
 
   try {
-    GmailApp.sendEmail(ADMIN_EMAIL, subject, '', {
+    MailApp.sendEmail(ADMIN_EMAIL, subject, '', {
       htmlBody : htmlBody,
       from     : 'thuyjapan1606@gmail.com',
       name     : 'B\u1ebfp Thu\u1ef7 Japan Orders'
@@ -4676,7 +4676,7 @@ function sendCustomerConfirmation(orderNo, data) {
     '</div></div>';
 
   try {
-    GmailApp.sendEmail(email, subject, '', {
+    MailApp.sendEmail(email, subject, '', {
       htmlBody : htmlBody,
       from     : 'thuyjapan1606@gmail.com',
       replyTo  : 'thuyjapan1606@gmail.com',
@@ -5058,7 +5058,7 @@ function testYamatoScraperHealth() {
       '<p><b>Action:</b> Mở <a href="https://toi.kuronekoyamato.co.jp/cgi-bin/tneko">Yamato site</a>, paste tracking ' + TEST_TRACKING + ', nếu site vẫn show events → scraper broken (cần update regex). Nếu site cũng 0 events → rotate test tracking trong testYamatoScraperHealth().</p>' +
       '<p style="color:#666;font-size:12px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">Function: testYamatoScraperHealth · ' + new Date().toISOString() + ' · Bếp Thuỷ Japan</p>' +
       '</div>';
-    GmailApp.sendEmail(ADMIN_EMAIL, subject, 'Yamato scraper trả 0 events cho ' + TEST_TRACKING + '. Mở email HTML để xem chi tiết.', {
+    MailApp.sendEmail(ADMIN_EMAIL, subject, 'Yamato scraper trả 0 events cho ' + TEST_TRACKING + '. Mở email HTML để xem chi tiết.', {
       htmlBody: html,
       from: 'thuyjapan1606@gmail.com',
       replyTo: 'thuyjapan1606@gmail.com'
@@ -5066,7 +5066,7 @@ function testYamatoScraperHealth() {
     return false;
   } catch (err) {
     Logger.log('[YAMATO-CRITICAL] ' + err);
-    GmailApp.sendEmail(ADMIN_EMAIL, '[CRITICAL] Yamato Scraper EXCEPTION', '', {
+    MailApp.sendEmail(ADMIN_EMAIL, '[CRITICAL] Yamato Scraper EXCEPTION', '', {
       htmlBody: '<div style="font-family:Arial;padding:20px"><h2 style="color:#C8102E">Yamato Scraper Exception</h2><pre style="background:#fee;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto">' + err.toString() + '\n\n' + (err.stack || '') + '</pre></div>',
       from: 'thuyjapan1606@gmail.com',
       replyTo: 'thuyjapan1606@gmail.com'
