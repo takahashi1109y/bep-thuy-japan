@@ -1150,6 +1150,11 @@ function initHCaptcha() {
     });
   } catch(e) { console.warn('hCaptcha render error:', e); }
 }
+// FIX 2026-05-08: hCAPTCHA DISABLED tạm thời (mirror với thanh-vien.html).
+function getCaptchaToken() {
+  return Promise.resolve('disabled-2026-05-08');
+}
+/* ORIGINAL:
 function getCaptchaToken() {
   return new Promise((resolve) => {
     if (typeof hcaptcha === 'undefined' || hcaptchaWidgetId === null) { resolve(''); return; }
@@ -1161,6 +1166,7 @@ function getCaptchaToken() {
     } catch(e) { resolve(''); }
   });
 }
+*/
 window.onHCaptchaSuccess = function(t) { if (_captchaResolve) { _captchaResolve(t); _captchaResolve = null; } };
 window.onHCaptchaError = function() { if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; } };
 window.onHCaptchaExpired = function() { if (_captchaResolve) { _captchaResolve(''); _captchaResolve = null; } };

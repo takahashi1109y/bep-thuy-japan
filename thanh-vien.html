@@ -1126,10 +1126,18 @@ function initHCaptcha() {
 }
 
 let _captchaResolve = null;
+// FIX 2026-05-08: hCAPTCHA DISABLED tạm thời theo anh request.
+// Khách mobile bị fail xác minh — gỡ tạm để khách signup được.
+// Re-enable: revert function này + Supabase Dashboard Auth → Captcha protection ON.
+// LƯU Ý: Phải disable CẢ Supabase Dashboard nếu không Supabase reject empty token.
+// Trả về string non-empty để pass qua guard `if (!captchaToken)` ở các caller.
+function getCaptchaToken() {
+  return Promise.resolve('disabled-2026-05-08');
+}
+/* ORIGINAL LOGIC — restore khi anh ready re-enable:
 function getCaptchaToken() {
   return new Promise((resolve, reject) => {
     if (typeof hcaptcha === 'undefined' || hcaptchaWidgetId === null) {
-      // hCaptcha not loaded yet — fail open with empty token (Supabase will reject)
       console.warn('hCaptcha not ready');
       resolve('');
       return;
@@ -1138,13 +1146,13 @@ function getCaptchaToken() {
     try {
       hcaptcha.reset(hcaptchaWidgetId);
       hcaptcha.execute(hcaptchaWidgetId);
-      // Safety timeout: if user closes challenge, resolve with empty after 60s
       setTimeout(() => {
         if (_captchaResolve === resolve) { _captchaResolve = null; resolve(''); }
       }, 60000);
     } catch (e) { console.warn('hCaptcha execute error:', e); resolve(''); }
   });
 }
+*/
 
 window.onHCaptchaSuccess = function(token) {
   if (_captchaResolve) { _captchaResolve(token); _captchaResolve = null; }
