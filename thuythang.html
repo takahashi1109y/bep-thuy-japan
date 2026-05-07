@@ -2598,10 +2598,22 @@ async function resolveAIAttempt(attemptId, action) {
         admin_notes: adminNotes
       })
     });
-    const result = await response.json();
+
+    // FIX 2026-05-07: Try/catch JSON parse — Apps Script có thể return HTML error
+    // (deployment expired, CORS issue) → response.json() throw SyntaxError.
+    let result;
+    try {
+      const responseText = await response.text();
+      if (!responseText || !responseText.trim()) {
+        throw new Error('Apps Script trả response trống — có thể chưa redeploy code mới');
+      }
+      result = JSON.parse(responseText);
+    } catch (parseErr) {
+      throw new Error('Apps Script response không hợp lệ: ' + parseErr.message + '. Anh check đã redeploy chưa.');
+    }
 
     if (!result.success) {
-      throw new Error(result.error + (result.detail ? ': ' + result.detail : ''));
+      throw new Error((result.error || 'Tạo đơn thất bại') + (result.detail ? ': ' + result.detail : ''));
     }
 
     showToast('✅ Đã tạo đơn #' + result.orderNo + ' — email đã gửi cho khách', 'success');
@@ -2611,6 +2623,7 @@ async function resolveAIAttempt(attemptId, action) {
       try { await loadOrders(); } catch(e) {}
     }
   } catch (e) {
+    console.error('[resolveAIAttempt] err:', e);
     showToast('❌ Lỗi: ' + (e.message || e), 'error');
     btns.forEach(b => { b.disabled = false; b.style.opacity = '1'; });
   }

@@ -451,16 +451,35 @@ function doPost(e) {
       // 2) Build data object matching verify_then_create_order shape
       var addr = attemptRow.customer_address || '';
       // Parse "270-0034 千葉県 松戸市新松戸6" → postal/prefecture/address
+      // FIX 2026-05-07: Defensive parsing — graceful fallback nếu format khác
       var postalMatch = addr.match(/(\d{3}-?\d{4})/);
       var postal = postalMatch ? postalMatch[1] : '';
       var pref = '';
       var rest = addr;
-      if (postal) rest = rest.replace(postalMatch[0], '').trim();
-      var prefMatch = rest.match(/(東京都|北海道|大阪府|京都府|[^\s]+県)/);
-      if (prefMatch) {
-        pref = prefMatch[1];
-        rest = rest.replace(pref, '').trim();
+      try {
+        if (postal && postalMatch && postalMatch[0]) rest = rest.replace(postalMatch[0], '').trim();
+        var prefMatch = rest.match(/(東京都|北海道|大阪府|京都府|[^\s]+?県)/);
+        if (prefMatch) {
+          pref = prefMatch[1];
+          rest = rest.replace(pref, '').trim();
+        }
+      } catch (parseErr) {
+        Logger.log('Address parse err: ' + parseErr + ' addr=' + addr);
       }
+      // Fallback: nếu không parse được → keep raw address, postal/pref empty
+      // Admin có thể edit sau trong sheet
+      if (!rest) rest = addr;
+
+      // FIX 2026-05-07: Calc shipping = total - subtotal (claimed_amount đã include ship)
+      var totalAmt = Number(attemptRow.claimed_amount || 0);
+      var subtotalAmt = 0;
+      try {
+        var items = attemptRow.cart_items || [];
+        items.forEach(function(it) {
+          subtotalAmt += Number(it.price || 0) * Number(it.qty || 1);
+        });
+      } catch (calcErr) { Logger.log('Subtotal calc err: ' + calcErr); }
+      var shippingAmt = Math.max(0, totalAmt - subtotalAmt);
 
       var orderData = {
         name: attemptRow.customer_name || '',
@@ -472,9 +491,9 @@ function doPost(e) {
         note: 'Admin xác nhận thủ công (AI verify fail). ' + (adminNotes || ''),
         deliveryTime: '',
         cartItems: attemptRow.cart_items || [],
-        subtotal: Number(attemptRow.claimed_amount || 0),
-        shipping: 0,  // sẽ tính lại trong saveOrder
-        total: Number(attemptRow.claimed_amount || 0),
+        subtotal: subtotalAmt,
+        shipping: shippingAmt,
+        total: totalAmt,
         userId: attemptRow.user_id || null,
         pointsUsed: 0,
         // Admin override flags
