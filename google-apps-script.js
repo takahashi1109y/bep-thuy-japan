@@ -510,11 +510,29 @@ function doPost(e) {
 
       // 3) Create order full flow (mirror verify_then_create_order success path)
       var orderNoA = getNextOrderNo(ss);
-      try { saveOrder(ss, orderNoA, orderData); } catch(e) { Logger.log('saveOrder err: ' + e); }
-      try { saveYamato(orderNoA, orderData); } catch(e) { Logger.log('saveYamato err: ' + e); }
-      try { sendOrderNotification(orderNoA, orderData); } catch(e) { Logger.log('sendOrderNotification err: ' + e); }
-      try { sendCustomerConfirmation(orderNoA, orderData); } catch(e) { Logger.log('sendCustomerConfirmation err: ' + e); }
-      try { updateProductStats(ss); } catch(e) { Logger.log('updateProductStats err: ' + e); }
+      Logger.log('[admin_create] Got orderNo=' + orderNoA + ' | email=' + orderData.email + ' | total=' + orderData.total);
+      Logger.log('[admin_create] Email quota remaining: ' + MailApp.getRemainingDailyQuota());
+
+      try { saveOrder(ss, orderNoA, orderData); Logger.log('[admin_create] saveOrder OK'); } catch(e) { Logger.log('[admin_create] saveOrder ERR: ' + e); }
+      try { saveYamato(orderNoA, orderData); Logger.log('[admin_create] saveYamato OK'); } catch(e) { Logger.log('[admin_create] saveYamato ERR: ' + e); }
+      try { sendOrderNotification(orderNoA, orderData); Logger.log('[admin_create] sendOrderNotification (admin) OK'); } catch(e) { Logger.log('[admin_create] sendOrderNotification ERR: ' + e); }
+
+      // CRITICAL: Customer confirmation email — log explicitly để debug
+      var emailSent = false;
+      try {
+        if (!orderData.email) {
+          Logger.log('[admin_create] ⚠️ NO customer email in orderData — skip sendCustomerConfirmation');
+        } else {
+          Logger.log('[admin_create] → Calling sendCustomerConfirmation to ' + orderData.email);
+          sendCustomerConfirmation(orderNoA, orderData);
+          emailSent = true;
+          Logger.log('[admin_create] ✓ sendCustomerConfirmation OK (no exception thrown)');
+        }
+      } catch(e) {
+        Logger.log('[admin_create] ✗ sendCustomerConfirmation ERR: ' + e + ' | stack: ' + (e.stack || ''));
+      }
+
+      try { updateProductStats(ss); } catch(e) { Logger.log('[admin_create] updateProductStats ERR: ' + e); }
       try {
         if (orderData.email) {
           addToGetResponse(orderData.email, orderData.name, orderData.phone, orderData.prefecture,
@@ -556,7 +574,9 @@ function doPost(e) {
         success: true,
         orderNo: orderNoA,
         admin_resolved: true,
-        attempt_id: attemptId
+        attempt_id: attemptId,
+        email_sent: emailSent,  // FIX 2026-05-07: frontend show warning nếu email fail
+        customer_email: orderData.email || null
       });
     }
 

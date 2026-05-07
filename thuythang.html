@@ -2616,7 +2616,13 @@ async function resolveAIAttempt(attemptId, action) {
       throw new Error((result.error || 'Tạo đơn thất bại') + (result.detail ? ': ' + result.detail : ''));
     }
 
-    showToast('✅ Đã tạo đơn #' + result.orderNo + ' — email đã gửi cho khách', 'success');
+    // FIX 2026-05-07: Show warning nếu email không gửi được (Gmail quota max, etc.)
+    if (result.email_sent === false) {
+      showToast('⚠️ Đơn #' + result.orderNo + ' đã tạo NHƯNG email không gửi được — kiểm tra Apps Script logs', 'error');
+      alert('⚠️ Cảnh báo:\n\nĐơn #' + result.orderNo + ' đã được tạo trong hệ thống NHƯNG email xác nhận KHÔNG gửi được cho khách (' + (result.customer_email || 'no email') + ').\n\nNguyên nhân có thể:\n  • Gmail daily quota max (100 emails/day)\n  • Apps Script chưa grant scope gmail.send\n  • Function exception\n\nVui lòng:\n1. Kiểm tra Apps Script Executions logs để xem error\n2. Liên hệ khách qua phone/Zalo để báo đơn đã tạo');
+    } else {
+      showToast('✅ Đã tạo đơn #' + result.orderNo + ' — email đã gửi cho khách', 'success');
+    }
     await loadAIVerifyAttempts();
     // Reload orders tab nếu đang mở để admin thấy đơn mới
     if (typeof loadOrders === 'function') {
