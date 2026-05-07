@@ -1637,7 +1637,10 @@ window.addEventListener('scroll', function() {
       cartItems: cart.map(i => ({ name: i.name, size: i.size, price: i.price, qty: i.qty, wt: i.wt })),
       subtotal: sub, shipping: ship, total, grossTotal,
       pointsUsed: ptsUsed,
-      birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent
+      birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent,
+      // FIX 2026-05-07: Track payment method khách chọn (paypay / bank)
+      // Backend dùng để hiển thị đúng email + lưu đúng method vào payment_confirmations.
+      method: (typeof _selectedPayMethod !== 'undefined' && _selectedPayMethod === 'bank') ? 'bank_transfer' : 'paypay'
     };
     _selectedReceiptFile = null;
     // Reset verify failure counter for this new order
@@ -1661,9 +1664,13 @@ window.addEventListener('scroll', function() {
     document.getElementById('cart-panel').scrollTop = 0;
   }
 
+  // FIX 2026-05-07: Track payment method khách chọn để gửi backend
+  let _selectedPayMethod = 'paypay';  // default PayPay (tab active mặc định)
+
   // Payment method tab switcher (separate from existing switchPayment for order-success)
   function payTabSwitch(type){
     const isPaypay = type === 'paypay';
+    _selectedPayMethod = isPaypay ? 'paypay' : 'bank';
     document.getElementById('pay-section-paypay').style.display = isPaypay ? 'block' : 'none';
     document.getElementById('pay-section-bank').style.display   = isPaypay ? 'none' : 'block';
     document.getElementById('pay-tab-paypay').className = 'pay-tab ' + (isPaypay ? 'active-paypay' : 'inactive');

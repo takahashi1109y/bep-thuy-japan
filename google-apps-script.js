@@ -2035,7 +2035,7 @@ function savePaymentProofForVerifiedOrder_(orderNo, data) {
     order_no: orderNo,
     user_id: data.userId || null,
     claimed_amount: data.total,
-    method: 'bank_transfer',                                                    // FIX 2026-05-05: was 'auto_verified' — violates CHECK (method IN ('bank_transfer','paypay'))
+    method: (data.method === 'paypay') ? 'paypay' : 'bank_transfer',            // FIX 2026-05-07: dynamic theo khách chọn
     screenshot_url: signedUrl,
     screenshot_hash: data.ai_screenshot_hash || ('auto-' + orderNo + '-' + ts), // FIX: schema NOT NULL — fallback nếu AI không hash
     file_size: bytes.length,                                                    // FIX: column exists, useful cho admin
@@ -2131,7 +2131,7 @@ function savePaymentProofForManualReview_(orderNo, data) {
     order_no: orderNo,
     user_id: data.userId || null,
     claimed_amount: data.total,
-    method: 'bank_transfer',                                                       // FIX 2026-05-05: was 'manual_review' — violates CHECK
+    method: (data.method === 'paypay') ? 'paypay' : 'bank_transfer',               // FIX 2026-05-07: dynamic theo khách chọn
     screenshot_url: signedUrl,
     screenshot_hash: 'manual-' + orderNo + '-' + ts,                               // FIX: schema NOT NULL — was MISSING entirely → INSERT double-fail
     file_size: bytes.length,                                                       // FIX: column exists
@@ -2269,7 +2269,7 @@ function savePaymentProofForAdminResolved_(orderNo, data) {
     order_no: orderNo,
     user_id: data.userId || null,
     claimed_amount: Number(data.total || 0),
-    method: 'bank_transfer',
+    method: (data.method === 'paypay') ? 'paypay' : 'bank_transfer',  // FIX 2026-05-07: dynamic
     screenshot_url: screenshotUrl,
     screenshot_hash: 'admin-' + orderNo + '-' + ts,
     note: 'Admin verified manually (AI verify failed). ' + (data.admin_email || ''),
@@ -2976,7 +2976,7 @@ function buildManualReviewEmailHtml_(d) {
 // Intro
 '<tr><td style="padding:20px 24px 0;color:#1F2937;font-size:15px;line-height:1.7;">' +
 '<p style="margin:0 0 14px;"><strong>Anh ơi,</strong></p>' +
-'<p style="margin:0 0 18px;">Có 1 đơn vừa được khách gửi qua nút <strong>"📋 Gửi cho admin xem"</strong> — AI verify đã thất bại nhưng khách báo đã thanh toán PayPay rồi. Cần anh vào xem và xử lý tay.</p></td></tr>' +
+'<p style="margin:0 0 18px;">Có 1 đơn vừa được khách gửi qua nút <strong>"📋 Gửi bill cho Thuỷ xem"</strong> — AI verify đã thất bại nhưng khách báo đã thanh toán bằng <strong>' + (data.method === 'paypay' ? 'PayPay' : 'chuyển khoản ngân hàng') + '</strong> rồi. Cần anh vào xem và xử lý tay.</p></td></tr>' +
 // Customer info
 '<tr><td style="padding:0 24px 16px;">' +
 '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;"><tr><td style="padding:18px 20px;">' +
