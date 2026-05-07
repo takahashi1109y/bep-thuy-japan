@@ -2662,10 +2662,13 @@ function buildManualReviewEmailHtml_(d) {
 function generateSignedReceiptUrlForOrder_(orderNo, expiresInSec) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
 
-  // 1. Find the latest payment_confirmations row for this order_no to get image_url path
+  // 1. Find the latest payment_confirmations row for this order_no to get URL.
+  // FIX 2026-05-06: Schema column is `screenshot_url`, NOT `image_url`. Trước đó
+  // SELECT trả về 0 row vì query sai column → luôn return null → Telegram alert
+  // + admin modal fallback đều thiếu bill URL. Sửa thành screenshot_url.
   try {
     var listUrl = SUPABASE_URL + '/rest/v1/payment_confirmations'
-      + '?select=image_url&order_no=eq.' + encodeURIComponent(orderNo)
+      + '?select=screenshot_url&order_no=eq.' + encodeURIComponent(orderNo)
       + '&order=created_at.desc&limit=1';
     var listRes = UrlFetchApp.fetch(listUrl, {
       method: 'get',
@@ -2677,15 +2680,31 @@ function generateSignedReceiptUrlForOrder_(orderNo, expiresInSec) {
     });
     if (listRes.getResponseCode() >= 300) return null;
     var rows = JSON.parse(listRes.getContentText() || '[]');
-    if (!rows.length || !rows[0].image_url) return null;
+    if (!rows.length || !rows[0].screenshot_url) return null;
 
-    // Extract path inside bucket from public URL — pattern:
-    //   {SUPABASE_URL}/storage/v1/object/public/payment-proofs/{path}
-    var imageUrl = rows[0].image_url;
-    var marker = '/storage/v1/object/public/payment-proofs/';
-    var idx = imageUrl.indexOf(marker);
-    if (idx === -1) return imageUrl; // not the expected pattern, return as-is
-    var bucketPath = decodeURIComponent(imageUrl.substring(idx + marker.length));
+    // Extract path inside bucket. screenshot_url có thể là:
+    //  (a) Signed URL: {SUPABASE_URL}/storage/v1/object/sign/payment-proofs/{path}?token=...
+    //  (b) Public URL: {SUPABASE_URL}/storage/v1/object/public/payment-proofs/{path}
+    //  (c) Bare path: 'auto/BTJ-0149-1730000.jpg' (fallback nếu sign fail)
+    var imageUrl = rows[0].screenshot_url;
+    var signMarker = '/storage/v1/object/sign/payment-proofs/';
+    var pubMarker = '/storage/v1/object/public/payment-proofs/';
+    var bucketPath = null;
+    var sIdx = imageUrl.indexOf(signMarker);
+    var pIdx = imageUrl.indexOf(pubMarker);
+    if (sIdx !== -1) {
+      // Signed URL → strip query string + extract path
+      var afterMarker = imageUrl.substring(sIdx + signMarker.length);
+      var qIdx = afterMarker.indexOf('?');
+      bucketPath = decodeURIComponent(qIdx === -1 ? afterMarker : afterMarker.substring(0, qIdx));
+    } else if (pIdx !== -1) {
+      bucketPath = decodeURIComponent(imageUrl.substring(pIdx + pubMarker.length));
+    } else if (imageUrl.indexOf('http') !== 0) {
+      // Bare path (case c)
+      bucketPath = imageUrl;
+    } else {
+      return imageUrl; // unknown URL pattern, return as-is
+    }
 
     // 2. Request signed URL from Supabase Storage
     var signRes = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/sign/payment-proofs/' + encodeURIComponent(bucketPath), {
