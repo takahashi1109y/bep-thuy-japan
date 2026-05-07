@@ -2399,9 +2399,13 @@ function setOrdersSubTab(tab) {
 }
 
 function updateSubTabCounts() {
+  // FIX 2026-05-07 (Bug H): Thieu key 'review' -> tab "🚨 Can xem xet" badge
+  // luon hien 0 du admin co don pending_manual_review. Admin nghi khong co don
+  // -> khong click tab -> miss don manual review tu khach.
   const counts = {
     all: allOrders.filter(o => o.status !== 'cancelled').length,
     unpaid: allOrders.filter(o => ['pending', 'customer_paid'].includes(o.status)).length,
+    review: allOrders.filter(o => o.status === 'pending_manual_review').length,
     paid: allOrders.filter(o => ['confirmed', 'shipped', 'delivered'].includes(o.status)).length,
     cancelled: allOrders.filter(o => o.status === 'cancelled').length
   };
