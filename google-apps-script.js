@@ -3616,7 +3616,6 @@ function sendMemberNotification(data) {
   try {
     MailApp.sendEmail(ADMIN_EMAIL, subject, '', {
       htmlBody : htmlBody,
-      from     : 'thuyjapan1606@gmail.com',
       name     : 'B\u1ebfp Thu\u1ef7 Japan Members'
     });
     Logger.log('Da gui email thong bao thanh vien moi: ' + name);
@@ -4049,7 +4048,6 @@ function testEmailQuota() {
   var testEmail = 'thanghoang1109+test98@gmail.com';
   try {
     MailApp.sendEmail(testEmail, '[TEST] Bep Thuy email check', 'This is a test email at ' + new Date(), {
-      from: 'thuyjapan1606@gmail.com',
       name: 'Bếp Thuỷ Japan TEST'
     });
     Logger.log('✓ TEST EMAIL SENT OK to ' + testEmail);
@@ -4528,7 +4526,6 @@ function sendTrackingEmail(email, name, orderNo, trackingNo, address, items, tot
 
   MailApp.sendEmail(email, subject, '', {
     htmlBody  : htmlBody,
-    from      : 'thuyjapan1606@gmail.com',
     replyTo   : 'thuyjapan1606@gmail.com',
     name      : 'B\u1ebfp Thu\u1ef7 Japan'
   });
@@ -4597,7 +4594,6 @@ function sendOrderNotification(orderNo, data) {
   try {
     MailApp.sendEmail(ADMIN_EMAIL, subject, '', {
       htmlBody : htmlBody,
-      from     : 'thuyjapan1606@gmail.com',
       name     : 'B\u1ebfp Thu\u1ef7 Japan Orders'
     });
   } catch(err) {
@@ -4678,7 +4674,6 @@ function sendCustomerConfirmation(orderNo, data) {
   try {
     MailApp.sendEmail(email, subject, '', {
       htmlBody : htmlBody,
-      from     : 'thuyjapan1606@gmail.com',
       replyTo  : 'thuyjapan1606@gmail.com',
       name     : 'B\u1ebfp Thu\u1ef7 Japan'
     });
@@ -5060,7 +5055,6 @@ function testYamatoScraperHealth() {
       '</div>';
     MailApp.sendEmail(ADMIN_EMAIL, subject, 'Yamato scraper trả 0 events cho ' + TEST_TRACKING + '. Mở email HTML để xem chi tiết.', {
       htmlBody: html,
-      from: 'thuyjapan1606@gmail.com',
       replyTo: 'thuyjapan1606@gmail.com'
     });
     return false;
@@ -5068,7 +5062,6 @@ function testYamatoScraperHealth() {
     Logger.log('[YAMATO-CRITICAL] ' + err);
     MailApp.sendEmail(ADMIN_EMAIL, '[CRITICAL] Yamato Scraper EXCEPTION', '', {
       htmlBody: '<div style="font-family:Arial;padding:20px"><h2 style="color:#C8102E">Yamato Scraper Exception</h2><pre style="background:#fee;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto">' + err.toString() + '\n\n' + (err.stack || '') + '</pre></div>',
-      from: 'thuyjapan1606@gmail.com',
       replyTo: 'thuyjapan1606@gmail.com'
     });
     return false;
