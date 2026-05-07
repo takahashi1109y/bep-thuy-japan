@@ -1989,9 +1989,11 @@ async function doLogin() {
   } catch(e) { console.warn('[login] next redirect err:', e); }
 
   // IMMEDIATE PREFETCH: Fire RPC ngay khi co token, parallel voi showSection
-  // By the time loadDashboard runs, data is already coming back
+  // By the time loadDashboard runs, data is already coming back.
+  // FIX 2026-05-08: sb.rpc() trả PostgrestBuilder (thenable, KHÔNG có .catch).
+  // Wrap trong Promise.resolve để có .catch standard.
   try {
-    window._dashboardPrefetch = sb.rpc('get_member_dashboard').catch(() => null);
+    window._dashboardPrefetch = Promise.resolve(sb.rpc('get_member_dashboard')).catch(() => null);
     console.log('[login] dashboard prefetch started');
   } catch(e) { console.warn('[login] prefetch err:', e); }
 
