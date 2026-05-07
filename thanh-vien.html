@@ -312,6 +312,7 @@
     <div class="flex border-b">
       <button onclick="switchAuthTab('login')" id="tab-login" class="tab-btn active flex-1 py-4 text-center text-sm">Đăng Nhập</button>
       <button onclick="switchAuthTab('register')" id="tab-register" class="tab-btn flex-1 py-4 text-center text-sm">Đăng Ký Mới</button>
+      <button onclick="switchAuthTab('forgot-email')" id="tab-forgot-email" class="tab-btn flex-1 py-4 text-center text-sm">Quên Email</button>
     </div>
 
     <!-- Login Form -->
@@ -490,6 +491,62 @@
           </ol>
         </div>
         <button onclick="showSection('auth')" class="btn-primary w-full py-3 text-sm">← Về trang đăng nhập</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FORGOT EMAIL SECTION (FEATURE 2026-05-07) -->
+<!-- Khách quên email login → input SĐT → recover masked email -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="forgot-email-section" class="hidden py-10 px-4">
+  <div class="max-w-md mx-auto">
+    <div class="bg-white rounded-2xl shadow-lg border border-orange-100 p-6 sm:p-8">
+      <button onclick="showSection('auth');switchAuthTab('login');" class="text-gray-500 hover:text-brand-red text-sm mb-4">← Quay lại đăng nhập</button>
+
+      <div class="text-center mb-6">
+        <div class="text-5xl mb-3">📱</div>
+        <h2 class="text-2xl font-bold text-brand-dark font-serif">Quên Email</h2>
+        <p class="text-gray-500 text-sm mt-2">Nhập số điện thoại bạn đã đăng ký. Chúng em sẽ giúp lấy lại email + reset mật khẩu.</p>
+      </div>
+
+      <div id="fe-form-wrap" class="space-y-4">
+        <div>
+          <label class="field-label">Số Điện Thoại <span class="text-brand-red">*</span></label>
+          <input id="fe-phone" type="tel" inputmode="numeric" maxlength="11"
+                 placeholder="09012345678" class="field-input w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm">
+          <p class="text-xs text-gray-500 mt-1">📱 11 số bắt đầu bằng 0 (vd: 09042376886)</p>
+        </div>
+        <div id="fe-error" class="hidden text-red-700 text-sm bg-red-50 border border-red-200 rounded-xl p-3"></div>
+        <button id="fe-btn" onclick="submitForgotEmail()" class="btn-primary w-full py-4 text-base">🔍 Tìm Email</button>
+      </div>
+
+      <!-- Result: masked email + reset password button -->
+      <div id="fe-result" class="hidden space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center space-y-2">
+          <p class="text-sm text-gray-600">Email đăng ký của bạn:</p>
+          <p class="text-xl font-bold text-brand-red"><span id="fe-masked-email"></span></p>
+          <p class="text-xs text-gray-500">Để bảo mật, em chỉ hiển thị email che một phần. Bấm bên dưới để gửi link đặt lại mật khẩu vào email này.</p>
+        </div>
+        <button id="fe-reset-btn" onclick="sendResetForRecoveredEmail()" class="btn-primary w-full py-3">📧 Gửi link đặt lại mật khẩu</button>
+        <button onclick="resetForgotEmailForm()" class="w-full py-3 text-gray-500 text-sm hover:text-brand-red underline">🔙 Tìm số khác</button>
+      </div>
+
+      <!-- Success: reset link sent -->
+      <div id="fe-success" class="hidden text-center space-y-4">
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#D1FAE5,#FFF8F0);border:3px solid #10B981">✅</div>
+        <h3 class="text-xl font-bold text-brand-dark">Đã gửi link!</h3>
+        <p class="text-gray-600 text-sm">Em đã gửi link đặt lại mật khẩu đến:<br><strong id="fe-success-email" class="text-brand-red"></strong></p>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-left text-sm text-yellow-900">
+          <p class="font-semibold mb-1">📌 Bước tiếp theo:</p>
+          <ol class="list-decimal ml-5 space-y-1 text-xs">
+            <li>Mở email (kể cả Spam/Quảng cáo)</li>
+            <li>Bấm link trong email từ Bếp Thuỷ Japan</li>
+            <li>Đặt mật khẩu mới và đăng nhập lại</li>
+          </ol>
+        </div>
+        <button onclick="showSection('auth');switchAuthTab('login');resetForgotEmailForm();" class="btn-primary w-full py-3 text-sm">← Về đăng nhập</button>
       </div>
     </div>
   </div>
@@ -1606,6 +1663,9 @@ function showSection(name) {
   if (fs) fs.classList.toggle('hidden', name !== 'forgot');
   const rs = document.getElementById('reset-pw-section');
   if (rs) rs.classList.toggle('hidden', name !== 'reset-pw');
+  // FEATURE 2026-05-07: Forgot email section
+  const fes = document.getElementById('forgot-email-section');
+  if (fes) fes.classList.toggle('hidden', name !== 'forgot-email');
   if (name === 'forgot') {
     // Reset form state when entering
     document.getElementById('forgot-form-wrap').classList.remove('hidden');
@@ -1635,8 +1695,87 @@ function showSection(name) {
 function switchAuthTab(tab) {
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  const tabFE = document.getElementById('tab-forgot-email');
+  if (tabFE) tabFE.classList.toggle('active', tab === 'forgot-email');
   document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
   document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+  // FEATURE 2026-05-07: Forgot email tab
+  if (tab === 'forgot-email') {
+    showSection('forgot-email');
+    // Reset form state
+    try {
+      document.getElementById('fe-form-wrap').classList.remove('hidden');
+      document.getElementById('fe-result').classList.add('hidden');
+      document.getElementById('fe-success').classList.add('hidden');
+      document.getElementById('fe-error').classList.add('hidden');
+    } catch(e) {}
+  }
+}
+
+// ============================================================
+// FORGOT EMAIL — Khách quên email, recover bằng SĐT đã đăng ký
+// ============================================================
+async function submitForgotEmail() {
+  const phone = (document.getElementById('fe-phone').value || '').trim();
+  const btn = document.getElementById('fe-btn');
+  hideError('fe-error');
+
+  // Validate JP phone format
+  if (!phone.match(/^0\d{10}$/)) {
+    showError('fe-error', '📱 SĐT không hợp lệ. Phải có 11 số bắt đầu bằng 0 (vd: 09012345678).');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '⏳ Đang tìm...';
+  try {
+    const { data: email, error } = await sb.rpc('find_email_by_phone', { p_phone: phone });
+    if (error) throw error;
+    if (!email) {
+      showError('fe-error', '❌ SĐT này chưa đăng ký. Vui lòng kiểm tra lại số.');
+      btn.disabled = false; btn.textContent = '🔍 Tìm Email';
+      return;
+    }
+    // Mask email: t****g@gmail.com
+    const masked = email.replace(/^(.)(.*)(@.+)$/, function(_, a, b, c) {
+      return a + '*'.repeat(Math.min(b.length, 8)) + (b.length > 0 ? b.charAt(b.length - 1) : '') + c;
+    });
+    window._recoveredEmail = email;
+    document.getElementById('fe-masked-email').textContent = masked;
+    document.getElementById('fe-form-wrap').classList.add('hidden');
+    document.getElementById('fe-result').classList.remove('hidden');
+  } catch (e) {
+    showError('fe-error', '❌ Lỗi: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 Tìm Email';
+  }
+}
+
+async function sendResetForRecoveredEmail() {
+  const email = window._recoveredEmail;
+  if (!email) return;
+  const btn = document.getElementById('fe-reset-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang gửi...';
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/thanh-vien'
+    });
+    if (error) throw error;
+    document.getElementById('fe-result').classList.add('hidden');
+    document.getElementById('fe-success-email').textContent = email;
+    document.getElementById('fe-success').classList.remove('hidden');
+  } catch (e) {
+    alert('❌ Lỗi gửi email: ' + (e.message || e));
+    btn.disabled = false; btn.textContent = '📧 Gửi link đặt lại mật khẩu';
+  }
+}
+
+function resetForgotEmailForm() {
+  document.getElementById('fe-phone').value = '';
+  hideError('fe-error');
+  document.getElementById('fe-result').classList.add('hidden');
+  document.getElementById('fe-success').classList.add('hidden');
+  document.getElementById('fe-form-wrap').classList.remove('hidden');
+  window._recoveredEmail = null;
 }
 
 function showError(boxId, msg) {
@@ -1924,14 +2063,25 @@ async function doRegister() {
   });
 
   if (error) {
-    // Friendly error messages
+    // FIX 2026-05-07: Friendly error messages với link "Quên mật khẩu" rõ ràng.
     var msg = error.message || '';
     var lc = msg.toLowerCase();
     var friendly = msg;
-    if (lc.indexOf('already registered') !== -1 || lc.indexOf('already exists') !== -1 ||
+    var isDuplicate = false;
+
+    if (lc.indexOf('phone') !== -1 && (lc.indexOf('duplicate') !== -1 || lc.indexOf('unique') !== -1 || lc.indexOf('database error saving') !== -1)) {
+      // Duplicate phone (UNIQUE INDEX trên profiles.phone hoặc trigger normalize_phone fail)
+      friendly = '📱 <strong>Số điện thoại này đã được đăng ký.</strong><br><br>Nếu bạn là chủ số điện thoại này, vui lòng bấm <a onclick="doForgotPassword();return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔑 Quên mật khẩu</a> để lấy lại.';
+      isDuplicate = true;
+    } else if (lc.indexOf('already registered') !== -1 || lc.indexOf('already exists') !== -1 ||
         lc.indexOf('user_already_exists') !== -1 || lc.indexOf('user already registered') !== -1 ||
-        lc.indexOf('duplicate') !== -1 || error.code === 'user_already_exists') {
-      friendly = '❌ Email này đã được đăng ký. Vui lòng chọn email khác hoặc đăng nhập.';
+        error.code === 'user_already_exists') {
+      friendly = '📧 <strong>Email này đã được đăng ký.</strong><br><br>Nếu bạn là chủ email này, vui lòng bấm <a onclick="doForgotPassword();return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔑 Quên mật khẩu</a> để lấy lại.';
+      isDuplicate = true;
+    } else if (lc.indexOf('database error saving') !== -1 || lc.indexOf('duplicate') !== -1) {
+      // Generic DB error — most likely duplicate (email or phone) sau khi auth.signUp pass nhưng profile insert fail
+      friendly = '⚠️ <strong>Số điện thoại hoặc email đã được đăng ký.</strong><br><br>Nếu bạn là chủ tài khoản, vui lòng bấm <a onclick="doForgotPassword();return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔑 Quên mật khẩu</a> để lấy lại. Hoặc <a onclick="switchAuthTab(\'forgot-email\');return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔍 Quên email</a> để tìm email từ SĐT.';
+      isDuplicate = true;
     } else if (lc.indexOf('password') !== -1 && lc.indexOf('weak') !== -1) {
       friendly = '❌ Mật khẩu quá yếu. Cần ít nhất 6 ký tự.';
     } else if (lc.indexOf('rate limit') !== -1) {
@@ -1939,7 +2089,15 @@ async function doRegister() {
     } else if (lc.indexOf('captcha') !== -1) {
       friendly = '❌ Xác minh CAPTCHA thất bại. Vui lòng thử lại.';
     }
-    showError('reg-error', friendly);
+
+    // Render với HTML support cho link
+    var errBox = document.getElementById('reg-error');
+    if (errBox && (isDuplicate || friendly.indexOf('<') !== -1)) {
+      errBox.innerHTML = friendly;
+      errBox.classList.remove('hidden');
+    } else {
+      showError('reg-error', friendly);
+    }
     btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
     return;
   }
@@ -1993,14 +2151,34 @@ async function doRegister() {
   currentUser = data.user;
 
   // Update profile with additional info
+  // FIX 2026-05-07: Catch error nếu trigger normalize_phone reject duplicate phone
   if (currentUser) {
-    await sb.from('profiles').update({
+    const { error: profileErr } = await sb.from('profiles').update({
       display_name: name,
       phone: phone,
       prefecture: prefecture || null,
       postal: postal || null,
       address: address || null
     }).eq('id', currentUser.id);
+
+    if (profileErr) {
+      var pmsg = (profileErr.message || '').toLowerCase();
+      var profileFriendly = '';
+      if (pmsg.indexOf('phone') !== -1 || pmsg.indexOf('duplicate') !== -1 || pmsg.indexOf('unique') !== -1) {
+        profileFriendly = '📱 <strong>Số điện thoại này đã được đăng ký với tài khoản khác.</strong><br><br>Nếu bạn là chủ số điện thoại này, vui lòng bấm <a onclick="switchAuthTab(\'forgot-email\');return false;" href="#" style="color:#C8102E;font-weight:700;text-decoration:underline">🔍 Quên email</a> để tìm email + reset mật khẩu.';
+      } else {
+        profileFriendly = '⚠️ Lỗi lưu thông tin: ' + profileErr.message;
+      }
+      var profileErrBox = document.getElementById('reg-error');
+      if (profileErrBox) {
+        profileErrBox.innerHTML = profileFriendly;
+        profileErrBox.classList.remove('hidden');
+      }
+      // Optional: delete the auth user we just created (orphan account)
+      // Note: anh có thể chạy SQL cleanup sau để xoá orphan auth.users
+      btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+      return;
+    }
   }
 
   // Also save to localStorage for main page checkout
