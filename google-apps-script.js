@@ -251,6 +251,16 @@ function doPost(e) {
 
     // OPTION B: Verify receipt FIRST, then create order only if AI verifies amount matches
     if (data.type === 'verify_then_create_order') {
+      // FIX 2026-05-07 (anh request): BLOCK GUEST ORDERS — defense in depth
+      // (frontend goToCheckout + submitOrder đã block, đây là layer bảo vệ
+      // nếu ai bypass FE bằng curl/Postman). Khách BẮT BUỘC có userId.
+      if (!data.userId) {
+        return buildResponse({
+          success: false,
+          error: 'must_login',
+          detail: 'Vui lòng đăng ký thành viên + xác nhận email trước khi đặt đơn.'
+        });
+      }
       if (!data.receipt_base64 || typeof data.total !== 'number') {
         return buildResponse({ success: false, error: 'Missing receipt_base64 or total' });
       }
@@ -321,6 +331,14 @@ function doPost(e) {
     // 'pending_manual_review', upload receipt for admin to inspect, fire urgent
     // Telegram alert. Admin confirms/rejects from /thuythang within 24h.
     if (data.type === 'manual_pending_order') {
+      // FIX 2026-05-07: BLOCK GUEST cho manual review path cũng
+      if (!data.userId) {
+        return buildResponse({
+          success: false,
+          error: 'must_login',
+          detail: 'Vui lòng đăng ký thành viên + xác nhận email trước khi gửi đơn manual review.'
+        });
+      }
       if (!data.receipt_base64 || typeof data.total !== 'number') {
         return buildResponse({ success: false, error: 'Missing receipt_base64 or total' });
       }

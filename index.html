@@ -1044,6 +1044,26 @@ window.addEventListener('scroll', function() {
   // ── CART ──
   let cart=[]; let shipFee=0; let orderNo='';
 
+  // FIX 2026-05-07: Restore cart từ localStorage nếu khách vừa redirect từ /thanh-vien
+  // (đã save 'bepthuy_cart_pending' trong goToCheckout/submitOrder khi !sbUser).
+  // Cho phép khách giữ cart sau khi login → continue checkout không mất sản phẩm.
+  try {
+    const pending = localStorage.getItem('bepthuy_cart_pending');
+    if (pending) {
+      const restored = JSON.parse(pending);
+      if (Array.isArray(restored) && restored.length > 0) {
+        cart = restored;
+        localStorage.removeItem('bepthuy_cart_pending');
+        // Re-render cart sau khi DOM + functions ready
+        window.addEventListener('DOMContentLoaded', function() {
+          setTimeout(function() {
+            try { if (typeof renderCart === 'function') renderCart(); } catch(e) {}
+          }, 200);
+        });
+      }
+    }
+  } catch(e) { /* silent */ }
+
   function addToCart(id, name, size, price, wt, unitPrice, isBox) {
     // Cong don theo id: cung 1 san pham (ke ca khac size) -> gop chung 1 dong
     // unitPrice = gia 1 don vi (0.5kg hoac 1 hop). Neu khong truyen -> tu tinh
@@ -1254,6 +1274,31 @@ window.addEventListener('scroll', function() {
   function backToCheckout(){ showStep('checkout-section'); }
 
   function goToCheckout(){
+    // FIX 2026-05-07 (anh request): BLOCK GUEST CHECKOUT — block sớm tại đây
+    // (UX tốt hơn so với chỉ block lúc submit). Khách phải đăng ký + xác nhận
+    // email mới được vào trang checkout.
+    if (!sbUser) {
+      try { localStorage.setItem('bepthuy_cart_pending', JSON.stringify(cart)); } catch(e) {}
+      alert('🔐 Vui lòng đăng ký thành viên (hoặc đăng nhập) để đặt hàng.\n\nĐăng ký miễn phí, được tích điểm 1% mỗi đơn!');
+      window.location.href = '/thanh-vien?next=' + encodeURIComponent(window.location.pathname);
+      return;
+    }
+    if (!sbUser.email_confirmed_at) {
+      const userEmail = sbUser.email || '';
+      const msg = '✉️ Email ' + userEmail + ' chưa được xác nhận.\n\n' +
+        'Vui lòng kiểm tra hộp thư (kể cả Spam/Junk) và click link xác nhận.\n\n' +
+        'Bấm OK để gửi lại email xác nhận.';
+      if (confirm(msg)) {
+        sbClient.auth.resend({ type: 'signup', email: userEmail })
+          .then(({ error }) => {
+            if (error) alert('❌ Lỗi: ' + error.message);
+            else alert('✅ Đã gửi lại email xác nhận tới ' + userEmail + '.\nCheck email + click link, sau đó quay lại đặt hàng.');
+          })
+          .catch(e => alert('❌ Lỗi: ' + (e.message || e)));
+      }
+      return;
+    }
+
     document.getElementById('checkout-summary').innerHTML=cart.map(i=>`<div class="flex justify-between text-xs text-gray-600"><span class="flex-1 truncate">${i.name} (${i.size}) × ${i.qty}</span><span class="font-medium ml-2">${yen(i.price*i.qty)}</span></div>`).join('');
     document.getElementById('checkout-subtotal').textContent=yen(subtotal());
     showStep('checkout-section');
@@ -1478,6 +1523,34 @@ window.addEventListener('scroll', function() {
   }
 
   async function submitOrder(){
+    // FIX 2026-05-07 (anh request): BLOCK GUEST CHECKOUT
+    // Khách BẮT BUỘC đăng ký thành viên + xác nhận email mới được đặt đơn.
+    // Ly do: tránh xử lý sau này, giảm fraud, có audit trail đầy đủ.
+    if (!sbUser) {
+      // Save cart to localStorage so it persists qua redirect
+      try { localStorage.setItem('bepthuy_cart_pending', JSON.stringify(cart)); } catch(e) {}
+      alert('🔐 Vui lòng đăng ký thành viên (hoặc đăng nhập) để đặt hàng.\n\nĐăng ký miễn phí, được tích điểm 1% mỗi đơn!');
+      window.location.href = '/thanh-vien?next=' + encodeURIComponent(window.location.pathname);
+      return;
+    }
+    if (!sbUser.email_confirmed_at) {
+      // Email chưa confirm — show banner + resend option
+      const userEmail = sbUser.email || '';
+      const msg = '✉️ Email ' + userEmail + ' chưa được xác nhận.\n\n' +
+        'Vui lòng kiểm tra hộp thư (kể cả Spam/Junk) và click link xác nhận từ Bếp Thuỷ.\n\n' +
+        'Bấm OK để gửi lại email xác nhận.';
+      if (confirm(msg)) {
+        try {
+          const { error } = await sbClient.auth.resend({ type: 'signup', email: userEmail });
+          if (error) throw error;
+          alert('✅ Đã gửi lại email xác nhận tới ' + userEmail + '.\nVui lòng check email + click link, sau đó quay lại đặt hàng.');
+        } catch (e) {
+          alert('❌ Lỗi gửi email: ' + (e.message || e));
+        }
+      }
+      return;
+    }
+
     const name=document.getElementById('f-name').value.trim();
     const email=document.getElementById('f-email').value.trim();
     const phone=document.getElementById('f-phone').value.trim();
@@ -1719,10 +1792,15 @@ window.addEventListener('scroll', function() {
           // After N failures, offer manual-review fallback so customer isn't stuck
           // (Agent 4's "submit anyway after 2 fails" — preserved as separate card below)
           if (window._verifyFailCount >= VERIFY_FAIL_THRESHOLD) {
-            html += '<div style="margin-top:10px;background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:10px;text-align:left;font-size:13px;line-height:1.5;color:#78350F">'
-              + '<div style="font-weight:700;margin-bottom:6px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'
-              + '<div style="font-size:12px;margin-bottom:8px">Nếu anh/chị đã thanh toán đúng số tiền, có thể gửi đơn để Bếp Thuỷ kiểm tra thủ công.</div>'
-              + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:#F59E0B;color:#fff;font-weight:700;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px">📋 Gửi đơn cho Thuỷ xem (tôi đã thanh toán rồi)</button>'
+            // FIX 2026-05-07 (anh request): Button ĐỎ TO RÕ với pulse animation,
+            // box border đỏ dashed, font lớn 17px, padding 16px → khách KHÔNG miss được.
+            html += '<style>@keyframes thuyPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(220,38,38,0.7)}50%{transform:scale(1.03);box-shadow:0 0 0 10px rgba(220,38,38,0)}}</style>'
+              + '<div style="margin-top:14px;background:#FEE2E2;border:2px dashed #DC2626;border-radius:10px;padding:14px;text-align:left;color:#7F1D1D">'
+              + '<div style="font-weight:800;margin-bottom:8px;font-size:15px">⚠️ AI không đọc được biên lai sau ' + window._verifyFailCount + ' lần thử</div>'
+              + '<div style="font-size:13px;margin-bottom:12px;line-height:1.5">Nếu anh/chị đã thanh toán đúng số tiền, bấm nút bên dưới để gửi đơn cho Bếp Thuỷ kiểm tra thủ công:</div>'
+              + '<button id="manual-review-btn" onclick="submitForManualReview()" style="width:100%;background:linear-gradient(135deg,#EF4444 0%,#DC2626 100%);color:#fff;font-weight:800;padding:18px 14px;border:none;border-radius:10px;cursor:pointer;font-size:17px;box-shadow:0 4px 15px rgba(220,38,38,0.4);animation:thuyPulse 2s infinite;letter-spacing:0.3px;text-shadow:0 1px 2px rgba(0,0,0,0.1)">'
+              + '🚨 GỬI ĐƠN CHO THUỶ XEM<br><span style="font-size:13px;font-weight:600;opacity:0.95">(tôi đã thanh toán rồi)</span>'
+              + '</button>'
               + '</div>';
           }
           status.innerHTML = html;

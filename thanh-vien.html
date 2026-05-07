@@ -1738,6 +1738,20 @@ async function doLogin() {
   console.log('[login] success uid=' + (data.user && data.user.id ? data.user.id.slice(0, 8) : '?') + ' method=' + loginMethod);
   if (window.btTrack) window.btTrack('login', { method: loginMethod });
 
+  // FIX 2026-05-07: Redirect về `?next=` nếu có (khách bị block guest checkout
+  // tu /index.html → redirect về /thanh-vien?next=/ → sau khi login redirect về /).
+  // Chỉ allow same-origin path để tránh open redirect attack.
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const nextPath = urlParams.get('next');
+    if (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')) {
+      console.log('[login] redirecting to next=' + nextPath);
+      // Đợi 100ms để session token persist xong
+      setTimeout(() => { window.location.href = nextPath; }, 100);
+      return;
+    }
+  } catch(e) { console.warn('[login] next redirect err:', e); }
+
   // IMMEDIATE PREFETCH: Fire RPC ngay khi co token, parallel voi showSection
   // By the time loadDashboard runs, data is already coming back
   try {
