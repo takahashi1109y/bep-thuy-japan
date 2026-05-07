@@ -267,12 +267,12 @@ function doPost(e) {
       }
       var verifyRes = verifyReceiptStandalone_(data.receipt_base64, data.total);
       if (!verifyRes.match) {
-        // FIX 2026-05-07 (Bug K): Log AI fail vào ai_verify_attempts table
-        // de admin xem trong tab "📋 Check thủ công". Truoc do customer KHONG
-        // click "Gui don cho admin" thi don MAT HOAN TOAN.
-        try {
-          logAIFailureToSupabase_(data, verifyRes);
-        } catch (lge) { Logger.log('Log AI fail err: ' + lge); }
+        // FIX 2026-05-07 (anh request): KHÔNG auto-log AI fail nữa.
+        // Trước đó mỗi lần khách upload ảnh fail → tạo 1 row ai_verify_attempts
+        // → spam admin với rows trùng (khách test nhiều ảnh).
+        // Bây giờ: chỉ ghi nhận khi khách CLICK button đỏ "🚨 Gửi đơn cho Thuỷ"
+        // → flow manual_pending_order tạo đơn pending_manual_review (đầy đủ).
+        // → Admin xem trong tab "🚨 Cần xem xét" (orders với status pending_manual_review).
 
         // Telegram alert — admin can intervene with manual override (rate-limited 1/5min per customer+order)
         try {
