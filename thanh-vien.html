@@ -1509,19 +1509,15 @@ async function init() {
   if (session) {
     currentUser = session.user;
 
-    // Kiem tra link kich hoat tu welcome email
+    // Kiem tra link kich hoat tu welcome email (GetResponse)
+    // Anh request 2026-05-07: KHÁCH PHẢI CLICK LINK để nhận 100 điểm,
+    // KHÔNG auto-claim. Email do GetResponse gửi sau signup với URL
+    // ?claim=welcome → khách click → trigger flow này.
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('claim') === 'welcome') {
       showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
       await tryClaimWelcomeBonus();
       history.replaceState({}, '', '/thanh-vien');
-    } else {
-      // FIX 2026-05-07: Auto-claim 100 điểm welcome KHI user lần đầu login
-      // (RPC tự handle duplicate via atomic UPDATE WHERE welcome_claimed_at IS NULL).
-      // Trước đó: chỉ claim nếu URL có ?claim=welcome → email confirmation Supabase
-      // KHÔNG có param này → khách không nhận điểm.
-      // SILENT mode: nếu đã claim rồi → không hiện banner, không phiền khách.
-      tryClaimWelcomeBonus({ silent: true }).catch(e => console.warn('Auto welcome claim err:', e));
     }
 
     // Neu chua hien dashboard tu cache -> hien ngay
