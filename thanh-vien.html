@@ -1515,6 +1515,13 @@ async function init() {
       showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
       await tryClaimWelcomeBonus();
       history.replaceState({}, '', '/thanh-vien');
+    } else {
+      // FIX 2026-05-07: Auto-claim 100 điểm welcome KHI user lần đầu login
+      // (RPC tự handle duplicate via atomic UPDATE WHERE welcome_claimed_at IS NULL).
+      // Trước đó: chỉ claim nếu URL có ?claim=welcome → email confirmation Supabase
+      // KHÔNG có param này → khách không nhận điểm.
+      // SILENT mode: nếu đã claim rồi → không hiện banner, không phiền khách.
+      tryClaimWelcomeBonus({ silent: true }).catch(e => console.warn('Auto welcome claim err:', e));
     }
 
     // Neu chua hien dashboard tu cache -> hien ngay
