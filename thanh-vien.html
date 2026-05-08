@@ -952,7 +952,7 @@
           <div id="pm-paypay-qr" style="display:flex;justify-content:center;margin-bottom:8px;"></div>
           <p style="color:#6B7280;font-size:11px;margin:0">Mở app PayPay → Quét QR</p>
         </div>
-        <a href="https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW" target="_blank" style="display:block;width:100%;text-align:center;padding:10px;border-radius:10px;font-weight:bold;font-size:14px;background:white;color:#d70000;margin-bottom:8px;text-decoration:none">📱 Mở PayPay App</a>
+        <a href="https://qr.paypay.ne.jp/p2p01_3K7X3ZRutpMVx7cv" target="_blank" style="display:block;width:100%;text-align:center;padding:10px;border-radius:10px;font-weight:bold;font-size:14px;background:white;color:#d70000;margin-bottom:8px;text-decoration:none">📱 Mở PayPay App</a>
         <p style="color:white;font-size:11px;opacity:0.9;text-align:center;margin:0">Nhập số tiền: <strong id="pm-paypay-amount"></strong></p>
       </div>
 
@@ -1517,19 +1517,26 @@ async function init() {
   if (session) {
     currentUser = session.user;
 
-    // Kiem tra link kich hoat tu welcome email (GetResponse)
-    // Anh request 2026-05-07: KHÁCH PHẢI CLICK LINK để nhận 100 điểm.
+    // Kiem tra link kich hoat tu welcome email
+    // V2 2026-05-08: dùng token param thay vì chỉ dùng claim flag
     const urlParams = new URLSearchParams(window.location.search);
     const claimParam = urlParams.get('claim');
-    console.log('[init] URL search=' + window.location.search + ' | claim param=' + claimParam + ' | uid=' + (session.user && session.user.id ? session.user.id.slice(0,8) : '?'));
+    const tokenParam = urlParams.get('token');
+    console.log('[init] URL search=' + window.location.search + ' | claim=' + claimParam + ' | token=' + (tokenParam ? tokenParam.slice(0,8) + '...' : 'none') + ' | uid=' + (session.user && session.user.id ? session.user.id.slice(0,8) : '?'));
     if (claimParam === 'welcome') {
-      console.log('[init] ✓ Welcome claim detected — calling tryClaimWelcomeBonus');
-      showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
-      try {
-        await tryClaimWelcomeBonus();
-        console.log('[init] tryClaimWelcomeBonus completed');
-      } catch (e) {
-        console.error('[init] tryClaimWelcomeBonus EXCEPTION:', e);
+      if (!tokenParam) {
+        // Legacy link (không có token) hoặc link bị cắt → báo lỗi rõ ràng
+        console.warn('[init] claim=welcome nhưng token MISSING — link cũ hoặc lỗi');
+        showWelcomeClaimError('Link không hợp lệ. Vui lòng dùng link gửi qua email.');
+      } else {
+        console.log('[init] ✓ Welcome claim detected — token=' + tokenParam.slice(0,8) + '...');
+        showWelcomeClaimPending();  // Immediate visual feedback (~50ms after JS exec)
+        try {
+          await tryClaimWelcomeBonus(tokenParam);
+          console.log('[init] tryClaimWelcomeBonus completed');
+        } catch (e) {
+          console.error('[init] tryClaimWelcomeBonus EXCEPTION:', e);
+        }
       }
       history.replaceState({}, '', '/thanh-vien');
     }
@@ -1553,7 +1560,15 @@ async function init() {
     localStorage.removeItem('bepthuy_points');
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('claim') === 'welcome') {
-      try { sessionStorage.setItem('pending_welcome_claim', '1'); } catch(e) {}
+      const pendingToken = urlParams.get('token');
+      if (pendingToken) {
+        // V2: lưu token để claim sau khi login
+        try { sessionStorage.setItem('pending_welcome_claim_token', pendingToken); } catch(e) {}
+        console.log('[init] not logged in — saved pending_welcome_claim_token=' + pendingToken.slice(0,8) + '...');
+      } else {
+        // Legacy link không có token — KHÔNG lưu gì, sẽ báo lỗi sau khi login nếu cần
+        console.warn('[init] claim=welcome nhưng không có token — link cũ, bỏ qua');
+      }
     }
     showSection('auth');
     // Guest upsell prefill: ?prefill=1 + sessionStorage có data → switch sang Đăng Ký + fill sẵn
@@ -1589,21 +1604,56 @@ function tryPrefillRegister() {
   } catch (e) { console.warn('prefill err:', e); }
 }
 
-async function tryClaimWelcomeBonus(opts = {}) {
-  const silent = !!opts.silent;
-  console.log('[welcome-claim] entry, silent=' + silent);
+// V2 2026-05-08: accept token param, call claim_welcome_bonus_by_token RPC.
+// Legacy no-arg call removed — token is now required.
+async function tryClaimWelcomeBonus(token) {
+  console.log('[welcome-claim] entry, token=' + (token ? token.slice(0,8) + '...' : 'MISSING'));
+  if (!token) {
+    console.error('[welcome-claim] token missing — aborting');
+    showWelcomeClaimError('Link không hợp lệ. Vui lòng dùng link gửi qua email.');
+    return { ok: false, error: 'missing_token' };
+  }
   try {
-    const { data, error } = await sb.rpc('claim_welcome_bonus');
-    console.log('[welcome-claim] response:', { data: data, error: error });
+    const { data, error } = await sb.rpc('claim_welcome_bonus_by_token', { p_token: token });
+    console.log('[welcome-claim] RPC response:', { data: data, error: error });
     if (error) {
-      console.error('Welcome claim error:', error);
-      if (!silent) showWelcomeClaimError(error.message || 'Lỗi không xác định. Vui lòng liên hệ support@thuyjapan.com');
+      console.error('[welcome-claim] Supabase error:', error);
+      showWelcomeClaimError(error.message || 'Lỗi không xác định. Vui lòng liên hệ support@thuyjapan.com');
       return { ok: false, error: error.message || String(error) };
     }
-    if (data && data.ok) {
-      if (!silent) showWelcomeClaimSuccess(data.points || 100);
-      // FIX 2026-05-08: Force refresh balance từ DB thay vì increment cache.
-      // Cache cũ (từ tests trước) có thể chứa giá trị sai → cộng dồn → wrong total.
+    if (!data) {
+      showWelcomeClaimError('Phản hồi không hợp lệ từ server. Liên hệ support@thuyjapan.com');
+      return { ok: false, error: 'null_response' };
+    }
+
+    // Route theo data.error từ RPC
+    switch (data.error) {
+      case 'not_authenticated':
+        console.warn('[welcome-claim] not_authenticated — saving token + redirecting to auth');
+        try { sessionStorage.setItem('pending_welcome_claim_token', token); } catch(e) {}
+        showSection('auth');
+        return { ok: false, error: 'not_authenticated' };
+
+      case 'invalid_token':
+        console.warn('[welcome-claim] invalid_token');
+        showWelcomeClaimError('Link không hợp lệ hoặc đã hết hạn.');
+        return { ok: false, error: 'invalid_token' };
+
+      case 'not_your_token':
+        console.warn('[welcome-claim] not_your_token — security mismatch');
+        showWelcomeClaimError('Link này không thuộc về tài khoản hiện tại. Vui lòng login đúng email đã đăng ký.');
+        return { ok: false, error: 'not_your_token' };
+
+      case 'already_claimed':
+        console.log('[welcome-claim] already_claimed');
+        showWelcomeClaimAlreadyClaimed();
+        return { ok: false, alreadyClaimed: true };
+    }
+
+    if (data.ok) {
+      console.log('[welcome-claim] SUCCESS — points=' + data.points);
+      showWelcomeClaimSuccess(data.points || 100);
+      // Force refresh balance từ DB thay vì increment cache
       try {
         const { data: freshBalance } = await sb.from('points_balance')
           .select('total_points')
@@ -1614,22 +1664,19 @@ async function tryClaimWelcomeBonus(opts = {}) {
         console.log('[welcome-claim] balance refreshed from DB:', newTotal);
       } catch(e) {
         console.warn('[welcome-claim] balance refresh err:', e);
-        // Fallback: dùng RPC return value
         localStorage.setItem('bepthuy_points', String(data.points || 100));
       }
-      // Force loadDashboard để render từ fresh DB data (không từ cache)
-      try { await loadDashboard(); } catch(e) { console.warn('Reload dashboard err:', e); }
+      try { await loadDashboard(); } catch(e) { console.warn('[welcome-claim] reload dashboard err:', e); }
       return { ok: true, points: data.points || 100 };
-    } else if (data && data.error === 'already_claimed') {
-      if (!silent) showWelcomeClaimAlreadyClaimed();
-      return { ok: false, alreadyClaimed: true };
-    } else {
-      if (!silent) showWelcomeClaimError('Phản hồi không hợp lệ từ server. Liên hệ support@thuyjapan.com');
-      return { ok: false, error: 'invalid_response' };
     }
+
+    // Fallback: data.ok=false nhưng không có error code biết trước
+    console.error('[welcome-claim] unknown response:', data);
+    showWelcomeClaimError('Phản hồi không hợp lệ từ server. Liên hệ support@thuyjapan.com');
+    return { ok: false, error: 'unknown_response' };
   } catch (e) {
-    console.error('Claim RPC failed:', e);
-    if (!silent) showWelcomeClaimError('Lỗi kết nối: ' + (e.message || e));
+    console.error('[welcome-claim] RPC exception:', e);
+    showWelcomeClaimError('Lỗi kết nối: ' + (e.message || e));
     return { ok: false, error: e.message || String(e) };
   }
 }
@@ -2005,12 +2052,16 @@ async function doLogin() {
     console.log('[login] dashboard prefetch started');
   } catch(e) { console.warn('[login] prefetch err:', e); }
 
-  // Neu truoc do co ?claim=welcome ma chua dang nhap -> claim ngay sau login
+  // V2 2026-05-08: Nếu trước đó có ?claim=welcome&token=... mà chưa đăng nhập
+  // → claim ngay sau login bằng token đã lưu trong sessionStorage
   try {
-    if (sessionStorage.getItem('pending_welcome_claim') === '1') {
-      sessionStorage.removeItem('pending_welcome_claim');
+    const savedToken = sessionStorage.getItem('pending_welcome_claim_token');
+    if (savedToken) {
+      sessionStorage.removeItem('pending_welcome_claim_token');
+      console.log('[login] pending_welcome_claim_token found=' + savedToken.slice(0,8) + '... — claiming now');
       showWelcomeClaimPending();  // Immediate visual feedback before RPC
-      await tryClaimWelcomeBonus();
+      await tryClaimWelcomeBonus(savedToken);
+      console.log('[login] post-login welcome claim done');
     }
   } catch(e) { console.warn('[login] welcome bonus err:', e); }
 
@@ -3442,7 +3493,7 @@ function renderPmPayPayQR() {
   if (!box || typeof QRCode === 'undefined') return;
   box.innerHTML = '';
   new QRCode(box, {
-    text: 'https://qr.paypay.ne.jp/p2p01_qxomK6ZT3vnW9RHW',
+    text: 'https://qr.paypay.ne.jp/p2p01_3K7X3ZRutpMVx7cv',
     width: 180, height: 180,
     colorDark: '#d70000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M
