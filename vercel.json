@@ -10,6 +10,12 @@
   ],
   "headers": [
     {
+      "source": "/((?!.*\\.(?:js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|otf|map)).*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
       "source": "/.well-known/apple-app-site-association",
       "headers": [
         { "key": "Content-Type", "value": "application/json" },
