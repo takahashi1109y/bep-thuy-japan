@@ -19,6 +19,7 @@ const SHEET_NAME_MEMBERS = 'Thanh Vien';
 //     GR_FIELD_PHONE       = nBzLBu
 //     GR_FIELD_PREFECTURE  = nQVOld
 //     GR_FIELD_SOURCE      = nQVOtI
+//     GR_CF_BONUS_TOKEN    = <24-hex-char ID sau khi tao custom field "bonus_token" trong GR UI>
 
 function _prop(key, fallback) {
   try {
@@ -36,6 +37,8 @@ const GR_CAMPAIGN_ID       = _prop('GR_CAMPAIGN_ID', 'fwvbg');
 const GR_FIELD_PHONE       = _prop('GR_FIELD_PHONE', 'nBzLBu');
 const GR_FIELD_PREFECTURE  = _prop('GR_FIELD_PREFECTURE', 'nQVOld');
 const GR_FIELD_SOURCE      = _prop('GR_FIELD_SOURCE', 'nQVOtI');
+// Custom field bonus_token — anh tao trong GR UI roi paste ID vao Script Properties
+const GR_CF_BONUS_TOKEN    = _prop('GR_CF_BONUS_TOKEN', '');
 
 // ID cua spreadsheet YAMATO_ORDER
 const YAMATO_SS_ID = '13QMRQsEeODAOc-gb9mtqnNcvvyqqz8nN05X6OJevK_A';
@@ -125,8 +128,11 @@ function doPost(e) {
     if (data.type === 'member') {
       saveMember(ss, data);
       sendMemberNotification(data);
-      // Dong bo sang GetResponse voi tag "member"
-      try { addToGetResponse(data.email, data.name, data.phone, data.prefecture, 'member'); } catch(ge) { Logger.log('GR member err: ' + ge); }
+      // Dong bo sang GetResponse voi tag "member" — kem bonus_token de GR email co the embed claim link
+      try {
+        var _memberToken = getBonusToken_(data.userId || null);
+        addToGetResponse(data.email, data.name, data.phone, data.prefecture, 'member', _memberToken);
+      } catch(ge) { Logger.log('GR member err: ' + ge); }
       return buildResponse({ success: true, type: 'member' });
     }
 
@@ -314,8 +320,9 @@ function doPost(e) {
       try {
         var buyerEmail2 = data.email || '';
         if (buyerEmail2) {
+          var _token2 = getBonusToken_(data.userId || null);
           addToGetResponse(buyerEmail2, data.name || '', data.phone || '', data.prefecture || '',
-            data.userId ? 'member-buyer' : 'buyer');
+            data.userId ? 'member-buyer' : 'buyer', _token2);
         }
       } catch(ge) { Logger.log('GR err: ' + ge); }
       try { saveOrderToSupabase(orderNo2, data); } catch(soe) { Logger.log('SB err: ' + soe); }
@@ -358,8 +365,9 @@ function doPost(e) {
       try {
         var buyerEmailM = data.email || '';
         if (buyerEmailM) {
+          var _tokenM = getBonusToken_(data.userId || null);
           addToGetResponse(buyerEmailM, data.name || '', data.phone || '', data.prefecture || '',
-            data.userId ? 'member-buyer' : 'buyer');
+            data.userId ? 'member-buyer' : 'buyer', _tokenM);
         }
       } catch(ge) { Logger.log('GR err: ' + ge); }
       try { saveOrderToSupabase(orderNoM, data); } catch(soe) { Logger.log('SB err: ' + soe); }
@@ -535,8 +543,9 @@ function doPost(e) {
       try { updateProductStats(ss); } catch(e) { Logger.log('[admin_create] updateProductStats ERR: ' + e); }
       try {
         if (orderData.email) {
+          var _tokenA = getBonusToken_(orderData.userId || null);
           addToGetResponse(orderData.email, orderData.name, orderData.phone, orderData.prefecture,
-            orderData.userId ? 'member-buyer' : 'buyer');
+            orderData.userId ? 'member-buyer' : 'buyer', _tokenA);
         }
       } catch(ge) { Logger.log('GR err: ' + ge); }
       try { saveOrderToSupabase(orderNoA, orderData); } catch(soe) { Logger.log('SB err: ' + soe); }
@@ -613,7 +622,8 @@ function doPost(e) {
       var buyerPhone = data.senderPhone || data.phone || '';
       var buyerPref  = data.senderPrefecture || data.recipientPrefecture || data.prefecture || '';
       if (buyerEmail) {
-        addToGetResponse(buyerEmail, buyerName, buyerPhone, buyerPref, data.userId ? 'member-buyer' : 'buyer');
+        var _tokenB = getBonusToken_(data.userId || null);
+        addToGetResponse(buyerEmail, buyerName, buyerPhone, buyerPref, data.userId ? 'member-buyer' : 'buyer', _tokenB);
       }
     } catch(ge) { Logger.log('GR order err: ' + ge); }
 
@@ -1195,7 +1205,7 @@ function verifyReceiptStandalone_(base64, expectedAmount) {
     result.checks.recipient = recipientCheck.matched;
     if (!recipientCheck.matched) {
       result.reason = '❌ Bill không có tên người nhận đúng.\n' +
-        'Bill phải có 1 trong: "Thanghoang" (PayPay) / "タカハラ ケイイチロウ" / số tài khoản 2168488. ' +
+        'Bill phải có 1 trong: "なつみ" / "Thanghoang" (PayPay) / "タカハラ ケイイチロウ" / số tài khoản 2168488. ' +
         'Đảm bảo anh/chị chụp đầy đủ thông tin người nhận trong biên lai.';
       return result;
     }
@@ -1419,7 +1429,7 @@ function testVerifyBillDebug(imageUrl, expectedAmount) {
       Logger.log('  RESULT      : ✓ PASS');
     } else {
       Logger.log('  matched name: (no patterns matched)');
-      Logger.log('  expected one of: Thanghoang / タカハラ / ケイイチロウ / 2168488 / 12030-21684881');
+      Logger.log('  expected one of: なつみ / Thanghoang / タカハラ / ケイイチロウ / 2168488 / 12030-21684881');
       Logger.log('  RESULT      : ✗ FAIL');
       summary.failed_layer = 'L2_recipient';
       summary.reason = 'No recipient name pattern matched';
@@ -1658,6 +1668,13 @@ function checkRecipientName_(text) {
     { regex: /Thanghoang.{0,3}に送/i,                                                     name: 'Thanghoang ...に送る/送りました' },
     // OCR tolerance — match if 8+ consecutive chars of "Thanghoang" appear (handles 1-2 char OCR errors, e.g. "Thanghoarq")
     { regex: /T[hH][a-z0-9]{1,2}n[a-z0-9]{0,2}h[a-z0-9]{0,2}o[a-z0-9]{1,3}n[gq]/i,        name: 'Thanghoang (OCR fuzzy)' },
+    // PayPay personal-transfer prefix patterns cho なつみ (account renewed 2026-05-08)
+    { regex: /なつみ.{0,3}(?:さん|様)/i,                                                  name: 'なつみ さん/様 (PayPay UI)' },
+    { regex: /(?:送金先|宛先|送り先|To)[:\s]*なつみ/i,                                     name: '送金先/宛先: なつみ' },
+    { regex: /なつみ.{0,3}に送/i,                                                         name: 'なつみ ...に送る/送りました' },
+    { regex: /なつみ/,                          name: 'なつみ (hiragana)' },
+    { regex: /ナツミ/,                          name: 'ナツミ (katakana, OCR convert)' },
+    { regex: /natsumi/i,                       name: 'Natsumi (romaji)' },
     // Bank transfer prefix patterns for タカハラ (振込先/受取人/名義人/お振込先/お受取り)
     { regex: /(?:振込先|受取人|名義人|お振込先|お受取り)[:\s]*(?:タカハラ|ﾀｶﾊﾗ|Takahara)/i,   name: '振込先/受取人: タカハラ' },
     { regex: /thanghoang/i,                    name: 'Thanghoang' },
@@ -3518,7 +3535,33 @@ function normalizePhoneJP(raw) {
   return '+81' + digits;
 }
 
-function addToGetResponse(email, name, phone, prefecture, source) {
+/**
+ * Lay bonus_token tu Supabase profiles cho mot userId cu the.
+ * Return string token hoac null neu userId null/khong tim thay.
+ */
+function getBonusToken_(userId) {
+  if (!userId) return null;
+  try {
+    var url = SUPABASE_URL + '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&select=bonus_token&limit=1';
+    var res = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) return null;
+    var rows = JSON.parse(res.getContentText());
+    if (!rows || !rows.length) return null;
+    return rows[0].bonus_token || null;
+  } catch (e) {
+    Logger.log('getBonusToken_ err: ' + e);
+    return null;
+  }
+}
+
+function addToGetResponse(email, name, phone, prefecture, source, bonusToken) {
   if (!GR_API_KEY || GR_API_KEY.length < 20) return;
   if (!email) return;
 
@@ -3530,6 +3573,10 @@ function addToGetResponse(email, name, phone, prefecture, source) {
   var phoneIntl = normalizePhoneJP(phone);
   if (phoneIntl) {
     customFields.push({ customFieldId: GR_FIELD_PHONE, value: [phoneIntl] });
+  }
+  // Push bonus_token neu co custom field ID va token hop le
+  if (GR_CF_BONUS_TOKEN && bonusToken) {
+    customFields.push({ customFieldId: GR_CF_BONUS_TOKEN, value: [String(bonusToken)] });
   }
 
   var payload = {
