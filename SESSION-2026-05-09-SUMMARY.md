@@ -238,3 +238,29 @@ Quy trình CLAUDE.md đã giúp **tránh** nhiều bug hơn là gây ra (tỉ l�
 ---
 
 **File này tự động được Claude tương lai đọc khi anh resume — KHÔNG xóa.**
+
+---
+
+## 🚨 NOTE END SESSION (anh interrupt cuối ngày)
+
+**Anh chốt làm tiếp "Việc 1 và 4"**:
+- Việc 1 = Bug 406 `points_balance` (Console GET request 406)
+- Việc 4 = Việc 5 Phần 2 GR template tag `[[cus bonus_token]]` strip
+
+**Plus anh báo bug MỚI chưa investigate**: **"Cộng điểm thưởng vẫn chưa hoạt động"**
+- Em chưa kịp hỏi rõ triệu chứng (khách nào? đơn nào? expected vs actual?)
+- Có thể related Bug 406 (points_balance VIEW lỗi)
+- Khi resume session mới, em ưu tiên investigate P0.A (cộng điểm) trước P0.B/P0.C
+
+**State Apps Script**: Version 87 (2026-05-09 10:32 PM) — đã include tất cả features session này. KHÔNG cần redeploy khi anh resume (trừ khi em fix code Apps Script lần sau).
+
+**State Vercel**: Last commit `5c2770c` (CLAUDE.md add 6 rules). Auto-deploy từ GitHub push.
+
+**Phase 4 Trigger setup**: Anh CHƯA setup Time Trigger cho `runYamatoDeliveredCheck`. Cần làm thủ công sau (2 phút).
+
+**Pending P0 priorities**:
+1. P0.A — Bug cộng điểm thưởng (anh báo cuối session — em chưa investigate)
+2. P0.B — Bug 406 points_balance (anh chọn làm tiếp)
+3. P0.C — GR template tag strip (anh chọn làm tiếp)
+4. P0.D — Anti-fraud welcome 100đ (anh request 2026-05-09 sáng)
+5. P0.E — Referral program (anh request 2026-05-09 sáng)
