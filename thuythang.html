@@ -2700,16 +2700,15 @@ async function updateAICheckCount() {
 }
 
 function updateSubTabCounts() {
-  // FIX 2026-05-07 (Bug H): Thieu key 'review' -> tab "🚨 Can xem xet" badge
-  // luon hien 0 du admin co don pending_manual_review. Admin nghi khong co don
-  // -> khong click tab -> miss don manual review tu khach.
-  const counts = {
-    all: allOrders.filter(o => o.status !== 'cancelled').length,
-    unpaid: allOrders.filter(o => ['pending', 'customer_paid'].includes(o.status)).length,
-    review: allOrders.filter(o => o.status === 'pending_manual_review').length,
-    paid: allOrders.filter(o => ['confirmed', 'shipped', 'delivered'].includes(o.status)).length,
-    cancelled: allOrders.filter(o => o.status === 'cancelled').length
-  };
+  // FIX 2026-05-09: dùng ORDERS_STATUS_GROUPS (single source of truth) thay
+  // vì hardcode. Trước đó count `paid` hardcode = [confirmed,shipped,delivered]
+  // → vẫn gộp 100 dù Phase 1 đã tách thành 3 tabs riêng. Anh phannguyen8505 báo.
+  // Bây giờ loop tự động qua mọi key trong ORDERS_STATUS_GROUPS → tabs mới
+  // (shipping, delivered) cũng count đúng.
+  const counts = {};
+  Object.entries(ORDERS_STATUS_GROUPS).forEach(([key, statusList]) => {
+    counts[key] = allOrders.filter(o => statusList.includes(o.status)).length;
+  });
   Object.entries(counts).forEach(([k, v]) => {
     const el = document.querySelector(`.sub-tab[data-tab="${k}"] .sub-tab-count`);
     if (el) el.textContent = v;
