@@ -2198,6 +2198,26 @@ window.addEventListener('scroll', function() {
         } catch(e) { console.warn('Optimistic cache err:', e); }
       }
 
+      // FIX 2026-05-09 (Việc 3 — manual path): autoSave profile cũng cho manual flow.
+      // Trước đó autoSave CHỈ chạy ở finalizeOrderWithPayment (path verify_then_create_order).
+      // Nếu khách AI verify fail → bấm "Gửi BILL cho Thuỷ" → đi qua manual_pending_order
+      // → autoSave SKIP → profile không update. Add autoSave đây để cover cả 2 paths.
+      const isUsingOtherAddressManual = !!_pendingOrder.recipientName;
+      console.log('[autoSaveProfile manual] check: sbUser=', !!sbUser, 'sbClient=', !!sbClient,
+                  'isUsingOtherAddress=', isUsingOtherAddressManual);
+      if (sbUser && sbClient && !isUsingOtherAddressManual) {
+        try {
+          await autoSaveProfileFromCheckout({
+            phone: _pendingOrder.phone,
+            prefecture: _pendingOrder.prefecture,
+            postal: _pendingOrder.postal,
+            address: _pendingOrder.address
+          });
+        } catch(e) { console.warn('[autoSaveProfile manual] exception:', e); }
+      } else {
+        console.log('[autoSaveProfile manual] SKIP — condition fail');
+      }
+
       status.innerHTML = '<div style="background:#ECFDF5;border:1px solid #10B981;border-radius:8px;padding:12px;color:#065F46;font-weight:600;text-align:left;font-size:13px;line-height:1.6">'
         + '✓ Đơn đã được nhận. Admin sẽ xác nhận sớm 💝'
         + '<div style="margin-top:6px;font-weight:400;font-size:12px;color:#047857">Mã đơn: <strong>#' + orderNo + '</strong> · trạng thái: <em>chờ admin duyệt thủ công</em>.</div>'
