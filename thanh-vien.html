@@ -370,31 +370,15 @@
         <p id="reg-phone-hint" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1"></p>
       </div>
 
-      <!-- Optional fields hidden by default; expand on click -->
-      <details class="rounded-xl border border-gray-200 overflow-hidden">
-        <summary class="px-3 py-2 cursor-pointer text-sm font-semibold text-brand-dark bg-gray-50 hover:bg-gray-100 select-none">
-          ➕ Thêm thông tin (tuỳ chọn) — sinh nhật, địa chỉ
-        </summary>
-        <div class="p-3 space-y-3 border-t border-gray-200">
-      <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-        <div>
-          <label class="field-label">Giới Tính</label>
-          <select id="reg-gender" class="field-input bg-white">
-            <option value="">-- Chọn --</option>
-            <option value="female">👩 Nữ</option>
-            <option value="male">👨 Nam</option>
-            <option value="other">Khác</option>
-          </select>
-        </div>
-        <div>
-          <label class="field-label">Ngày Sinh 🎂</label>
-          <input id="reg-birthday" type="date" class="field-input bg-white" max="2026-12-31">
-        </div>
+      <!-- ADDRESS — bắt buộc 2026-05-09 (anh request: postal → prefecture → address) -->
+      <div>
+        <label class="field-label">Mã Bưu Điện (〒Postal Code) <span class="text-red-500">*</span></label>
+        <input id="reg-postal" type="text" placeholder="123-4567" class="field-input" required>
       </div>
       <div>
-        <label class="field-label">Tỉnh / Thành Phố</label>
-        <select id="reg-prefecture" class="field-input bg-white">
-          <option value="">-- Chọn (tuỳ chọn) --</option>
+        <label class="field-label">Tỉnh / Thành Phố <span class="text-red-500">*</span></label>
+        <select id="reg-prefecture" class="field-input bg-white" required>
+          <option value="">-- Chọn tỉnh/thành phố --</option>
           <optgroup label="北海道 Hokkaido"><option value="北海道">北海道 - Hokkaido</option></optgroup>
           <optgroup label="東北 Tohoku"><option value="青森県">青森県 - Aomori</option><option value="岩手県">岩手県 - Iwate</option><option value="宮城県">宮城県 - Miyagi</option><option value="秋田県">秋田県 - Akita</option><option value="山形県">山形県 - Yamagata</option><option value="福島県">福島県 - Fukushima</option></optgroup>
           <optgroup label="関東 Kanto"><option value="茨城県">茨城県 - Ibaraki</option><option value="栃木県">栃木県 - Tochigi</option><option value="群馬県">群馬県 - Gunma</option><option value="埼玉県">埼玉県 - Saitama</option><option value="千葉県">千葉県 - Chiba</option><option value="東京都">東京都 - Tokyo</option><option value="神奈川県">神奈川県 - Kanagawa</option><option value="山梨県">山梨県 - Yamanashi</option></optgroup>
@@ -408,14 +392,32 @@
         </select>
       </div>
       <div>
-        <label class="field-label">Mã Bưu Điện (〒Postal Code)</label>
-        <input id="reg-postal" type="text" placeholder="123-4567" class="field-input">
-      </div>
-      <div>
-        <label class="field-label">Địa Chỉ Đầy Đủ</label>
-        <textarea id="reg-address" rows="2" placeholder="Ví dụ: 〇〇市〇〇町1-2-3 アパート名 101号室" class="field-input"></textarea>
+        <label class="field-label">Địa Chỉ Đầy Đủ <span class="text-red-500">*</span></label>
+        <textarea id="reg-address" rows="2" placeholder="Ví dụ: 〇〇市〇〇町1-2-3 アパート名 101号室" class="field-input" required></textarea>
         <p class="text-xs text-gray-400 mt-1">Địa chỉ này sẽ tự động điền vào form đặt hàng.</p>
       </div>
+
+      <!-- Optional fields (gender + birthday) -->
+      <details class="rounded-xl border border-gray-200 overflow-hidden">
+        <summary class="px-3 py-2 cursor-pointer text-sm font-semibold text-brand-dark bg-gray-50 hover:bg-gray-100 select-none">
+          🎂 Sinh nhật & Giới tính (tuỳ chọn — Bếp Thuỷ tặng quà sinh nhật 🎁)
+        </summary>
+        <div class="p-3 space-y-3 border-t border-gray-200">
+          <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div>
+              <label class="field-label">Giới Tính</label>
+              <select id="reg-gender" class="field-input bg-white">
+                <option value="">-- Chọn --</option>
+                <option value="female">👩 Nữ</option>
+                <option value="male">👨 Nam</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Ngày Sinh 🎂</label>
+              <input id="reg-birthday" type="date" class="field-input bg-white" max="2026-12-31">
+            </div>
+          </div>
         </div>
       </details>
 
@@ -2201,6 +2203,14 @@ async function doRegister() {
   // Anh's spec 2026-05-03: JP phone strict format — 11 digits liền nhau, no separators
   if (PHONE_SEP_REGEX.test(phone)) { showError('reg-error', PHONE_ERR_SEP); return; }
   if (!PHONE_REGEX.test(phone)) { showError('reg-error', PHONE_ERR_FORMAT); return; }
+
+  // VIỆC 2 2026-05-09 (anh request): postal/prefecture/address là BẮT BUỘC.
+  // Khách phải có địa chỉ giao hàng ngay từ lúc đăng ký để: (1) email marketing
+  // hiệu quả hơn, (2) lần đặt đơn đầu tiên auto-fill, (3) anh có data sạch.
+  if (!postal) { showError('reg-error', 'Vui lòng nhập mã bưu điện.'); return; }
+  if (postal.replace('-', '').length < 7) { showError('reg-error', 'Mã bưu điện phải đủ 7 chữ số (ví dụ 123-4567).'); return; }
+  if (!prefecture) { showError('reg-error', 'Vui lòng chọn tỉnh/thành phố.'); return; }
+  if (!address) { showError('reg-error', 'Vui lòng nhập địa chỉ đầy đủ.'); return; }
 
   const btn = document.getElementById('reg-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin">⏳</span> Đang xác minh...';
