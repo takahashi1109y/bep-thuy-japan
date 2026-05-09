@@ -3222,7 +3222,11 @@ function saveOrderToSupabase(orderNo, data) {
     points_awarded: false,
     status: data.status || 'pending', // Option B uses 'customer_paid' when verified at checkout
     note:          data.note || '',
-    delivery_time: data.deliveryTime || ''
+    delivery_time: data.deliveryTime || '',
+    // FIX 2026-05-09: Defensive — set created_at explicit. DB cũng có DEFAULT now()
+    // (sau migration supabase-fix-orders-created-at.sql) nhưng set ở đây luôn để
+    // không bao giờ bị NULL (đã gặp bug với đơn 0206).
+    created_at: new Date().toISOString()
   };
 
   var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders', {

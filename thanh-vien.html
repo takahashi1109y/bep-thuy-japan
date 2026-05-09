@@ -1424,7 +1424,13 @@ function renderOrdersToUI(orders) {
 
     // Cancellation eligibility (KEEP existing logic — pending/customer_paid + within 30 min)
     const canCancelStatus = (o.status === 'pending' || o.status === 'customer_paid');
-    const orderAgeMs = Date.now() - new Date(o.created_at).getTime();
+    // FIX 2026-05-09: handle created_at=NULL (đơn cũ pre-migration hoặc Apps Script
+    // chưa set). Treat NULL như đơn vừa tạo (orderAgeMs=0) → button merge vẫn hiện,
+    // button cancel cũng OK vì minutesLeft sẽ là 30. Root cause sẽ fix riêng (Apps
+    // Script set created_at + DB SET DEFAULT now()).
+    const orderAgeMs = o.created_at
+      ? (Date.now() - new Date(o.created_at).getTime())
+      : 0;
     const minutesLeft = Math.ceil((30 * 60 * 1000 - orderAgeMs) / 60000);
     const customerNameSafe = (o.customer_name || '').replace(/[\\'"]/g, '');
 
