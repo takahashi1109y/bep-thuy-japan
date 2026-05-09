@@ -1057,12 +1057,15 @@ const SUPABASE_URL  = 'https://curcsvwvjkjewtonkhnr.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
-// Cache TTL — tránh khách iPhone Safari thấy data cũ (orders cache stale)
-// FIX 2026-05-09 (Bug B Approach C): tăng 60s → 5 phút (300s). Lý do: khách MỞ
-// trang phải thấy orders NGAY (instant từ cache) thay vì skeleton 60s. Background
-// refresh qua pure fetch sẽ update sau (~3-5s). Cache invalidate khi submit order.
-const ORDERS_CACHE_TTL_MS = 300 * 1000;       // 5 phút — instant render UX
-const BFCACHE_REFRESH_THRESHOLD_MS = 30 * 1000; // 30s — debounce auto-refresh khi user back to tab
+// Cache TTL — Plan A 2026-05-09 (cân bằng Amazon-pattern + practical):
+//   - 30 phút TTL: instant render khách quay lại tab trong 30 phút (như Amazon SSR
+//     nhưng client-side). Cache > 30 phút → fresh load.
+//   - Auto-refresh debounce 10 phút: khách switch tab quay lại trong 10 phút
+//     KHÔNG tự refresh (lấy từ cache). > 10 phút mới tự refresh ngầm.
+//   - Pattern này theo TanStack Query / SWR mặc định (refetchOnWindowFocus + staleTime).
+//   - Khách force fresh: button "Làm mới" / pull-to-refresh / logout-login.
+const ORDERS_CACHE_TTL_MS = 30 * 60 * 1000;       // 30 phút — instant render
+const BFCACHE_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // 10 phút — debounce auto-refresh
 
 // Capture recovery flag BEFORE Supabase createClient (which clears the hash via detectSessionInUrl).
 // Without this, init() never sees type=recovery and user gets auto-logged-in instead of reset form.
@@ -2564,9 +2567,15 @@ function doLogout() {
   currentProfile = null;
 
   // Clear ALL Supabase-related localStorage keys + our own cache
+  // FIX 2026-05-09 (Plan A): thêm `bepthuy_orders_cache` vào danh sách clear.
+  // Trước đó cache orders không clear khi logout → user_A logout → user_B login
+  // → user_B logout → user_A login lại → cache cũ render. Bây giờ clear sạch.
   try {
     Object.keys(localStorage).forEach(k => {
-      if (k.startsWith('sb-') || k === 'bepthuy_member' || k === 'bepthuy_points') {
+      if (k.startsWith('sb-') ||
+          k === 'bepthuy_member' ||
+          k === 'bepthuy_points' ||
+          k === 'bepthuy_orders_cache') {
         localStorage.removeItem(k);
       }
     });
