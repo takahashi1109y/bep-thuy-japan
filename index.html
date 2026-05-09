@@ -85,7 +85,9 @@
     .paypay-box { background: linear-gradient(135deg, #d70000, #ff0033); color: white; border-radius: 16px; padding: 20px; }
     .pay-tab { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px; transition: all 0.2s; border: 2px solid transparent; cursor: pointer; }
     .pay-tab.active-paypay { background: #ff0033; color: white; }
-    .pay-tab.active-bank { background: linear-gradient(135deg,#1a237e,#283593); color: white; }
+    /* FIX 2026-05-09 (anh request): hoán đổi màu Chuyển Khoản tab ↔ Finalize button.
+       Trước: Chuyển Khoản = navy blue. Sau: Chuyển Khoản = green (màu nút Finalize cũ). */
+    .pay-tab.active-bank { background: linear-gradient(135deg,#10B981,#059669); color: white; }
     .pay-tab.inactive { background: white; color: #666; border-color: #ddd; }
     #paypay-qr canvas, #paypay-qr img { margin: 0 auto; border-radius: 12px; }
     .copy-btn { cursor: pointer; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 8px; padding: 4px 10px; font-size: 12px; transition: background 0.2s; }
@@ -900,17 +902,18 @@ window.addEventListener('scroll', function() {
       </div>
 
       <!-- Payment method tabs -->
+      <!-- FIX 2026-05-09 (anh request): Chuyển Khoản đặt LEFT + active mặc định -->
       <div class="flex gap-3 mb-4">
-        <button id="pay-tab-paypay" onclick="payTabSwitch('paypay')" class="pay-tab active-paypay">
-          <span class="text-xl">💳</span><br>PayPay
-        </button>
-        <button id="pay-tab-bank" onclick="payTabSwitch('bank')" class="pay-tab inactive">
+        <button id="pay-tab-bank" onclick="payTabSwitch('bank')" class="pay-tab active-bank">
           <span class="text-xl">🏦</span><br>Chuyển Khoản
+        </button>
+        <button id="pay-tab-paypay" onclick="payTabSwitch('paypay')" class="pay-tab inactive">
+          <span class="text-xl">💳</span><br>PayPay
         </button>
       </div>
 
-      <!-- PayPay -->
-      <div id="pay-section-paypay">
+      <!-- PayPay (default hidden — Chuyển Khoản là default) -->
+      <div id="pay-section-paypay" style="display:none">
         <div class="paypay-box mb-3">
           <div class="flex items-center gap-2 mb-3">
             <span class="text-xl">💳</span>
@@ -927,8 +930,8 @@ window.addEventListener('scroll', function() {
         </div>
       </div>
 
-      <!-- Bank -->
-      <div id="pay-section-bank" style="display:none">
+      <!-- Bank (default visible — Chuyển Khoản ưu tiên anh request) -->
+      <div id="pay-section-bank">
         <div class="bank-box text-sm">
           <div class="flex items-center gap-2 mb-3">
             <span class="text-xl">🏦</span>
@@ -967,9 +970,11 @@ window.addEventListener('scroll', function() {
     </div>
 
     <!-- Finalize -->
+    <!-- FIX 2026-05-09 (anh request): hoán đổi màu — button finalize giờ navy blue
+         (màu Chuyển Khoản tab cũ). Tab Chuyển Khoản giờ = green (màu nút cũ). -->
     <button id="finalize-btn" onclick="finalizeOrderWithPayment()" disabled
             class="w-full py-4 rounded-2xl text-white font-bold text-base shadow-lg opacity-50"
-            style="background:linear-gradient(135deg,#10B981,#059669)">
+            style="background:linear-gradient(135deg,#1a237e,#283593)">
       ⏳ Chọn ảnh biên lai trước
     </button>
     <p id="verify-status" class="text-sm mt-3 text-center text-gray-500"></p>
@@ -1881,7 +1886,14 @@ window.addEventListener('scroll', function() {
       }
     }
 
-    const sub=subtotal(), ship=shipFee||shippingFee(shipPref,totalWeight())||0;
+    // FIX 2026-05-09: BUG ship_fee trong merge mode.
+    // Trước: `shipFee || shippingFee(...)` → khi shipFee=0 (delta=0 trong merge),
+    // 0 là falsy → fallback to shippingFee(full weight) → tính SAI ship full.
+    // Sau: explicit check MERGE_MODE → trust shipFee (đã được recalcMergeShipFee set).
+    const sub = subtotal();
+    const ship = MERGE_MODE
+      ? (shipFee || 0)  // merge mode: shipFee = delta (có thể 0), KHÔNG fallback
+      : (shipFee || shippingFee(shipPref, totalWeight()) || 0);
     const bdDisc = birthdayDiscount(sub);
     const inaDisc = inactiveDiscount(sub);
     const grossTotal = sub+ship-bdDisc-inaDisc;
@@ -2002,7 +2014,8 @@ window.addEventListener('scroll', function() {
   }
 
   // FIX 2026-05-07: Track payment method khách chọn để gửi backend
-  let _selectedPayMethod = 'paypay';  // default PayPay (tab active mặc định)
+  // FIX 2026-05-09 (anh request): default Chuyển Khoản (bank) thay vì PayPay
+  let _selectedPayMethod = 'bank';  // default Chuyển Khoản (tab active mặc định)
 
   // Payment method tab switcher (separate from existing switchPayment for order-success)
   function payTabSwitch(type){
