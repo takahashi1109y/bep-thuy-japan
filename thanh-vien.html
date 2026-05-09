@@ -1130,7 +1130,11 @@ window._dashboardPrefetch = null;
       if (session?.access_token) {
         // User co session -> prefetch dashboard data song song voi init
         console.log('[prefetch] dashboard starting...');
-        window._dashboardPrefetch = sb.rpc('get_member_dashboard').catch(e => { console.warn('prefetch err:', e); return null; });
+        // FIX 2026-05-09: sb.rpc() return PostgrestBuilder (not full Promise) →
+        // .catch() throws "is not a function". Wrap với Promise.resolve() để có
+        // .catch chuẩn. Pattern giống V10 marathon đã fix các chỗ khác.
+        window._dashboardPrefetch = Promise.resolve(sb.rpc('get_member_dashboard'))
+          .catch(e => { console.warn('prefetch err:', e); return null; });
       }
     }, 50);
   } catch(e) {}
