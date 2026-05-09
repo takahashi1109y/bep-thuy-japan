@@ -486,8 +486,16 @@ function doPost(e) {
       }
 
       // === Side effects (subset của verify_then_create_order) ===
-      // - Yamato sheet: TODO Phase 4 (Agent E sẽ gộp items vào row parent)
-      // - Email confirm: TODO Phase 4
+      // - Yamato sheet: GỘP items vào row đơn cha (Phase 4 — KHÔNG tạo row mới)
+      try {
+        appendToYamatoParent_(
+          data.parent_order_no.trim(),
+          mergeRes.order_no,
+          data.cartItems,
+          data.name || ''
+        );
+      } catch(yme) { Logger.log('Merge Yamato append err: ' + yme); }
+      // - Email confirm: TODO Phase 4 (sau)
       // - GetResponse sync: KHÔNG cần (khách đã sync khi đặt đơn gốc)
       // - Supabase orders insert: KHÔNG cần (RPC add_to_existing_order đã INSERT)
       // - Stock deduct: CẦN (đơn con cũng tiêu thụ inventory)
@@ -4238,6 +4246,80 @@ function saveYamato(orderNo, data) {
 }
 
 // ---- Tao chuan tom tat san pham theo format Yamato ----
+// ============================================================
+// APPEND TO YAMATO PARENT ROW — Merge Orders Phase 4 (2026-05-09)
+// Khi đơn merge tạo, KHÔNG thêm row Yamato mới. Thay vào đó tìm row đơn cha
+// và append items đơn con vào cell AB (productSummary), update cell P
+// (recipientName) thành "0206+0206-M1---{name}" để anh thấy ngay khi in label.
+//
+// Params:
+//   parentOrderNo     {string} order_no đơn cha (e.g. "0206")
+//   childOrderNo      {string} order_no đơn con (e.g. "0206-M1")
+//   childCartItems    {Array}  cart items đơn con
+//   childCustomerName {string} fallback nếu cell P không có separator "---"
+//
+// Returns: true nếu update OK, false nếu fail (parent row not found, sheet error)
+// ============================================================
+function appendToYamatoParent_(parentOrderNo, childOrderNo, childCartItems, childCustomerName) {
+  var yamatoSS = null, yamatoSheet = null;
+  try {
+    yamatoSS = SpreadsheetApp.openById(YAMATO_SS_ID);
+    yamatoSheet = yamatoSS.getSheetByName(YAMATO_SHEET);
+    if (!yamatoSheet) {
+      Logger.log('[appendToYamato] Yamato sheet not found');
+      return false;
+    }
+
+    // Find row có cell A = parentOrderNo (col 1, 1-indexed)
+    var lastRow = yamatoSheet.getLastRow();
+    if (lastRow < 1) return false;
+    var colA = yamatoSheet.getRange(1, 1, lastRow, 1).getValues();
+    var parentRow = -1;
+    for (var i = 0; i < colA.length; i++) {
+      if (String(colA[i][0]).trim() === String(parentOrderNo).trim()) {
+        parentRow = i + 1;
+        break;
+      }
+    }
+
+    if (parentRow === -1) {
+      Logger.log('[appendToYamato] Parent row not found for orderNo: ' + parentOrderNo);
+      return false;
+    }
+
+    // Get current cell P (recipientName, col 16) và AB (productSummary, col 28)
+    var currentP = String(yamatoSheet.getRange(parentRow, 16).getValue() || '');
+    var currentAB = String(yamatoSheet.getRange(parentRow, 28).getValue() || '');
+
+    // Cell P format: "0206---Phan Nguyen" → tách "---" → append childOrderNo
+    // → "0206+0206-M1---Phan Nguyen" (anh chọn format rõ — option 2)
+    var idxSep = currentP.indexOf('---');
+    var beforeSep, afterSep;
+    if (idxSep >= 0) {
+      beforeSep = currentP.substring(0, idxSep);
+      afterSep = currentP.substring(idxSep + 3);
+    } else {
+      beforeSep = String(parentOrderNo);
+      afterSep = childCustomerName || '';
+    }
+    var newP = beforeSep + '+' + childOrderNo + '---' + afterSep;
+
+    // Cell AB: append " | " + new product summary (separator pipe space)
+    var childSummary = buildProductSummary(childCartItems);
+    var newAB = currentAB + ' | ' + childSummary;
+
+    // Write back
+    yamatoSheet.getRange(parentRow, 16).setValue(newP);
+    yamatoSheet.getRange(parentRow, 28).setValue(newAB);
+
+    Logger.log('[appendToYamato] OK row ' + parentRow + ' parent=' + parentOrderNo + ' child=' + childOrderNo + ' newP=' + newP);
+    return true;
+  } catch (e) {
+    Logger.log('[appendToYamato] EXCEPTION: ' + e);
+    return false;
+  }
+}
+
 function buildProductSummary(cartItems) {
   if (!cartItems || !Array.isArray(cartItems)) return '';
 
