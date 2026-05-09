@@ -409,6 +409,50 @@ function doPost(e) {
     }
 
     // ============================================================
+    // ADD_TO_EXISTING_ORDER (2026-05-08) — Merge Orders Phase 2
+    // Khách đã trả đơn gốc, muốn thêm hàng gộp ship (ship_fee=0).
+    // RPC add_to_existing_order tạo đơn con, link parent_order_no.
+    // ============================================================
+    // FIX 2026-05-08: Apps Script dispatcher pattern dùng `data.type` (consistency
+    // với 12 handlers khác). Agent gốc dùng `data.action` — sửa lại để consistent.
+    if (data.type === 'add_to_existing_order') {
+      // --- Validate input ---
+      if (!data.userId) {
+        return buildResponse({ success: false, error: 'must_login',
+          detail: 'Vui lòng đăng nhập trước khi thêm hàng vào đơn.' });
+      }
+      if (!data.parent_order_no || typeof data.parent_order_no !== 'string' || !data.parent_order_no.trim()) {
+        return buildResponse({ success: false, error: 'missing_parent_order_no' });
+      }
+      if (!Array.isArray(data.items) || data.items.length === 0) {
+        return buildResponse({ success: false, error: 'missing_items' });
+      }
+      if (typeof data.amount !== 'number' || data.amount <= 0 || data.amount > 10000000) {
+        return buildResponse({ success: false, error: 'invalid_amount' });
+      }
+      if (!data.payment_method || ['paypay', 'bank'].indexOf(data.payment_method) < 0) {
+        return buildResponse({ success: false, error: 'invalid_payment_method' });
+      }
+
+      var mergeRes = addToExistingOrder_(
+        data.parent_order_no.trim(),
+        data.items,
+        data.amount,
+        data.userId
+      );
+
+      if (!mergeRes.ok) {
+        return buildResponse({ success: false, error: mergeRes.error });
+      }
+      return buildResponse({
+        success: true,
+        status: 'success',
+        order_no: mergeRes.order_no,
+        merged_with: data.parent_order_no.trim()
+      });
+    }
+
+    // ============================================================
     // ADMIN_CREATE_ORDER_FROM_AI_ATTEMPT (2026-05-07)
     // Admin click "Tạo đơn thủ công" trong tab "📋 Check thủ công":
     //   1. Fetch ai_verify_attempts row by id
@@ -3633,6 +3677,84 @@ function updateGetResponseContact(email, customFields) {
     muteHttpExceptions: true
   });
   Logger.log('GR updated custom fields for ' + email);
+}
+
+// ============================================================
+// ADD_TO_EXISTING_ORDER HELPER (2026-05-08) — Merge Orders Phase 2
+// Gọi Supabase RPC add_to_existing_order để tạo đơn con (ship_fee=0,
+// parent_order_no=parentOrderNo, is_merged=true).
+//
+// Params:
+//   parentOrderNo  {string}  order_no đơn cha (e.g. "123")
+//   newItems       {Array}   cart items của đơn con (format giống cartItems)
+//   newTotal       {number}  tổng tiền items, KHÔNG include ship (luôn 0)
+//   userId         {string}  UUID của khách (bắt buộc — RPC dùng để verify owner)
+//
+// Returns: { ok: true, order_no, amount } hoặc { ok: false, error: <code> }
+// ============================================================
+function addToExistingOrder_(parentOrderNo, newItems, newTotal, userId) {
+  try {
+    // Gọi Supabase RPC — signature: add_to_existing_order(p_parent, p_items, p_total)
+    // SECURITY DEFINER nên userId được verify trong RPC bằng auth.uid().
+    // Apps Script gọi bằng service_role key → phải truyền userId trong p_items
+    // RPC signature: add_to_existing_order(p_parent text, p_user_id uuid, p_items jsonb, p_total int)
+    // Apps Script gọi qua service_role key → auth.uid() trong RPC return NULL
+    // → BẮT BUỘC pass p_user_id để RPC verify Rule 2 (parent.user_id match).
+    var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/add_to_existing_order';
+    var rpcPayload = {
+      p_parent: parentOrderNo,
+      p_user_id: userId,
+      p_items: newItems,
+      p_total: newTotal
+    };
+
+    var res = UrlFetchApp.fetch(rpcUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      payload: JSON.stringify(rpcPayload),
+      muteHttpExceptions: true
+    });
+
+    var httpCode = res.getResponseCode();
+    var body;
+    try { body = JSON.parse(res.getContentText()); } catch (pe) { body = null; }
+
+    if (httpCode !== 200 || !body) {
+      var rawErr = res.getContentText().slice(0, 300);
+      Logger.log('addToExistingOrder_ RPC HTTP ' + httpCode + ': ' + rawErr);
+      return { ok: false, error: 'rpc_error' };
+    }
+
+    // RPC returns jsonb — Apps Script REST wraps it: body may be the object directly
+    var result = Array.isArray(body) ? body[0] : body;
+
+    if (!result || result.ok === false) {
+      var errCode = (result && result.error) ? result.error : 'rpc_unknown_error';
+      Logger.log('addToExistingOrder_ RPC logic err: ' + errCode);
+      return { ok: false, error: errCode };
+    }
+
+    Logger.log('addToExistingOrder_ success: child=' + result.order_no + ' parent=' + parentOrderNo);
+
+    // TODO: update Yamato sheet (Phase 4 — Agent E)
+    // Agent E sẽ: tìm row parent trong YAMATO_SHEET → gộp items đơn con vào cell items
+    // hoặc tạo row riêng với link về parent. Không implement ở đây.
+
+    // TODO: send merge confirmation email (Phase 4 — Agent E)
+    // Nội dung: "Đã thêm món X+Y vào đơn #<parent>. Tổng đơn gộp ¥XXXX."
+    // Dùng MailApp.sendEmail giống sendOrderShippedEmail_ pattern.
+
+    return { ok: true, order_no: result.order_no, amount: result.amount };
+
+  } catch (e) {
+    Logger.log('addToExistingOrder_ exception: ' + e);
+    return { ok: false, error: 'internal_error' };
+  }
 }
 
 function sendMemberNotification(data) {
