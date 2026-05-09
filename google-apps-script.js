@@ -5428,6 +5428,113 @@ function classifySagawaStatus_(status) {
 }
 
 // ============================================================
+// CHECK YAMATO DELIVERED STATUS — Phase 2 (2026-05-09)
+// Auto chuyển status `shipped → delivered` khi Yamato báo 配達完了.
+// Trigger: anh chạy thủ công LẦN ĐẦU để backfill 86 đơn shipped hiện tại.
+// Sau đó setup Time Trigger hàng ngày (vd 9h sáng JST).
+//
+// Logic:
+//   1. Query Supabase orders WHERE status='shipped' AND tracking_number not null
+//   2. Loop từng đơn → scrapeYamatoTracking_ → check '配達完了' trong events
+//   3. Nếu có → UPDATE orders set status='delivered' + delivered_at=now()
+//   4. Sleep 500ms giữa requests (tránh Yamato rate limit)
+//   5. Telegram alert + log summary
+// ============================================================
+function checkYamatoDeliveredStatus_() {
+  Logger.log('═══ CHECK YAMATO DELIVERED STATUS ═══');
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('FAIL: SUPABASE config missing');
+    return;
+  }
+
+  // 1. Query orders shipped với tracking_number
+  var url = SUPABASE_URL + '/rest/v1/orders?status=eq.shipped&tracking_number=not.is.null&select=order_no,tracking_number,carrier';
+  var res = UrlFetchApp.fetch(url, {
+    method: 'GET',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+    },
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('FAIL: Supabase HTTP ' + res.getResponseCode());
+    return;
+  }
+  var orders = JSON.parse(res.getContentText());
+  Logger.log('Found ' + orders.length + ' shipped orders to check');
+
+  var updated = 0, stillShipping = 0, errors = 0, skipped = 0;
+  var t0 = Date.now();
+
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    // Skip nếu carrier không phải Yamato (Sagawa khác — sẽ implement sau)
+    if (o.carrier && o.carrier.toLowerCase().indexOf('sagawa') !== -1) {
+      Logger.log((i+1) + '/' + orders.length + ' SKIP Sagawa #' + o.order_no);
+      skipped++;
+      continue;
+    }
+
+    try {
+      var events = scrapeYamatoTracking_(o.tracking_number);
+      var isDelivered = events && events.some(function(e) {
+        return (e.status || '').indexOf('配達完了') !== -1;
+      });
+
+      if (isDelivered) {
+        // UPDATE status to delivered
+        var updRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/orders?order_no=eq.' + encodeURIComponent(o.order_no), {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          payload: JSON.stringify({ status: 'delivered' }),
+          muteHttpExceptions: true
+        });
+        if (updRes.getResponseCode() === 204) {
+          Logger.log((i+1) + '/' + orders.length + ' ✓ DELIVERED #' + o.order_no);
+          updated++;
+        } else {
+          Logger.log((i+1) + '/' + orders.length + ' ⚠️ UPDATE fail HTTP ' + updRes.getResponseCode() + ' #' + o.order_no);
+          errors++;
+        }
+      } else {
+        stillShipping++;
+      }
+      Utilities.sleep(500); // rate limit Yamato
+    } catch (e) {
+      Logger.log((i+1) + '/' + orders.length + ' EXCEPTION #' + o.order_no + ': ' + e);
+      errors++;
+    }
+  }
+
+  var elapsed = Math.round((Date.now() - t0) / 1000);
+  Logger.log('═══ DONE in ' + elapsed + 's ═══');
+  Logger.log('Total checked: ' + orders.length);
+  Logger.log('Updated to delivered: ' + updated);
+  Logger.log('Still shipping: ' + stillShipping);
+  Logger.log('Skipped (non-Yamato): ' + skipped);
+  Logger.log('Errors: ' + errors);
+
+  // Telegram summary nếu có update
+  if (updated > 0) {
+    try {
+      sendTelegramAlertAdmin_(
+        '📦 YAMATO DELIVERED CHECK\n' +
+        'Total: ' + orders.length + '\n' +
+        '✓ Updated → delivered: ' + updated + '\n' +
+        '🚚 Still shipping: ' + stillShipping + '\n' +
+        '⏱ Elapsed: ' + elapsed + 's'
+      );
+    } catch(e) {}
+  }
+}
+
+// ============================================================
 // YAMATO SCRAPER HEALTH MONITORING
 // Weekly Tuesday 09:00 JST — alert anh nếu Yamato thay HTML structure
 // Reuses scrapeYamatoTracking_ để tránh duplicate POST + parse logic

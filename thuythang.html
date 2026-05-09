@@ -474,6 +474,8 @@
           <button class="sub-tab" data-tab="unpaid" onclick="setOrdersSubTab('unpaid')">⏳ Chờ thanh toán <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="review" onclick="setOrdersSubTab('review')" style="background:#FEE2E2;color:#991B1B;border-color:#DC2626;">📋 Check thủ công <span class="sub-tab-count" style="background:#DC2626;color:white;">0</span></button>
           <button class="sub-tab" data-tab="paid" onclick="setOrdersSubTab('paid')">✅ Đã thanh toán <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="shipping" onclick="setOrdersSubTab('shipping')">🚚 Đang vận chuyển <span class="sub-tab-count">0</span></button>
+          <button class="sub-tab" data-tab="delivered" onclick="setOrdersSubTab('delivered')">📦 Đã gửi thành công <span class="sub-tab-count">0</span></button>
           <button class="sub-tab" data-tab="cancelled" onclick="setOrdersSubTab('cancelled')">❌ Đơn đã huỷ <span class="sub-tab-count">0</span></button>
         </div>
       </div>
@@ -1090,11 +1092,17 @@ const selectedOrders = new Set();
 let shipModalOrders = [];
 // Sub-tab state for orders (all | unpaid | paid | review | cancelled)
 let ordersSubTab = 'all';
+// FIX 2026-05-09 (anh request): tách `paid` thành 3 sub-tabs riêng để phân biệt:
+//   paid     = chỉ confirmed (admin đã xác nhận, CHƯA ship)
+//   shipping = shipped (đang vận chuyển — admin đã input tracking Yamato)
+//   delivered = delivered (đã giao xong — auto-update từ Yamato cron Phase 2)
 const ORDERS_STATUS_GROUPS = {
-  all:    ['pending', 'customer_paid', 'pending_manual_review', 'confirmed', 'shipped', 'delivered'], // exclude cancelled
-  unpaid: ['pending', 'customer_paid'],
-  review: ['pending_manual_review'], // 🚨 đơn cần admin xem xét (AI verify failed/skipped)
-  paid:   ['confirmed', 'shipped', 'delivered'],
+  all:       ['pending', 'customer_paid', 'pending_manual_review', 'confirmed', 'shipped', 'delivered'],
+  unpaid:    ['pending', 'customer_paid'],
+  review:    ['pending_manual_review'],
+  paid:      ['confirmed'],            // ← chỉ confirmed (chưa ship)
+  shipping:  ['shipped'],              // ← MỚI: đang vận chuyển
+  delivered: ['delivered'],            // ← MỚI: đã giao
   cancelled: ['cancelled']
 };
 // Quick date filter for orders tab (null | 'today')
