@@ -5793,6 +5793,19 @@ function sendWelcomeBonusReminderTest() {
   sendWelcomeBonusReminder({ dryRun: false, testEmailOnly: TEST_EMAIL });
 }
 
+// ============================================================
+// REAL SEND — gui email cho TAT CA pending users
+// Run khi anh da test xong va muon gui that
+// ============================================================
+function sendWelcomeBonusReminderRealSendAll() {
+  sendWelcomeBonusReminder({ dryRun: false });
+}
+
+// DRY RUN — log only, KHONG send. An toan kiem tra danh sach truoc.
+function sendWelcomeBonusReminderDryRun() {
+  sendWelcomeBonusReminder({ dryRun: true });
+}
+
 function sendWelcomeBonusReminder(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false; // default true (an toan)
