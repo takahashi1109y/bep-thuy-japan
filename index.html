@@ -1044,6 +1044,127 @@ window.addEventListener('scroll', function() {
     return SHIP[sz][REGION_IDX.indexOf(r)];
   }
 
+  // ── MERGE MODE (Phase 3b) ──
+  // Set khi khách vào / với ?merge=ORDER_NO từ dashboard thanh-vien.html.
+  // Agent D (index.html) chỉ ĐỌC sessionStorage do Agent C (thanh-vien.html) set.
+  let MERGE_MODE = false;
+  let mergeParentData = null;
+
+  function showMergeBanner() {
+    if (document.getElementById('merge-mode-banner')) return;
+    const pNo = mergeParentData.parentOrderNo;
+    const banner = document.createElement('div');
+    banner.id = 'merge-mode-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;'
+      + 'background:linear-gradient(135deg,#F59E0B,#D97706);color:white;'
+      + 'padding:10px 16px;text-align:center;font-weight:600;font-size:14px;'
+      + 'box-shadow:0 4px 12px rgba(0,0,0,0.2)';
+    banner.innerHTML = '📦 Đang thêm vào đơn #' + pNo
+      + ' — Phí ship <strong>MIỄN</strong>. Địa chỉ giao đã có sẵn từ đơn gốc.'
+      + ' <button onclick="cancelMergeMode()" style="background:rgba(255,255,255,0.25);'
+      + 'border:1px solid rgba(255,255,255,0.5);color:white;padding:2px 12px;'
+      + 'border-radius:999px;margin-left:10px;cursor:pointer;font-size:13px">Hủy gộp</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.style.paddingTop = (parseInt(document.body.style.paddingTop) || 0) + 44 + 'px';
+  }
+
+  function cancelMergeMode() {
+    ['merge_parent_order','merge_parent_address','merge_parent_district',
+     'merge_parent_postal','merge_parent_name','merge_parent_phone'].forEach(function(k){
+      sessionStorage.removeItem(k);
+    });
+    // Strip ?merge= from URL so page reloads clean
+    window.location.href = '/';
+  }
+
+  function autofillMergeAddress() {
+    // Fill checkout form fields from sessionStorage data (set by Agent C)
+    // Uses setTimeout to ensure DOM is ready when cart panel may not be open yet
+    function doFill() {
+      const fields = {
+        'f-name':    mergeParentData.name,
+        'f-phone':   mergeParentData.phone,
+        'f-postal':  mergeParentData.postal,
+        'f-address': mergeParentData.address
+      };
+      Object.keys(fields).forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el && fields[id]) {
+          el.value = fields[id];
+          el.readOnly = true;
+          el.style.background = '#f3f4f6';
+          el.style.color = '#6B7280';
+        }
+      });
+      // Prefecture select
+      const pref = document.getElementById('f-prefecture');
+      if (pref && mergeParentData.district) {
+        pref.value = mergeParentData.district;
+        pref.disabled = true;
+        // Trigger ship fee calculation (will be overridden to 0 by setShipFeeZero)
+        calcShipping();
+      }
+    }
+    // Try immediately; retry after DOM paint if fields not yet rendered
+    doFill();
+    setTimeout(doFill, 300);
+  }
+
+  function setShipFeeZero() {
+    shipFee = 0;
+    // Patch calcShipping and calcShippingRecipient to always return 0 in merge mode
+    const origCalcShipping = calcShipping;
+    calcShipping = function() {
+      origCalcShipping();
+      shipFee = 0;
+      // Override the ship result box display
+      const box = document.getElementById('ship-result-box');
+      if (box) {
+        box.innerHTML = '<div class="ship-result"><div class="flex justify-between items-center">'
+          + '<p class="text-xs text-green-700 font-semibold">✅ Phí ship: MIỄN (gộp đơn #'
+          + mergeParentData.parentOrderNo + ')</p>'
+          + '<p class="text-green-800 font-bold text-xl">¥0</p></div></div>';
+        box.classList.remove('hidden');
+      }
+      updateTotalBox();
+    };
+  }
+
+  function clearMergeSessionStorage() {
+    ['merge_parent_order','merge_parent_address','merge_parent_district',
+     'merge_parent_postal','merge_parent_name','merge_parent_phone'].forEach(function(k){
+      sessionStorage.removeItem(k);
+    });
+  }
+
+  // Detect merge mode on page load (URL param + sessionStorage cross-check)
+  (function detectMergeMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mergeParent = urlParams.get('merge');
+    if (!mergeParent) return;
+    const savedParent = sessionStorage.getItem('merge_parent_order');
+    if (savedParent === mergeParent) {
+      MERGE_MODE = true;
+      mergeParentData = {
+        parentOrderNo: mergeParent,
+        address:  sessionStorage.getItem('merge_parent_address') || '',
+        district: sessionStorage.getItem('merge_parent_district') || '',
+        postal:   sessionStorage.getItem('merge_parent_postal') || '',
+        name:     sessionStorage.getItem('merge_parent_name') || '',
+        phone:    sessionStorage.getItem('merge_parent_phone') || ''
+      };
+      // Banner + ship zero will be shown after DOM ready (see DOMContentLoaded below)
+    } else {
+      // Session mismatch — security issue or expired
+      sessionStorage.removeItem('merge_parent_order');
+      // Wait for DOM before alert so page renders first
+      window.addEventListener('DOMContentLoaded', function() {
+        alert('Phiên gộp đơn đã hết hạn hoặc không hợp lệ. Vui lòng quay lại dashboard và bấm lại nút "Thêm hàng".');
+        window.location.href = '/thanh-vien';
+      });
+    }
+  })();
+
   // ── CART ──
   let cart=[]; let shipFee=0; let orderNo='';
 
@@ -1277,6 +1398,17 @@ window.addEventListener('scroll', function() {
   function backToCheckout(){ showStep('checkout-section'); }
 
   function goToCheckout(){
+    // MERGE MODE: khách đã login (redirect từ dashboard) — skip guest/email checks
+    if (MERGE_MODE) {
+      document.getElementById('checkout-summary').innerHTML = cart.map(function(i){
+        return '<div class="flex justify-between text-xs text-gray-600"><span class="flex-1 truncate">' + i.name + ' (' + i.size + ') × ' + i.qty + '</span><span class="font-medium ml-2">' + yen(i.price * i.qty) + '</span></div>';
+      }).join('');
+      document.getElementById('checkout-subtotal').textContent = yen(subtotal());
+      showStep('checkout-section');
+      document.getElementById('cart-panel').scrollTop = 0;
+      autofillMergeAddress();
+      return;
+    }
     // FIX 2026-05-07 (anh request): BLOCK GUEST CHECKOUT — block sớm tại đây
     // (UX tốt hơn so với chỉ block lúc submit). Khách phải đăng ký + xác nhận
     // email mới được vào trang checkout.
@@ -1573,10 +1705,16 @@ window.addEventListener('scroll', function() {
   }
 
   async function submitOrder(){
+    // MERGE MODE: khách đã login từ dashboard — skip guest + email confirm checks
+    if (MERGE_MODE && !sbUser) {
+      alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại và thử gộp đơn từ dashboard.');
+      cancelMergeMode();
+      return;
+    }
     // FIX 2026-05-07 (anh request): BLOCK GUEST CHECKOUT
     // Khách BẮT BUỘC đăng ký thành viên + xác nhận email mới được đặt đơn.
     // Ly do: tránh xử lý sau này, giảm fraud, có audit trail đầy đủ.
-    if (!sbUser) {
+    if (!sbUser && !MERGE_MODE) {
       // Save cart to localStorage so it persists qua redirect
       try { localStorage.setItem('bepthuy_cart_pending', JSON.stringify(cart)); } catch(e) {}
       alert('🔐 Vui lòng đăng ký thành viên (hoặc đăng nhập) để đặt hàng.\n\nĐăng ký miễn phí, được tích điểm 1% mỗi đơn!');
@@ -1659,7 +1797,10 @@ window.addEventListener('scroll', function() {
       birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent,
       // FIX 2026-05-07: Track payment method khách chọn (paypay / bank)
       // Backend dùng để hiển thị đúng email + lưu đúng method vào payment_confirmations.
-      method: (typeof _selectedPayMethod !== 'undefined' && _selectedPayMethod === 'bank') ? 'bank_transfer' : 'paypay'
+      method: (typeof _selectedPayMethod !== 'undefined' && _selectedPayMethod === 'bank') ? 'bank_transfer' : 'paypay',
+      // MERGE MODE fields (undefined khi không phải merge — backend bỏ qua)
+      is_merged: MERGE_MODE ? true : undefined,
+      parent_order_no: MERGE_MODE ? mergeParentData.parentOrderNo : undefined
     };
     _selectedReceiptFile = null;
     // Reset verify failure counter for this new order
@@ -1771,12 +1912,13 @@ window.addEventListener('scroll', function() {
       status.innerHTML = '<span style="color:#3B82F6">🔍 AI đang đọc biên lai để xác minh số tiền...</span>';
 
       // 2) Send to Apps Script: verify + save order in one shot
+      // MERGE MODE: gửi action riêng + parent_order_no thay vì verify_then_create_order thường
       const payload = Object.assign({}, _pendingOrder, {
-        type: 'verify_then_create_order',
+        type: MERGE_MODE ? 'add_to_existing_order' : 'verify_then_create_order',
         receipt_base64: receiptBase64,
         receipt_mime: _selectedReceiptFile.type,
         userId: sbUser ? sbUser.id : null
-        // pointsUsed already in _pendingOrder
+        // pointsUsed, is_merged, parent_order_no already in _pendingOrder (when MERGE_MODE)
       });
 
       const res = await fetch(SCRIPT_URL, {
@@ -1883,6 +2025,8 @@ window.addEventListener('scroll', function() {
       window._verifyFailCount = 0;
       orderNo = data.orderNo;
       status.innerHTML = '<span style="color:#10B981;font-weight:700">✓ Đã xác minh — đơn hàng được tạo!</span>';
+      // MERGE MODE: clear sessionStorage merge keys after successful order
+      if (MERGE_MODE) { clearMergeSessionStorage(); }
 
       // FEATURE 2026-05-07: Auto-save profile từ checkout form
       // Khách lần đầu đặt hàng → form đầy đủ thông tin → save vào profile
@@ -2209,6 +2353,11 @@ window.addEventListener('scroll', function() {
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.weight-selector').forEach(initWeightSelector);
     document.querySelectorAll('.box-selector').forEach(initBoxSelector);
+    // MERGE MODE: show banner + zero ship after DOM ready
+    if (MERGE_MODE && mergeParentData) {
+      showMergeBanner();
+      setShipFeeZero();
+    }
   });
 
   // ── INVENTORY SYNC FROM SUPABASE ──
@@ -2356,6 +2505,30 @@ window.addEventListener('scroll', function() {
   let sbPointsBalance = 0;   // Total points member has
   let pointsUsed = 0;         // Points applied to current order (0 or a value)
 
+  // navigator.locks deadlock workaround (Supabase JS v2 bug)
+  async function safeGetSession(client, timeoutMs) {
+    var tm = timeoutMs || 5000;
+    try {
+      return await Promise.race([
+        client.auth.getSession(),
+        new Promise(function(_, reject) { setTimeout(function() { reject(new Error('lock_timeout')); }, tm); })
+      ]);
+    } catch (e) {
+      if (e.message !== 'lock_timeout') throw e;
+      console.warn('[safeGetSession] navigator.locks timeout — fallback to localStorage');
+      var raw = localStorage.getItem('sb-curcsvwvjkjewtonkhnr-auth-token');
+      if (!raw) return { data: { session: null }, error: null };
+      try {
+        var parsed = JSON.parse(raw);
+        if (!parsed || !parsed.access_token) return { data: { session: null }, error: null };
+        var parts = parsed.access_token.split('.');
+        var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (Date.now() / 1000 > payload.exp) return { data: { session: null }, error: null };
+        return { data: { session: parsed }, error: null };
+      } catch (_) { return { data: { session: null }, error: null }; }
+    }
+  }
+
   async function initSupabase() {
     try {
       // Auth options MUST match thanh-vien.html createClient (line ~1014)
@@ -2371,7 +2544,7 @@ window.addEventListener('scroll', function() {
       });
       // Sync inventory + prices from product_catalog (no auth required, public read)
       syncProductsFromCatalog();
-      const { data: { session } } = await sbClient.auth.getSession();
+      const { data: { session } } = await safeGetSession(sbClient);
       if (session) {
         sbUser = session.user;
         const { data: profile } = await sbClient.from('profiles')
