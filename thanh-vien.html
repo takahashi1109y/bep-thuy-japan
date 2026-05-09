@@ -2603,6 +2603,44 @@ function switchDashTab(tab) {
   if (tab === 'messages') loadMessages();
 }
 
+// FIX 2026-05-09 (Bug B fix 5.5): Diagnostic logger.
+// Khi loadDashboard fail, log lỗi vào Supabase table `dashboard_load_errors`
+// qua pure fetch (KHÔNG dùng SDK vì SDK có thể đang deadlock).
+// Anh xem trong admin để biết bao nhiêu khách bị + browser/device gì.
+function logDashboardError(errorType, message) {
+  try {
+    var token = null;
+    for (var k = 0; k < localStorage.length; k++) {
+      var key = localStorage.key(k);
+      if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+        try {
+          var p = JSON.parse(localStorage.getItem(key));
+          token = p.access_token || (p.currentSession && p.currentSession.access_token);
+          if (token) break;
+        } catch(_) {}
+      }
+    }
+    if (!token) return; // Chưa login → không log (RLS reject)
+    fetch(SUPABASE_URL + '/rest/v1/dashboard_load_errors', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        user_id: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null,
+        error_type: String(errorType).substring(0, 50),
+        error_message: String(message).substring(0, 500),
+        user_agent: (navigator.userAgent || '').substring(0, 200),
+        page_url: (window.location.href || '').substring(0, 200)
+      }),
+      keepalive: true  // ensure send even if page navigates away
+    }).catch(function(){});
+  } catch(_) {}
+}
+
 // Mutex: prevent concurrent loadDashboard calls (causes auth init races)
 let _loadDashboardInFlight = null;
 async function loadDashboard(retryAttempt = 0) {
@@ -2666,14 +2704,19 @@ async function _loadDashboardImpl(retryAttempt) {
   }
 
   // Safety timeout: chi hien loi KHI khong co cache (neu co cache, user van thay data)
+  // FIX 2026-05-09 (Bug B fix 5.2): tăng 30s → 60s. Lý do: pure fetch fallback có
+  // thể mất ~20s (3 calls × 6-8s). Nếu fast-path mất 30s rồi mới fallback → tổng
+  // > 30s → hangTimeout trigger TRƯỚC khi pure fetch xong → render error card oan.
   var hangTimeout = setTimeout(function() {
     if (orderBoxEl && !hasCache) {
       orderBoxEl.innerHTML = renderOrderErrorCard();
+      // FIX 2026-05-09 (Bug B fix 5.5): log diagnostic
+      logDashboardError('hang_timeout_60s', 'loadDashboard timeout 60s - render error card');
     } else if (hasCache) {
-      // Co cache -> chi hien small indicator, ko phan UI chinh
       console.warn('[loadDashboard] slow connection but cache is showing');
+      logDashboardError('hang_timeout_60s_with_cache', 'slow connection but cache shown');
     }
-  }, 30000);
+  }, 60000);
 
   // Helper: timeout 30s (du thoi gian cho Supabase auth/session init lan dau)
   // Tang tu 20s len 30s vi RPC get_member_dashboard nang + cold connection
@@ -2739,6 +2782,8 @@ async function _loadDashboardImpl(retryAttempt) {
     const allFailed = !profileRes.data && !balRes.data && !historyRes.data && !couponsRes.data && !ordersRes.data;
     if (allFailed && retryAttempt === 0) {
       dbgLog('⚠ all queries timed out -> trying pure fetch');
+      // FIX 2026-05-09 (Bug B fix 5.5): log SDK lock event để track frequency
+      logDashboardError('sdk_all_queries_timeout', 'fast-path + 5 queries all timeout, falling back to pure fetch');
       if (orderBoxEl) orderBoxEl.innerHTML = renderSkeletonCards(3);
 
       // Read access_token DIRECTLY from localStorage (KHONG goi sb.auth.getSession - hang on iOS Safari)
@@ -2780,6 +2825,21 @@ async function _loadDashboardImpl(retryAttempt) {
             var ordersData = await oResp.json();
             dbgLog('✓ direct orders: ' + ordersData.length + ' rows');
             ordersRes = { data: ordersData, error: null };
+            // FIX 2026-05-09 (Bug B fix 5.3): RE-RENDER ORDERS NGAY khi pure fetch
+            // success. Trước đây phải đợi đến cuối hàm (line ~2900) mới render,
+            // nhưng nếu sb.from('message_threads') hang (Lỗi 2) → code không bao
+            // giờ tới đó → user thấy skeleton mãi. Render ngay đây = bypass.
+            try {
+              renderOrdersToUI(ordersData);
+              clearTimeout(hangTimeout);
+              // Cache fresh orders để lần sau instant-render
+              try {
+                localStorage.setItem('bepthuy_orders_cache', JSON.stringify({
+                  userId: currentUser.id, orders: ordersData, ts: Date.now()
+                }));
+              } catch(ce) {}
+              dbgLog('⚡ EARLY render orders from pure fetch (bypass message_threads block)');
+            } catch(re) { dbgLog('✗ early render err: ' + re.message); }
           } else {
             var errText = await oResp.text();
             dbgLog('✗ orders HTTP ' + oResp.status + ': ' + errText.substring(0, 100));
@@ -2825,6 +2885,8 @@ async function _loadDashboardImpl(retryAttempt) {
     clearTimeout(hangTimeout);
     console.error('[loadDashboard] unexpected error:', e);
     if (orderBoxEl) orderBoxEl.innerHTML = renderOrderErrorCard();
+    // FIX 2026-05-09 (Bug B fix 5.5): log diagnostic
+    logDashboardError('unexpected_exception', e.message || String(e));
     return;
   }
 
@@ -2840,22 +2902,59 @@ async function _loadDashboardImpl(retryAttempt) {
   try { localStorage.setItem('bepthuy_points', String(totalPoints)); } catch(e) {}
 
   // Update unread messages badge in header pill (Amazon-style hub)
-  try {
-    const { count: unreadCount } = await sb.from('message_threads')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', currentUser.id)
-      .eq('unread_by_user', true);
-    const pill = document.getElementById('msg-unread-pill');
-    const cnt  = document.getElementById('msg-unread-count');
-    if (pill && cnt) {
-      if (unreadCount && unreadCount > 0) {
-        cnt.textContent = unreadCount;
-        pill.classList.remove('hidden');
-      } else {
-        pill.classList.add('hidden');
+  // FIX 2026-05-09 (Bug B fix 5.4): Thay sb.from() bằng pure fetch để bypass
+  // SDK navigator.locks deadlock. Trước đây nếu SDK lock → câu này HANG vĩnh
+  // viễn → code không bao giờ render orders ở line ~2920+ → màn hình trắng.
+  // Pure fetch + AbortController timeout 5s → tệ nhất là badge không update,
+  // không bao giờ block UI orders.
+  (async function loadUnreadBadgeNonBlocking() {
+    try {
+      var threadsAccessToken = null;
+      try {
+        for (var k = 0; k < localStorage.length; k++) {
+          var key = localStorage.key(k);
+          if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+            var raw = localStorage.getItem(key);
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              threadsAccessToken = parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token);
+              if (threadsAccessToken) break;
+            }
+          }
+        }
+      } catch(_) {}
+      if (!threadsAccessToken) return;
+      var ctrl = new AbortController();
+      var tid = setTimeout(function() { ctrl.abort(); }, 5000);
+      var url = SUPABASE_URL + '/rest/v1/message_threads?select=id&user_id=eq.' + currentUser.id + '&unread_by_user=eq.true';
+      var resp = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + threadsAccessToken,
+          'Prefer': 'count=exact'
+        },
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      if (!resp.ok) return;
+      // Count từ Content-Range header (Prefer: count=exact returns "0-N/total")
+      var rangeHdr = resp.headers.get('Content-Range') || '';
+      var unreadCount = 0;
+      var m = rangeHdr.match(/\/(\d+)$/);
+      if (m) unreadCount = parseInt(m[1], 10) || 0;
+      var pill = document.getElementById('msg-unread-pill');
+      var cnt  = document.getElementById('msg-unread-count');
+      if (pill && cnt) {
+        if (unreadCount > 0) {
+          cnt.textContent = unreadCount;
+          pill.classList.remove('hidden');
+        } else {
+          pill.classList.add('hidden');
+        }
       }
-    }
-  } catch(e) { console.warn('unread badge err:', e); }
+    } catch(e) { console.warn('[unread-badge] non-blocking fetch err:', e.message || e); }
+  })();
+  // KHÔNG await — chạy non-blocking để không hang loadDashboard nếu fetch fail.
 
   // Show redeem box if enough points
   document.getElementById('redeem-box').classList.toggle('hidden', totalPoints < 500);
