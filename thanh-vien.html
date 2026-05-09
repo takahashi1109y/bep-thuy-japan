@@ -1479,8 +1479,12 @@ function renderOrdersToUI(orders) {
         items: o.items || [],
         shipping_fee: Number(o.shipping_fee) || 0
       }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-      // Style mới 2026-05-09: nền xanh dương NHẠT + chữ ĐEN (anh request)
-      actions.push(`<button onclick="startMergeFlow('${orderNoSafe}', ${oDataJson})" class="px-3 py-2 rounded-lg text-xs font-semibold transition-colors" style="background:#DBEAFE;color:#111827;border:1px solid #93C5FD;">➕ Thêm hàng vào đơn này</button>`);
+      // Style 2026-05-09 V2: cùng mẫu outline blue với "Tình trạng vận chuyển" (anh request)
+      // Plus thêm dòng nhỏ ở dưới: "Gộp đơn — ship miễn phí 🎁"
+      actions.push(`<button onclick="startMergeFlow('${orderNoSafe}', ${oDataJson})" class="${outlineBlueCls}" style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;">
+        <span>➕ Thêm hàng vào đơn này</span>
+        <span style="font-size:10px;font-weight:500;opacity:0.85;">Gộp đơn — ship miễn phí 🎁</span>
+      </button>`);
     }
 
     // 4. Track shipping — ALWAYS show. Modal explains state per order status.
