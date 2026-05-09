@@ -523,3 +523,190 @@ Cho merge orders specifically:
 Test này em phải mock hoặc tự tạo account test, KHÔNG đợi user phát hiện bug.
 
 Lý do: Lỗi gốc — feature merge deployed thành công về mặt code nhưng KHÔNG ai test E2E happy path. User test ngẫu nhiên phát hiện 3 bugs trong 1 session.
+
+---
+
+# 6. RULES BỔ SUNG (2026-05-09 — học từ session 30+ commits)
+
+Bộ rules này thêm sau session ngày 2026-05-09 với 8 mistakes documented. Mỗi rule
+ngăn 1 loại bug cụ thể đã từng xảy ra. Chi tiết case study trong file
+`SESSION-2026-05-09-SUMMARY.md`.
+
+---
+
+## Rule 6.1 — Single Source of Truth cho enums/groups
+
+**Khi nào áp dụng**: Có >1 chỗ trong code dùng cùng list values (status enum,
+payment methods, status groups, allowed roles, etc.).
+
+**Bắt buộc**: Define const ở 1 chỗ, mọi nơi khác import/reference. KHÔNG hardcode
+lặp.
+
+**Ví dụ vi phạm session 2026-05-09**:
+- `ORDERS_STATUS_GROUPS` define ở line 1093 với keys `paid: ['confirmed']`
+- `updateSubTabCounts` line 2710 hardcode `paid: ['confirmed','shipped','delivered']`
+- → Khi tách tabs, count vẫn gộp 3 statuses → "Đã thanh toán" hiện 100 thay vì 14
+
+**Cách check**: Sau khi update const, grep cùng list value trong code → nếu thấy
+hardcode lặp → refactor để dùng const.
+
+---
+
+## Rule 6.2 — Variable scope explicit, KHÔNG rely closure giữa functions
+
+**Khi nào áp dụng**: Function A set var local, function B chạy sau và cần dùng
+var đó.
+
+**Bắt buộc**: Pass var qua param HOẶC store vào shared object (như `_pendingOrder.X`
+trong project này). KHÔNG để function B đọc closure của function A scope khác.
+
+**Ví dụ vi phạm session 2026-05-09**:
+- `submitOrder()` line 1810: `const useOther = document.getElementById('chk-other-address').checked`
+- `finalizeOrderWithPayment()` line 2086: `if (sbUser && sbClient && !useOther)` ← reference biến scope khác
+- → ReferenceError silent (catch swallow) → autoSaveProfile NEVER chạy nhiều ngày
+- → Khách `phannguyen8505` profile prefecture/postal/address NULL dù đã đặt 7 đơn
+
+**Cách check**: Nếu function B dùng var không declare local, grep xem var đó được
+declare ở đâu. Nếu khác function scope → fix bằng cách pass qua object.
+
+---
+
+## Rule 6.3 — Apps Script function naming convention
+
+**Khi nào áp dụng**: Viết Apps Script function CẦN chạy thủ công từ editor
+(dropdown "Select function").
+
+**Bắt buộc**: KHÔNG đặt tên cuối `_` (Apps Script convention coi `_` cuối là PRIVATE
+→ ẩn khỏi dropdown). Nếu vẫn muốn private → tạo public wrapper.
+
+**Pattern đúng**:
+```javascript
+// PRIVATE function (logic chính)
+function checkYamatoDeliveredStatus_() { ... }
+
+// PUBLIC wrapper (cho dropdown)
+function runYamatoDeliveredCheck() {
+  return checkYamatoDeliveredStatus_();
+}
+```
+
+**Ví dụ vi phạm session 2026-05-09**: `checkYamatoDeliveredStatus_` không hiện
+trong dropdown → anh không chạy được → em tốn thời gian giải thích.
+
+---
+
+## Rule 6.4 — Timeout budget plan cho code có nhiều layer fallback
+
+**Khi nào áp dụng**: Code có nhiều layer fallback (fast-path → 5-query → pure fetch
+→ cache).
+
+**Bắt buộc**: Tính tổng timeout = sum mọi layer. Hangtimeout (overall safety) phải
+> tổng. Hoặc skip layer trùng lặp về root cause.
+
+**Ví dụ vi phạm session 2026-05-09 (Bug B SDK lock)**:
+- Fast-path RPC timeout 30s
+- 5-query SDK fallback timeout 30s (SAME SDK lock → vẫn fail)
+- Pure fetch fallback ~10s
+- Tổng = 70s WORST CASE
+- HangTimeout chỉ 30s → trigger error UI quá sớm
+- Khách waste 60s trước khi thấy data
+
+**Fix Approach C áp dụng**:
+- SDK timeout 30s → 8s (RPC bình thường <1s, hơn 8s = lock)
+- Skip 5-query fallback (cùng lock → cùng fail)
+- Pure fetch ngay sau fast-path fail
+- HangTimeout 30s → 60s (cover pure fetch)
+- Worst case: 8s + 10s = ~18s thay vì 70s
+
+**Cách check**: Vẽ timeline mỗi layer (best case + worst case timeout). Sum tổng.
+So với hangTimeout. Nếu vượt → restructure.
+
+---
+
+## Rule 6.5 — HTML attribute injection escape
+
+**Khi nào áp dụng**: Inject JSON / dynamic data vào HTML attribute (`onclick`,
+`data-*`, `value`, etc.).
+
+**Bắt buộc**: Escape CẢ HAI single quote (`'`) VÀ double quote (`"`), plus `&`,
+`<`, `>`. Tốt hơn: dùng `data-*` attributes + event delegation thay vì inline
+`onclick`.
+
+**Ví dụ vi phạm session 2026-05-09 (Bug C merge button)**:
+```javascript
+// SAI:
+const oDataJson = JSON.stringify({...}).replace(/'/g, '&#39;'); // chỉ escape '
+actions.push(`<button onclick="startMergeFlow('${orderNo}', ${oDataJson})">`);
+// → Khi inject vào onclick="..." (cũng dùng "), dấu " trong JSON terminate
+// attribute sớm → SyntaxError → button KHÔNG hoạt động
+```
+
+```javascript
+// ĐÚNG:
+const oDataJson = JSON.stringify({...})
+  .replace(/'/g, '&#39;')
+  .replace(/"/g, '&quot;');  // escape cả 2
+```
+
+**Tốt hơn (best practice)**: dùng `data-*`:
+```javascript
+actions.push(`<button data-action="merge" data-order-no="${orderNo}" data-info='${oDataJson}'>`);
+// Plus event delegation listener
+```
+
+---
+
+## Rule 6.6 — Diagnostic auto-collection cho mọi feature critical
+
+**Khi nào áp dụng**: Feature ảnh hưởng nhiều khách + bug khó reproduce (timing,
+cache, race condition, browser quirk).
+
+**Bắt buộc**: Tạo table log error riêng (như `dashboard_load_errors`). Frontend tự
+log khi fail (qua pure fetch để không phụ thuộc SDK đang lock). Admin dashboard
+có viewer để query log.
+
+**Cấu trúc table mẫu**:
+```sql
+CREATE TABLE dashboard_load_errors (
+  id bigserial PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  error_type text NOT NULL,
+  error_message text,
+  user_agent text,
+  page_url text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+-- Plus RLS: authenticated INSERT own, admin SELECT all
+```
+
+**Helper function frontend**:
+```javascript
+function logXxxError(errorType, message) {
+  // Pure fetch + access_token từ localStorage (KHÔNG SDK)
+  // keepalive: true để không bị abort khi navigate
+}
+```
+
+**Lý do session 2026-05-09**: Bug B SDK navigator.locks deadlock chỉ debug được
+khi 1 khách bật DevTools Console. Diagnostic table = scale, em phân tích pattern
+sau 1-2 tuần data.
+
+---
+
+# 7. CHECKLIST TRƯỚC COMMIT (2026-05-09 — extracted từ 8 mistakes)
+
+Trước khi commit feature mới, agent BẮT BUỘC tự verify:
+
+- [ ] **6.1**: Mọi enum/group dùng const, không hardcode lặp?
+- [ ] **6.2**: Variables truy cập giữa functions có pass qua param/object?
+- [ ] **6.3**: Apps Script functions cần chạy editor có public wrapper (no `_` cuối)?
+- [ ] **6.4**: Timeout layers tính tổng < hangTimeout?
+- [ ] **6.5**: JSON inject HTML attribute có escape cả `'` và `"`?
+- [ ] **6.6**: Feature critical có diagnostic auto-log?
+- [ ] **5.1**: SPEC có data contract field names exact?
+- [ ] **5.2**: Sau spawn agents có integration test?
+- [ ] **5.3**: Handler mới có grep existing pattern (data.type/cartItems/method)?
+- [ ] **5.5**: Test E2E happy path đã chạy?
+- [ ] **Rollback plan**: Có backup table / revert SQL nếu fail?
+
+Tick từng cái trước commit. Nếu thiếu → quay lại fix trước.
