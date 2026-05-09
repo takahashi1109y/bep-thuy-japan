@@ -3255,6 +3255,23 @@ function sendTelegramNotification_(data) {
   });
 }
 
+// FIX 2026-05-09 (Bug -100 điểm — Fix B): generic admin alert helper.
+// Dùng cho cảnh báo bất thường (race condition, anomaly, etc.) — không phải
+// thông báo đơn hàng thường. Gửi free text Telegram cho admin.
+function sendTelegramAlertAdmin_(message) {
+  var botToken = _prop('TELEGRAM_BOT_TOKEN', '');
+  var chatId = _prop('TELEGRAM_CHAT_ID', '');
+  if (!botToken || !chatId) return;
+  try {
+    UrlFetchApp.fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: chatId, text: String(message).slice(0, 3500) }),
+      muteHttpExceptions: true
+    });
+  } catch (e) { Logger.log('[sendTelegramAlertAdmin_] err: ' + e); }
+}
+
 // ============================================================
 // SUPABASE ORDERS - Luu don hang day du vao Supabase de khach xem
 // ============================================================
@@ -3602,6 +3619,50 @@ function addPointsToSupabase(userId, orderNo, orderTotal) {
 function deductPointsFromSupabase(userId, orderNo, pointsUsed) {
   if (!SUPABASE_URL || SUPABASE_URL.indexOf('YOUR_') !== -1) return;
   if (!pointsUsed || pointsUsed <= 0) return;
+
+  // FIX 2026-05-09 (Bug -100 điểm — Fix B): Check balance trước khi deduct.
+  // Race condition: khách mở 2 tab cùng lúc → mỗi tab thấy balance=100 → cả 2
+  // submit dùng 100 điểm → tab 1 trừ OK → tab 2 trừ → balance âm.
+  // Backend defense: query points_balance VIEW. Nếu không đủ → SKIP deduct +
+  // Telegram alert cho admin. Không reject order (khách đã thanh toán) — admin
+  // manually adjust nếu cần.
+  try {
+    var balUrl = SUPABASE_URL + '/rest/v1/points_balance?user_id=eq.' + encodeURIComponent(userId) + '&select=total_points';
+    var balRes = UrlFetchApp.fetch(balUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+      },
+      muteHttpExceptions: true
+    });
+    if (balRes.getResponseCode() === 200) {
+      var rows = JSON.parse(balRes.getContentText());
+      var currentBalance = (rows && rows[0]) ? Number(rows[0].total_points) : 0;
+      if (currentBalance < pointsUsed) {
+        Logger.log('[deductPoints] WARN: balance ' + currentBalance + ' < pointsUsed ' + pointsUsed +
+                   ' for user ' + userId + ' #' + orderNo + ' — SKIP deduct + alert admin');
+        // Telegram alert admin
+        try {
+          sendTelegramAlertAdmin_(
+            '⚠️ POINTS BALANCE INSUFFICIENT\n' +
+            'User: ' + userId.substring(0,8) + '...\n' +
+            'Order: #' + orderNo + '\n' +
+            'Current balance: ' + currentBalance + '\n' +
+            'Requested deduct: ' + pointsUsed + '\n' +
+            'Action: SKIPPED deduct (race condition? 2 tabs?)\n' +
+            'Admin: kiểm tra DB + adjust manually nếu cần'
+          );
+        } catch(tge) { Logger.log('[deductPoints] TG alert err: ' + tge); }
+        return; // SKIP — không insert deduct âm
+      }
+    }
+  } catch (be) {
+    Logger.log('[deductPoints] balance check err (continue with deduct): ' + be);
+    // Continue — defensive nhưng không block (nếu balance check fail vì network thì
+    // vẫn cho deduct như trước, để khách không bị mất điểm khi balance check chỉ
+    // tạm thời unavailable).
+  }
 
   var payload = {
     user_id: userId,

@@ -1375,8 +1375,13 @@ window.addEventListener('scroll', function() {
     const inaDisc = inactiveDiscount(sub); // 5% on subtotal (products only, NOT shipping)
     const totalDisc = bdDisc + inaDisc;
     const gross = sub + shipFee - totalDisc;
-    // Clamp pointsUsed to current usable amount
-    if (pointsUsed > gross) pointsUsed = gross;
+    // FIX 2026-05-09 (Bug -100 điểm — Fix A): clamp pointsUsed vs CẢ HAI:
+    //   1. gross (max bằng tiền đơn — không trả âm)
+    //   2. sbPointsBalance (max bằng điểm khách đang có — không vượt balance)
+    // Trước đó chỉ clamp vs gross → khách dùng vượt balance → balance âm.
+    const maxByBalance = Math.max(0, sbPointsBalance || 0);
+    const cap = Math.min(gross, maxByBalance);
+    if (pointsUsed > cap) pointsUsed = cap;
     const net = Math.max(0, gross - pointsUsed);
     document.getElementById('final-subtotal').textContent=yen(sub);
     document.getElementById('final-ship').textContent=yen(shipFee);
