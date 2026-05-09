@@ -1449,8 +1449,9 @@ function renderOrdersToUI(orders) {
     // BUILD ACTION BUTTONS
     const actions = [];
 
-    // 1. Primary: Mua lại (yellow) — calls reorderFromOrder (created by another agent)
-    actions.push(`<button onclick="reorderFromOrder('${orderNoSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>🔄 Mua lại</button>`);
+    // 1. Primary: "Đặt lại đơn hàng này" (yellow) — calls reorderFromOrder
+    // Anh request 2026-05-09: đổi tên "Mua lại" → "Đặt lại đơn hàng này" (rõ hơn)
+    actions.push(`<button onclick="reorderFromOrder('${orderNoSafe}')" class="${primaryCls}" style="${primaryStyle}" ${primaryHover}>🔄 Đặt lại đơn hàng này</button>`);
 
     // 2. Pending → also show 💳 Thanh toán primary; customer_paid → outline "Gửi biên lai khác"
     if (o.status === 'pending') {
@@ -4015,6 +4016,7 @@ function showReorderError(msg) {
  *  9. Redirect to "/?reorder=success&from=<orderNo>".
  */
 async function reorderFromOrder(orderNo) {
+  console.log('[reorder] clicked orderNo=' + orderNo);
   try {
     // 1. Tìm order trong cache
     var order = null;
@@ -4028,19 +4030,26 @@ async function reorderFromOrder(orderNo) {
     }
 
     if (!order) {
+      console.warn('[reorder] order NOT FOUND in cache for', orderNo);
       showReorderError('Không tìm thấy đơn #' + orderNo + '. Anh/chị tải lại trang rồi thử lại nhé.');
       return;
     }
 
+    console.log('[reorder] order found in cache:', order.order_no, 'items:', order.items?.length);
+
     var orderItems = Array.isArray(order.items) ? order.items : [];
     if (orderItems.length === 0) {
+      console.warn('[reorder] order has 0 items');
       showReorderError('Đơn #' + orderNo + ' không có chi tiết sản phẩm. Anh/chị thử đặt từ trang chủ nhé.');
       return;
     }
 
-    // 2. Confirm dialog
-    var confirmMsg = 'Mua lại đơn #' + orderNo + ' với ' + orderItems.length + ' sản phẩm? Đơn cũ sẽ được copy vào giỏ hàng.';
-    if (!confirm(confirmMsg)) return;
+    // 2. Confirm dialog (đổi text Anh request 2026-05-09)
+    var confirmMsg = 'Đặt lại đơn #' + orderNo + ' với ' + orderItems.length + ' sản phẩm? Đơn cũ sẽ được copy vào giỏ hàng.';
+    if (!confirm(confirmMsg)) {
+      console.log('[reorder] user cancelled');
+      return;
+    }
 
     // 3. Parse codes từ name (format "[CODE] Tên SP" — code có thể chứa space, ví dụ "[CLUA TIEU]")
     var codes = [];
@@ -4063,16 +4072,50 @@ async function reorderFromOrder(orderNo) {
     }
 
     // 4. Fetch catalog cho các codes (1 query duy nhất)
+    // FIX 2026-05-09 (Bug B pattern): wrap SDK call với timeout 8s. Nếu SDK lock
+    // (navigator.locks deadlock) → timeout → fallback pure fetch để bypass.
+    console.log('[reorder] fetching catalog for codes:', codes);
     var catalogRes;
     try {
-      catalogRes = await sb
-        .from('product_catalog')
-        .select('id, code, name, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold')
-        .in('code', codes);
+      catalogRes = await Promise.race([
+        sb.from('product_catalog')
+          .select('id, code, name, unit_price, stock_quantity, stock_unit, is_active, low_stock_threshold')
+          .in('code', codes),
+        new Promise(function(_, reject){ setTimeout(function(){ reject(new Error('catalog_timeout_8s')); }, 8000); })
+      ]);
     } catch(e) {
-      console.error('[reorder] catalog fetch err:', e);
-      showReorderError('Không kết nối được hệ thống. Anh/chị thử lại sau nhé.');
-      return;
+      console.warn('[reorder] SDK catalog fail (' + e.message + '), trying pure fetch fallback...');
+      // Fallback: pure fetch via REST API
+      try {
+        var token = null;
+        for (var k = 0; k < localStorage.length; k++) {
+          var key = localStorage.key(k);
+          if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+            try {
+              var p = JSON.parse(localStorage.getItem(key));
+              token = p.access_token || (p.currentSession && p.currentSession.access_token);
+              if (token) break;
+            } catch(_) {}
+          }
+        }
+        var inFilter = 'in.(' + codes.map(function(c){ return '"' + c + '"'; }).join(',') + ')';
+        var pfUrl = SUPABASE_URL + '/rest/v1/product_catalog?code=' + encodeURIComponent(inFilter)
+                  + '&select=id,code,name,unit_price,stock_quantity,stock_unit,is_active,low_stock_threshold';
+        var pfRes = await fetch(pfUrl, {
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Authorization': 'Bearer ' + (token || SUPABASE_ANON)
+          }
+        });
+        if (!pfRes.ok) throw new Error('pure fetch HTTP ' + pfRes.status);
+        var pfData = await pfRes.json();
+        catalogRes = { data: pfData, error: null };
+        console.log('[reorder] ✓ pure fetch fallback OK, rows=' + pfData.length);
+      } catch(pfe) {
+        console.error('[reorder] BOTH SDK + pure fetch fail:', pfe);
+        showReorderError('Không kết nối được hệ thống. Anh/chị thử lại sau nhé.');
+        return;
+      }
     }
 
     if (catalogRes.error) {
