@@ -1058,7 +1058,10 @@ const SUPABASE_ANON = 'sb_publishable_Y2Nqe7A0sgkJegX-aKAwIA_r27GzCjv';
 const HCAPTCHA_SITEKEY = '37bc1d04-d54e-48c0-ac14-786ce46444f0';
 
 // Cache TTL — tránh khách iPhone Safari thấy data cũ (orders cache stale)
-const ORDERS_CACHE_TTL_MS = 60 * 1000;        // 60s — chỉ dùng cache nếu < 60s
+// FIX 2026-05-09 (Bug B Approach C): tăng 60s → 5 phút (300s). Lý do: khách MỞ
+// trang phải thấy orders NGAY (instant từ cache) thay vì skeleton 60s. Background
+// refresh qua pure fetch sẽ update sau (~3-5s). Cache invalidate khi submit order.
+const ORDERS_CACHE_TTL_MS = 300 * 1000;       // 5 phút — instant render UX
 const BFCACHE_REFRESH_THRESHOLD_MS = 30 * 1000; // 30s — debounce auto-refresh khi user back to tab
 
 // Capture recovery flag BEFORE Supabase createClient (which clears the hash via detectSessionInUrl).
@@ -2691,6 +2694,19 @@ async function _loadDashboardImpl(retryAttempt) {
         renderOrdersToUI(cached.orders);
         hasCache = true;
         dbgLog('⚡ instant-render from cache (' + cached.orders.length + ' orders, age: ' + Math.round(cacheAge/1000) + 's)');
+        // FIX 2026-05-09 (Bug B Approach C — Chunk 3): show small "refreshing"
+        // indicator để khách biết data có thể đang được cập nhật bg. Indicator
+        // tự ẩn khi pure fetch hoặc fast-path xong (renderOrdersToUI gọi lại).
+        try {
+          var orderHistEl = document.getElementById('order-history');
+          if (orderHistEl && !document.getElementById('refresh-indicator')) {
+            var bar = document.createElement('div');
+            bar.id = 'refresh-indicator';
+            bar.style.cssText = 'background:#FEF3C7;color:#92400E;padding:4px 10px;border-radius:6px;font-size:11px;text-align:center;margin-bottom:8px;border:1px solid #FDE68A;';
+            bar.innerHTML = '🔄 Đang cập nhật dữ liệu mới nhất...';
+            orderHistEl.parentNode.insertBefore(bar, orderHistEl);
+          }
+        } catch(_) {}
       } else if (cached && !cacheFresh) {
         dbgLog('⚠ cache stale (age: ' + Math.round(cacheAge/1000) + 's > 60s), skipping instant-render');
       }
@@ -2719,9 +2735,11 @@ async function _loadDashboardImpl(retryAttempt) {
   }, 60000);
 
   // Helper: timeout 30s (du thoi gian cho Supabase auth/session init lan dau)
-  // Tang tu 20s len 30s vi RPC get_member_dashboard nang + cold connection
-  // 2026-05-06: anh report dashboard_rpc timeout 20s + 5 queries cung timeout
-  function withTimeout(promise, label, ms = 30000) {
+  // FIX 2026-05-09 (Bug B Approach C): SDK timeout 30s → 8s.
+  // Lý do: RPC `get_member_dashboard` thường response < 1s (em đã thấy log 41ms,
+  // 60ms). Nếu hơn 8s = SDK lock chắc chắn → bypass nhanh sang pure fetch.
+  // Trước đó 30s × 2 vòng (fast-path + 5 queries) = 60s waste cho khách bị SDK lock.
+  function withTimeout(promise, label, ms = 8000) {
     return Promise.race([
       promise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout: ' + label)), ms))
@@ -2762,18 +2780,24 @@ async function _loadDashboardImpl(retryAttempt) {
       historyRes = { data: d.transactions || [], error: null };
       couponsRes = { data: d.coupons || [], error: null };
       ordersRes = { data: d.orders || [], error: null };
+      // FIX 2026-05-09 (Bug B Approach C — Chunk 3): hide refresh indicator after fast-path success
+      try {
+        var ri2 = document.getElementById('refresh-indicator');
+        if (ri2) ri2.remove();
+      } catch(_) {}
       // Expose birthday flag
       if (d.is_birthday !== undefined) window._isBirthdayToday = d.is_birthday;
     } else {
-      // FALLBACK: 5 separate queries (neu RPC chua duoc tao hoac fail)
-      dbgLog('⚠ fast-path failed, fallback to 5 queries');
-      [profileRes, balRes, historyRes, couponsRes, ordersRes] = await Promise.all([
-        safeQuery(() => sb.from('profiles').select('*').eq('id', uid).single(), 'profiles'),
-        safeQuery(() => sb.from('points_balance').select('total_points').eq('user_id', uid).single(), 'points_balance'),
-        safeQuery(() => sb.from('points_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50), 'points_transactions'),
-        safeQuery(() => sb.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 'coupons'),
-        safeQuery(() => sb.from('orders').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30), 'orders')
-      ]);
+      // FIX 2026-05-09 (Bug B Approach C): SKIP 5-query SDK fallback.
+      // Lý do: nếu fast-path fail vì SDK lock → 5 queries CŨNG fail vì cùng lock.
+      // Trước đó waste 30s × 2 = 60s. Bây giờ jump thẳng pure fetch fallback.
+      // Set 5 results = null để trigger allFailed=true → pure fetch ở block dưới.
+      dbgLog('⚠ fast-path failed → SKIP 5-query SDK (cùng lock) → JUMP pure fetch');
+      profileRes = { data: null, error: fastRes.error };
+      balRes     = { data: null, error: fastRes.error };
+      historyRes = { data: null, error: fastRes.error };
+      couponsRes = { data: null, error: fastRes.error };
+      ordersRes  = { data: null, error: fastRes.error };
     }
     clearTimeout(hangTimeout);
     console.log('[loadDashboard] all queries done. orders count:', ordersRes.data?.length);
@@ -2838,6 +2862,11 @@ async function _loadDashboardImpl(retryAttempt) {
                   userId: currentUser.id, orders: ordersData, ts: Date.now()
                 }));
               } catch(ce) {}
+              // FIX 2026-05-09 (Bug B Approach C — Chunk 3): hide refresh indicator
+              try {
+                var ri = document.getElementById('refresh-indicator');
+                if (ri) ri.remove();
+              } catch(_) {}
               dbgLog('⚡ EARLY render orders from pure fetch (bypass message_threads block)');
             } catch(re) { dbgLog('✗ early render err: ' + re.message); }
           } else {
