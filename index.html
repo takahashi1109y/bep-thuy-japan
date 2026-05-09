@@ -2083,12 +2083,27 @@ window.addEventListener('scroll', function() {
       // FEATURE 2026-05-07: Auto-save profile từ checkout form
       // Khách lần đầu đặt hàng → form đầy đủ thông tin → save vào profile
       // → lần sau auto-fill. Skip nếu khách dùng "địa chỉ khác" cho người nhận.
-      if (sbUser && sbClient && !useOther) {
+      //
+      // FIX 2026-05-09: Variable `useOther` declared trong submitOrder() local scope
+      // → KHÔNG accessible ở finalizeOrderWithPayment() → ReferenceError silent
+      // → autoSave NEVER runs (bug confirmed by Console của khách phannguyen8505).
+      // Replace bằng `_pendingOrder.recipientName` — nếu undefined = khách KHÔNG dùng
+      // địa chỉ khác → safe to autosave.
+      const isUsingOtherAddress = !!_pendingOrder.recipientName;
+      console.log('[autoSaveProfile] check: sbUser=', !!sbUser, 'sbClient=', !!sbClient,
+                  'isUsingOtherAddress=', isUsingOtherAddress);
+      if (sbUser && sbClient && !isUsingOtherAddress) {
         try {
+          // Lấy data từ _pendingOrder (đã build trong submitOrder, có sẵn ở scope này)
           await autoSaveProfileFromCheckout({
-            phone: phone, prefecture: pref, postal: postal, address: address
+            phone: _pendingOrder.phone,
+            prefecture: _pendingOrder.prefecture,
+            postal: _pendingOrder.postal,
+            address: _pendingOrder.address
           });
-        } catch(e) { console.warn('Auto-save profile err:', e); }
+        } catch(e) { console.warn('[autoSaveProfile] exception:', e); }
+      } else {
+        console.log('[autoSaveProfile] SKIP — condition fail');
       }
 
       // Optimistic cache for member dashboard
