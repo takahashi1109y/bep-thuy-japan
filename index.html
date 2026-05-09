@@ -81,7 +81,8 @@
     input:focus, select:focus { border-color: #C8102E !important; }
     .spin { animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-    .bank-box { background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 16px; padding: 20px; }
+    /* FIX 2026-05-09 (anh request): bank-box cũng green giống tab Chuyển Khoản */
+    .bank-box { background: linear-gradient(135deg, #10B981, #059669); color: white; border-radius: 16px; padding: 20px; }
     .paypay-box { background: linear-gradient(135deg, #d70000, #ff0033); color: white; border-radius: 16px; padding: 20px; }
     .pay-tab { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px; transition: all 0.2s; border: 2px solid transparent; cursor: pointer; }
     .pay-tab.active-paypay { background: #ff0033; color: white; }
@@ -2077,7 +2078,7 @@ window.addEventListener('scroll', function() {
     const btn = document.getElementById('finalize-btn');
     btn.disabled = false;
     btn.classList.remove('opacity-50');
-    btn.innerHTML = '✅ Hoàn Tất Đơn Hàng';
+    btn.innerHTML = '💝 Gửi đơn cho Bếp Thuỷ';
     document.getElementById('verify-status').innerHTML = '<span style="color:#3B82F6">📷 Đã chọn ảnh — bấm "Hoàn Tất" để xác minh</span>';
   }
 
