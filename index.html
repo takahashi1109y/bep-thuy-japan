@@ -823,7 +823,61 @@ window.addEventListener('scroll', function() {
     <p class="text-center text-xs text-gray-400 mt-3">Đơn chỉ được tạo sau khi thanh toán + upload biên lai</p>
   </div>
 
-  <!-- Step 2.5: Payment + Receipt Upload (NEW — Option B: pay first) -->
+  <!-- Step 2.5: REVIEW ORDER (NEW 2026-05-09 — anh request: khách xem lại trước thanh toán) -->
+  <div id="review-section" class="px-5 py-4" style="display:none">
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-3">📋</div>
+      <h3 class="text-2xl font-bold text-brand-dark mb-1" style="font-family:'Playfair Display',serif">Xác Nhận Đơn Hàng</h3>
+      <p class="text-gray-500 text-sm">Kiểm tra lại thông tin trước khi thanh toán</p>
+    </div>
+
+    <!-- Items section -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
+      <h4 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-1.5">
+        🛒 Sản phẩm
+      </h4>
+      <div id="review-items" class="space-y-2 text-sm"></div>
+    </div>
+
+    <!-- Address section -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
+      <h4 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-1.5">
+        📍 Địa chỉ giao hàng
+      </h4>
+      <div id="review-address" class="text-sm text-gray-700 space-y-1"></div>
+    </div>
+
+    <!-- Pricing section -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
+      <h4 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-1.5">
+        💴 Tổng cộng
+      </h4>
+      <div id="review-pricing" class="space-y-1.5 text-sm"></div>
+    </div>
+
+    <!-- Payment method preview -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
+      <h4 class="text-sm font-bold text-brand-dark mb-2 flex items-center gap-1.5">
+        💳 Phương thức thanh toán
+      </h4>
+      <p id="review-payment-method" class="text-sm text-gray-700"></p>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="grid gap-3" style="grid-template-columns: 1fr 2fr;">
+      <button onclick="backToCheckout()"
+              class="py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold text-sm hover:bg-gray-100">
+        ← Quay lại sửa
+      </button>
+      <button id="confirm-review-btn" onclick="confirmReviewProceed()"
+              class="py-3 rounded-2xl text-white font-bold text-base shadow-lg"
+              style="background:linear-gradient(135deg,#10B981,#059669)">
+        ✓ Xác nhận, tiếp tục thanh toán
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 3: Payment + Receipt Upload (Option B: pay first) -->
   <div id="payment-section" class="px-5 py-4" style="display:none">
     <div class="text-center mb-5">
       <div class="text-5xl mb-3">💴</div>
@@ -1436,7 +1490,7 @@ window.addEventListener('scroll', function() {
     if(successVisible){ resetAndClose(); return; }
   }
   function showStep(id){
-    ['cart-items-section','checkout-section','payment-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; });
+    ['cart-items-section','checkout-section','review-section','payment-section','order-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'block':'none'; });
     // Guest upsell visibility — always recompute when order-success shown
     if (id === 'order-success') {
       const banner = document.getElementById('guest-upsell');
@@ -1872,6 +1926,77 @@ window.addEventListener('scroll', function() {
     document.getElementById('verify-status').textContent = '';
     document.getElementById('receipt-file-input').value = '';
 
+    // VIỆC 4 2026-05-09: Thêm bước REVIEW trước payment.
+    // Khách có thời gian xem lại đơn → bấm "Xác nhận" mới chuyển payment.
+    showReviewSection();
+    document.getElementById('cart-panel').scrollTop = 0;
+  }
+
+  // VIỆC 4 2026-05-09: Render review-section từ _pendingOrder
+  function showReviewSection() {
+    if (!_pendingOrder) {
+      // Fallback: nếu data missing → quay lại checkout
+      showStep('checkout-section');
+      return;
+    }
+    // 1. Items
+    const itemsHtml = _pendingOrder.cartItems.map(function(i){
+      return '<div class="flex justify-between items-start gap-3 py-2 border-b border-gray-100 last:border-b-0">'
+        + '<div class="flex-1 min-w-0">'
+        +   '<div class="font-medium text-gray-800 truncate">' + i.name + '</div>'
+        +   '<div class="text-xs text-gray-500">Số lượng: ' + i.qty + ' × ' + yen(i.price) + '</div>'
+        + '</div>'
+        + '<div class="font-bold text-brand-red whitespace-nowrap">' + yen(i.price * i.qty) + '</div>'
+        + '</div>';
+    }).join('');
+    document.getElementById('review-items').innerHTML = itemsHtml;
+
+    // 2. Address — format đẹp (postal trên, address dưới)
+    const recipName = _pendingOrder.recipientName || _pendingOrder.name;
+    const recipPhone = _pendingOrder.recipientPhone || _pendingOrder.phone;
+    const useOther = !!_pendingOrder.recipientName;
+    const addressHtml = (useOther
+        ? '<div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mb-2 inline-block">📦 Gửi đến địa chỉ khác</div>'
+        : '')
+      + '<div><strong>' + recipName + '</strong> · <span class="text-gray-500">' + recipPhone + '</span></div>'
+      + '<div class="text-xs text-gray-500 mt-1">〒 ' + _pendingOrder.postal + ' · ' + _pendingOrder.prefecture + '</div>'
+      + '<div>' + _pendingOrder.address + '</div>'
+      + (_pendingOrder.mailboxRecipient || _pendingOrder.mailbox
+          ? '<div class="text-xs text-gray-500 mt-1">📮 Hòm thư: ' + (_pendingOrder.mailboxRecipient || _pendingOrder.mailbox) + '</div>'
+          : '')
+      + (_pendingOrder.note
+          ? '<div class="text-xs text-gray-500 mt-1 italic">📝 Ghi chú: ' + _pendingOrder.note + '</div>'
+          : '');
+    document.getElementById('review-address').innerHTML = addressHtml;
+
+    // 3. Pricing
+    const sub = _pendingOrder.subtotal;
+    const ship = _pendingOrder.shipping;
+    const bdDisc = _pendingOrder.birthdayDiscount || 0;
+    const inaDisc = _pendingOrder.inactiveDiscount || 0;
+    const ptsUsed = _pendingOrder.pointsUsed || 0;
+    let pricingHtml = '<div class="flex justify-between"><span>Tạm tính</span><span>' + yen(sub) + '</span></div>'
+      + '<div class="flex justify-between"><span>Phí ship</span><span>' + (ship > 0 ? yen(ship) : '<span class="text-green-600 font-semibold">MIỄN</span>') + '</span></div>';
+    if (bdDisc > 0) pricingHtml += '<div class="flex justify-between text-pink-600"><span>🎂 Sinh nhật −' + (_pendingOrder.birthdayPercent || 10) + '%</span><span>−' + yen(bdDisc) + '</span></div>';
+    if (inaDisc > 0) pricingHtml += '<div class="flex justify-between text-amber-700"><span>🎁 Ưu đãi −' + (_pendingOrder.inactivePercent || 5) + '%</span><span>−' + yen(inaDisc) + '</span></div>';
+    if (ptsUsed > 0) pricingHtml += '<div class="flex justify-between text-purple-700"><span>💎 Dùng ' + ptsUsed + ' điểm</span><span>−' + yen(ptsUsed) + '</span></div>';
+    pricingHtml += '<div class="flex justify-between pt-2 mt-2 border-t-2 border-gray-200 text-base font-bold">'
+      + '<span>Tổng cộng</span>'
+      + '<span class="text-brand-red text-xl">' + yen(_pendingOrder.total) + '</span>'
+      + '</div>';
+    document.getElementById('review-pricing').innerHTML = pricingHtml;
+
+    // 4. Payment method
+    const methodText = _pendingOrder.method === 'bank_transfer'
+      ? '🏦 Chuyển khoản ngân hàng (ゆうちょ)'
+      : '📱 PayPay';
+    document.getElementById('review-payment-method').textContent = methodText;
+
+    showStep('review-section');
+  }
+
+  // VIỆC 4 2026-05-09: Sau khi khách xác nhận → chuyển sang payment-section
+  function confirmReviewProceed() {
     showStep('payment-section');
     document.getElementById('cart-panel').scrollTop = 0;
   }
