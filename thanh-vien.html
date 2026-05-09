@@ -2331,6 +2331,7 @@ async function doRegister() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           type: 'member',
+          userId: data.user && data.user.id ? data.user.id : null,
           name: name,
           phone: phone,
           email: email,

@@ -3713,24 +3713,34 @@ function normalizePhoneJP(raw) {
  */
 function getBonusToken_(userId) {
   if (!userId) return null;
-  try {
-    var url = SUPABASE_URL + '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&select=bonus_token&limit=1';
-    var res = UrlFetchApp.fetch(url, {
-      method: 'GET',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
-      },
-      muteHttpExceptions: true
-    });
-    if (res.getResponseCode() !== 200) return null;
-    var rows = JSON.parse(res.getContentText());
-    if (!rows || !rows.length) return null;
-    return rows[0].bonus_token || null;
-  } catch (e) {
-    Logger.log('getBonusToken_ err: ' + e);
-    return null;
+  // Retry up to 3 times: Supabase trigger handle_new_user() có thể chưa chạy xong
+  // khi Apps Script được gọi ngay sau auth.signUp() từ frontend.
+  for (var attempt = 0; attempt < 3; attempt++) {
+    try {
+      var url = SUPABASE_URL + '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&select=bonus_token&limit=1';
+      var res = UrlFetchApp.fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY
+        },
+        muteHttpExceptions: true
+      });
+      if (res.getResponseCode() === 200) {
+        var rows = JSON.parse(res.getContentText());
+        if (rows && rows.length && rows[0].bonus_token) {
+          if (attempt > 0) Logger.log('getBonusToken_ resolved on attempt ' + (attempt + 1));
+          return rows[0].bonus_token;
+        }
+      }
+    } catch (e) {
+      Logger.log('getBonusToken_ attempt ' + (attempt + 1) + ' err: ' + e);
+    }
+    // Backoff: 500ms → 1000ms → done
+    if (attempt < 2) Utilities.sleep(500 * (attempt + 1));
   }
+  Logger.log('getBonusToken_ FAILED after 3 attempts for userId=' + userId);
+  return null;
 }
 
 function addToGetResponse(email, name, phone, prefecture, source, bonusToken) {
@@ -5719,4 +5729,37 @@ function syncBonusTokensToGR() {
   }
 
   Logger.log('[syncGR] Done: ' + updated + ' updated, ' + skipped + ' skipped, ' + errors + ' errors (total ' + rows.length + ')');
+}
+
+// ============================================================
+// DIAGNOSTIC: List GR custom fields with REAL API IDs
+// Chay function nay de tim API ID dung cho bonus_token
+// (URL slug trong GR UI != API ID — phai dung API ID)
+// ============================================================
+function listGRCustomFields() {
+  if (!GR_API_KEY || GR_API_KEY.length < 20) {
+    Logger.log('[listCF] FAIL: GR_API_KEY chua cau hinh');
+    return;
+  }
+
+  var res = UrlFetchApp.fetch('https://api.getresponse.com/v3/custom-fields?perPage=100', {
+    method: 'GET',
+    headers: { 'X-Auth-Token': 'api-key ' + GR_API_KEY },
+    muteHttpExceptions: true
+  });
+
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[listCF] API fail: ' + res.getResponseCode() + ' ' + res.getContentText());
+    return;
+  }
+
+  var fields = JSON.parse(res.getContentText());
+  Logger.log('[listCF] Found ' + fields.length + ' custom fields:');
+  Logger.log('---');
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i];
+    Logger.log('Name: ' + f.name + ' | API ID: ' + f.customFieldId + ' | Type: ' + f.type);
+  }
+  Logger.log('---');
+  Logger.log('[listCF] Tim row co Name = bonus_token → copy API ID → paste vao Script Properties GR_CF_BONUS_TOKEN');
 }
