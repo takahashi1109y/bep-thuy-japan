@@ -5763,3 +5763,163 @@ function listGRCustomFields() {
   Logger.log('---');
   Logger.log('[listCF] Tim row co Name = bonus_token → copy API ID → paste vao Script Properties GR_CF_BONUS_TOKEN');
 }
+
+// ============================================================
+// SEND WELCOME BONUS REMINDER (2026-05-11)
+// Gui email moi cho khach DA verify email nhung CHUA claim 100d.
+// Email gui qua MailApp (KHONG qua GR — GR Day 0 da fire 1 lan roi).
+// ============================================================
+//
+// USAGE:
+//   1. TEST mode (chi gui cho 1 email cu the):
+//        sendWelcomeBonusReminderTest()
+//      → Edit hardcoded email trong function neu muon test email khac
+//
+//   2. DRY RUN (log only, khong send):
+//        sendWelcomeBonusReminder({ dryRun: true })
+//
+//   3. REAL SEND (gui that):
+//        sendWelcomeBonusReminder({ dryRun: false })
+//
+//   4. LIMIT batch (vd chi gui 10 email dau):
+//        sendWelcomeBonusReminder({ dryRun: false, limit: 10 })
+//
+// Quota MailApp: 100 emails/day cho Gmail free, 1500/day cho Workspace.
+// ============================================================
+
+function sendWelcomeBonusReminderTest() {
+  // EDIT email anh muon test o day:
+  var TEST_EMAIL = 'thanghoang1109@gmail.com';
+  sendWelcomeBonusReminder({ dryRun: false, testEmailOnly: TEST_EMAIL });
+}
+
+function sendWelcomeBonusReminder(opts) {
+  opts = opts || {};
+  var dryRun = opts.dryRun !== false; // default true (an toan)
+  var testEmailOnly = opts.testEmailOnly || null;
+  var limit = opts.limit || 9999;
+
+  Logger.log('[reminder] === START === dryRun=' + dryRun + ' testEmailOnly=' + (testEmailOnly || '-') + ' limit=' + limit);
+
+  // 1. Query Supabase qua RPC get_pending_welcome_bonus_users()
+  var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/get_pending_welcome_bonus_users';
+  var rpcRes = UrlFetchApp.fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    },
+    payload: '{}',
+    muteHttpExceptions: true
+  });
+
+  if (rpcRes.getResponseCode() !== 200) {
+    Logger.log('[reminder] RPC fail: ' + rpcRes.getResponseCode() + ' ' + rpcRes.getContentText());
+    return;
+  }
+
+  var rows = JSON.parse(rpcRes.getContentText());
+  Logger.log('[reminder] Found ' + rows.length + ' pending users');
+
+  // 2. Filter test mode neu co
+  if (testEmailOnly) {
+    rows = rows.filter(function(r) { return r.email === testEmailOnly; });
+    if (!rows.length) {
+      Logger.log('[reminder] Test email ' + testEmailOnly + ' KHONG ton tai trong list pending — neu da claim hoac chua verify, se khong gui');
+      return;
+    }
+    Logger.log('[reminder] TEST MODE — chi gui cho: ' + testEmailOnly);
+  }
+
+  // 3. Apply limit
+  if (rows.length > limit) {
+    Logger.log('[reminder] Limit ' + limit + ' — chi xu ly ' + limit + '/' + rows.length);
+    rows = rows.slice(0, limit);
+  }
+
+  // 4. Loop send
+  var sent = 0, errors = 0, skipped = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row.email || !row.bonus_token) { skipped++; continue; }
+
+    var claimUrl = 'https://www.thuyjapan.com/thanh-vien?claim=welcome&token=' + encodeURIComponent(row.bonus_token);
+    var displayName = row.display_name || 'anh/chị';
+    var subject = '🎁 Bếp Thuỷ Japan: 100 điểm chào mừng đang chờ kích hoạt';
+    var htmlBody = buildReminderEmailHtml_(displayName, claimUrl);
+    var plainBody = buildReminderEmailPlain_(displayName, claimUrl);
+
+    if (dryRun) {
+      Logger.log('[reminder] DRY-RUN would send to: ' + row.email + ' | url=' + claimUrl.substring(0, 80) + '...');
+      sent++;
+      continue;
+    }
+
+    try {
+      MailApp.sendEmail({
+        to: row.email,
+        subject: subject,
+        htmlBody: htmlBody,
+        body: plainBody,
+        name: 'Bếp Thuỷ Japan',
+        replyTo: 'support@thuyjapan.com'
+      });
+      sent++;
+      Logger.log('[reminder] OK: ' + row.email);
+      // Sleep nhe de tranh quota burst
+      Utilities.sleep(200);
+    } catch (err) {
+      errors++;
+      Logger.log('[reminder] FAIL ' + row.email + ': ' + err);
+    }
+  }
+
+  Logger.log('[reminder] === DONE === sent=' + sent + ' errors=' + errors + ' skipped=' + skipped + ' total=' + rows.length);
+}
+
+function buildReminderEmailHtml_(displayName, claimUrl) {
+  return ''
+    + '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FFF8F0">'
+    + '  <div style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F,#C8102E);padding:36px 24px;text-align:center">'
+    + '    <h1 style="color:white;font-family:Georgia,serif;margin:0;font-size:30px">Bếp Thuỷ Japan</h1>'
+    + '    <p style="color:#FFD700;font-size:11px;letter-spacing:3px;margin:8px 0 0">✦ ĐẶC SẢN PHỐ CỔ HÀ NỘI TẠI NHẬT ✦</p>'
+    + '  </div>'
+    + '  <div style="padding:32px 28px">'
+    + '    <h2 style="color:#2C1A0E;font-family:Georgia,serif;font-size:22px;margin-top:0">' + escapeHtml_(displayName) + ' ơi, Thuỷ gửi lại link 100 điểm 👋</h2>'
+    + '    <p style="color:#444;font-size:16px;line-height:1.7">Lúc đăng ký Bếp Thuỷ Japan, anh/chị nhận được email kích hoạt 100 điểm chào mừng — nhưng có một <strong>lỗi kỹ thuật bên Thuỷ</strong> khiến link cũ không hoạt động.</p>'
+    + '    <p style="color:#444;font-size:16px;line-height:1.7">Thuỷ đã sửa và <strong>gửi lại link mới</strong>. Anh/chị bấm vào nút bên dưới để kích hoạt — chỉ mất 1 giây:</p>'
+    + '    <div style="background:linear-gradient(135deg,#FEF3C7,#FFF8F0);border:2px dashed #D4A017;border-radius:14px;padding:24px;margin:28px 0;text-align:center">'
+    + '      <p style="color:#8B3A0F;font-size:12px;margin:0;letter-spacing:2px">🎁 QUÀ CHÀO MỪNG</p>'
+    + '      <p style="color:#C8102E;font-size:44px;font-weight:bold;margin:8px 0;font-family:Georgia,serif;line-height:1">100 ĐIỂM</p>'
+    + '      <p style="color:#666;font-size:13px;margin:0">= Giảm ¥100 cho đơn đầu tiên</p>'
+    + '    </div>'
+    + '    <p style="text-align:center;margin:36px 0 12px">'
+    + '      <a href="' + claimUrl + '" style="background:linear-gradient(135deg,#C8102E,#8B3A0F);color:white;padding:18px 48px;border-radius:14px;text-decoration:none;font-weight:bold;display:inline-block;font-size:18px;box-shadow:0 6px 16px rgba(200,16,46,0.35)">✨ KÍCH HOẠT 100 ĐIỂM NGAY</a>'
+    + '    </p>'
+    + '    <p style="text-align:center;color:#888;font-size:12px;margin:0">(Bấm 1 lần — điểm tự vào tài khoản của anh/chị)</p>'
+    + '    <div style="background:#FFF8F0;border-radius:8px;padding:16px;margin:32px 0;color:#444;font-size:14px;line-height:1.7">'
+    + '      <p style="margin:0;color:#8B3A0F"><strong>💡 Mẹo nhỏ:</strong></p>'
+    + '      <p style="margin:8px 0 0">Nếu link không hoạt động, copy URL này dán vào trình duyệt:<br><span style="color:#666;font-size:12px;word-break:break-all">' + claimUrl + '</span></p>'
+    + '    </div>'
+    + '    <p style="color:#666;font-size:14px;line-height:1.7;margin-top:32px">Cảm ơn anh/chị đã tin tưởng Bếp Thuỷ. Nếu có thắc mắc, anh/chị reply email này hoặc gửi tin qua Zalo: <strong>support@thuyjapan.com</strong></p>'
+    + '    <p style="color:#666;font-size:14px;margin-bottom:0">Thân,<br><strong>Thuỷ</strong> · Bếp Thuỷ Japan</p>'
+    + '  </div>'
+    + '</div>';
+}
+
+function buildReminderEmailPlain_(displayName, claimUrl) {
+  return ''
+    + displayName + ' ơi,\n\n'
+    + 'Lúc đăng ký Bếp Thuỷ Japan, anh/chị nhận được email kích hoạt 100 điểm chào mừng — nhưng có một lỗi kỹ thuật bên Thuỷ khiến link cũ không hoạt động.\n\n'
+    + 'Thuỷ đã sửa và gửi lại link mới. Anh/chị bấm vào link bên dưới để kích hoạt 100 điểm (~ giảm ¥100 cho đơn đầu tiên):\n\n'
+    + claimUrl + '\n\n'
+    + 'Bấm 1 lần — điểm tự vào tài khoản.\n\n'
+    + 'Cảm ơn anh/chị đã tin tưởng Bếp Thuỷ. Nếu có thắc mắc, reply email này hoặc liên hệ support@thuyjapan.com\n\n'
+    + 'Thân,\nThuỷ · Bếp Thuỷ Japan';
+}
+
+function escapeHtml_(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
