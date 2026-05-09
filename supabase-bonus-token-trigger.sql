@@ -1,4 +1,9 @@
 -- ============================================================
+-- ⚠️ DEPRECATED 2026-05-09: File nay da duoc SUPERSEDED boi
+-- supabase-anti-fraud-canonical-email.sql (co them canonical_email).
+-- KHONG chay lai file nay — se overwrite handle_new_user moi
+-- va mat anti-fraud canonical email dedup.
+-- ============================================================
 -- Việc 2/5: Update trigger handle_new_user (KHÔNG gen bonus_token ở app layer)
 -- Lý do refactor: token per-user identify đúng user khi claim 100đ.
 -- Chạy SAU supabase-bonus-token-migration.sql (Việc 1).

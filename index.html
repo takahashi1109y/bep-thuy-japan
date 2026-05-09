@@ -2796,7 +2796,7 @@ window.addEventListener('scroll', function() {
         sbProfile = profile;
         // Load points balance
         const { data: bal } = await sbClient.from('points_balance')
-          .select('total_points').eq('user_id', sbUser.id).single();
+          .select('total_points').eq('user_id', sbUser.id).maybeSingle();
         sbPointsBalance = bal?.total_points || 0;
         // Check birthday
         checkBirthday();

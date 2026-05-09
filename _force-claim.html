@@ -92,7 +92,7 @@ async function run() {
   }
 
   // 5. Balance after
-  const { data: bal } = await sb.from('points_balance').select('total_points').eq('user_id', user.id).single();
+  const { data: bal } = await sb.from('points_balance').select('total_points').eq('user_id', user.id).maybeSingle();
   log('');
   log('Balance hiện tại: ' + (bal?.total_points || 0) + ' điểm');
 }

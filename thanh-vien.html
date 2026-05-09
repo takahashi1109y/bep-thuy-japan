@@ -1740,6 +1740,16 @@ async function tryClaimWelcomeBonus(token) {
         console.log('[welcome-claim] already_claimed');
         showWelcomeClaimAlreadyClaimed();
         return { ok: false, alreadyClaimed: true };
+
+      case 'email_not_verified':
+        console.warn('[welcome-claim] email_not_verified');
+        showWelcomeClaimError('Vui lòng xác nhận email trước khi nhận điểm thưởng. Kiểm tra hộp thư (hoặc thư rác) để tìm email xác nhận.');
+        return { ok: false, error: 'email_not_verified' };
+
+      case 'duplicate_email':
+        console.warn('[welcome-claim] duplicate_email — alias detected');
+        showWelcomeClaimError('Email này đã được sử dụng để nhận thưởng. Mỗi người chỉ được nhận 1 lần.');
+        return { ok: false, error: 'duplicate_email' };
     }
 
     if (data.ok) {

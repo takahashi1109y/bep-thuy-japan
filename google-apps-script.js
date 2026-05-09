@@ -5618,3 +5618,105 @@ function createYamatoMonitoringTrigger() {
     .create();
   Logger.log('Yamato monitoring trigger installed — runs every Tuesday 09:00 JST');
 }
+
+// ============================================================
+// SYNC BONUS TOKENS TO GETRESPONSE (one-time backfill)
+// Chay thu cong tu dropdown: Select function → syncBonusTokensToGR → Run
+// Idempotent — chay lai chi update contacts chua co token.
+// ============================================================
+function syncBonusTokensToGR() {
+  if (!GR_API_KEY || GR_API_KEY.length < 20) {
+    Logger.log('[syncGR] SKIP: GR_API_KEY chua cau hinh');
+    return;
+  }
+  if (!GR_CF_BONUS_TOKEN) {
+    Logger.log('[syncGR] SKIP: GR_CF_BONUS_TOKEN chua cau hinh — doc HUONG-DAN-GETRESPONSE-BONUS-TOKEN.md Phan 1');
+    return;
+  }
+
+  // 1. Query Supabase RPC get_emails_with_tokens()
+  var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/get_emails_with_tokens';
+  var rpcRes = UrlFetchApp.fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    },
+    payload: '{}',
+    muteHttpExceptions: true
+  });
+
+  if (rpcRes.getResponseCode() !== 200) {
+    Logger.log('[syncGR] RPC fail: ' + rpcRes.getResponseCode() + ' ' + rpcRes.getContentText());
+    return;
+  }
+
+  var rows = JSON.parse(rpcRes.getContentText());
+  Logger.log('[syncGR] Found ' + rows.length + ' contacts to sync');
+
+  var updated = 0;
+  var skipped = 0;
+  var errors = 0;
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row.email || !row.bonus_token) { skipped++; continue; }
+
+    try {
+      // 2. Find contact in GR by email
+      var searchUrl = 'https://api.getresponse.com/v3/contacts?query%5Bemail%5D=' + encodeURIComponent(row.email);
+      var searchRes = UrlFetchApp.fetch(searchUrl, {
+        method: 'GET',
+        headers: { 'X-Auth-Token': 'api-key ' + GR_API_KEY },
+        muteHttpExceptions: true
+      });
+
+      if (searchRes.getResponseCode() !== 200) {
+        Logger.log('[syncGR] Search fail for ' + row.email + ': ' + searchRes.getResponseCode());
+        errors++;
+        continue;
+      }
+
+      var contacts = JSON.parse(searchRes.getContentText());
+      if (!contacts || !contacts.length) {
+        Logger.log('[syncGR] Not found in GR: ' + row.email + ' — skip');
+        skipped++;
+        continue;
+      }
+
+      var contactId = contacts[0].contactId;
+
+      // 3. Update custom field bonus_token
+      var updateRes = UrlFetchApp.fetch('https://api.getresponse.com/v3/contacts/' + contactId + '/custom-fields', {
+        method: 'POST',
+        headers: {
+          'X-Auth-Token': 'api-key ' + GR_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify({
+          customFieldValues: [{ customFieldId: GR_CF_BONUS_TOKEN, value: [String(row.bonus_token)] }]
+        }),
+        muteHttpExceptions: true
+      });
+
+      var updateCode = updateRes.getResponseCode();
+      if (updateCode === 200 || updateCode === 201 || updateCode === 202) {
+        updated++;
+        Logger.log('[syncGR] OK: ' + row.email);
+      } else {
+        Logger.log('[syncGR] Update fail ' + row.email + ': ' + updateCode + ' ' + updateRes.getContentText());
+        errors++;
+      }
+
+      // Rate limit: GR API max 30 req/s — sleep 200ms giua moi contact
+      Utilities.sleep(200);
+
+    } catch (err) {
+      Logger.log('[syncGR] Error ' + row.email + ': ' + err);
+      errors++;
+    }
+  }
+
+  Logger.log('[syncGR] Done: ' + updated + ' updated, ' + skipped + ' skipped, ' + errors + ' errors (total ' + rows.length + ')');
+}
