@@ -5428,6 +5428,15 @@ function classifySagawaStatus_(status) {
 }
 
 // ============================================================
+// PUBLIC WRAPPER — anh chạy function này từ Apps Script editor dropdown.
+// Reason: function thật `checkYamatoDeliveredStatus_` có `_` cuối (private
+// convention) → Apps Script ẨN khỏi dropdown. Wrapper PUBLIC này hiện được.
+// ============================================================
+function runYamatoDeliveredCheck() {
+  return checkYamatoDeliveredStatus_();
+}
+
+// ============================================================
 // CHECK YAMATO DELIVERED STATUS — Phase 2 (2026-05-09)
 // Auto chuyển status `shipped → delivered` khi Yamato báo 配達完了.
 // Trigger: anh chạy thủ công LẦN ĐẦU để backfill 86 đơn shipped hiện tại.
