@@ -413,10 +413,13 @@ function doPost(e) {
     // Khách đã trả đơn gốc, muốn thêm hàng gộp ship (ship_fee=0).
     // RPC add_to_existing_order tạo đơn con, link parent_order_no.
     // ============================================================
-    // FIX 2026-05-08: Apps Script dispatcher pattern dùng `data.type` (consistency
-    // với 12 handlers khác). Agent gốc dùng `data.action` — sửa lại để consistent.
+    // FIX 2026-05-09 (Vấn đề 1): handler add_to_existing_order rewrite đầy đủ.
+    // Bug cũ: 4 field names mismatch (items/amount/payment_method/'bank') + THIẾU
+    // logic verify receipt → khách upload bill cũng bị reject ngay với 'missing_items'.
+    // Bây giờ: dùng đúng tên field (cartItems/total/method/'bank_transfer') + verify
+    // receipt qua AI Vision (giống pattern verify_then_create_order).
     if (data.type === 'add_to_existing_order') {
-      // --- Validate input ---
+      // === Validate input — field names match frontend pattern existing ===
       if (!data.userId) {
         return buildResponse({ success: false, error: 'must_login',
           detail: 'Vui lòng đăng nhập trước khi thêm hàng vào đơn.' });
@@ -424,31 +427,83 @@ function doPost(e) {
       if (!data.parent_order_no || typeof data.parent_order_no !== 'string' || !data.parent_order_no.trim()) {
         return buildResponse({ success: false, error: 'missing_parent_order_no' });
       }
-      if (!Array.isArray(data.items) || data.items.length === 0) {
+      if (!Array.isArray(data.cartItems) || data.cartItems.length === 0) {
         return buildResponse({ success: false, error: 'missing_items' });
       }
-      if (typeof data.amount !== 'number' || data.amount <= 0 || data.amount > 10000000) {
+      if (typeof data.total !== 'number' || data.total < 0 || data.total > 10000000) {
+        // Note: cho phép total=0 vì merge có thể ship_fee_delta=0 + items=0 (edge case)
         return buildResponse({ success: false, error: 'invalid_amount' });
       }
-      if (!data.payment_method || ['paypay', 'bank'].indexOf(data.payment_method) < 0) {
+      if (!data.method || ['paypay', 'bank_transfer'].indexOf(data.method) < 0) {
         return buildResponse({ success: false, error: 'invalid_payment_method' });
       }
+      if (!data.receipt_base64) {
+        return buildResponse({ success: false, error: 'missing_receipt' });
+      }
 
+      // === Verify receipt qua AI Vision (pattern giống verify_then_create_order) ===
+      var verifyRes = verifyReceiptStandalone_(data.receipt_base64, data.total);
+      if (!verifyRes.match) {
+        // Telegram alert — admin can intervene
+        try {
+          sendVerifyFailureTelegram_({
+            type: 'verify_failed_merge',
+            order_ref: 'merge into #' + data.parent_order_no.trim(),
+            customer_name: data.name || '',
+            customer_email: data.email || '',
+            customer_phone: data.phone || '',
+            expected_amount: data.total,
+            detected_amount: verifyRes.detected_amount,
+            reason: verifyRes.reason,
+            checks: verifyRes.checks,
+            raw_text: verifyRes.raw_text
+          });
+        } catch (tge) { Logger.log('TG verify_failed_merge err: ' + tge); }
+        return buildResponse({
+          success: false,
+          error: 'verify_failed',
+          detail: {
+            extracted_amount: verifyRes.detected_amount,
+            expected_amount: data.total,
+            reason: verifyRes.reason
+          }
+        });
+      }
+
+      // === Verify PASS → tạo đơn con qua RPC ===
+      // shipFeeDelta = data.shipping (frontend tính delta từ recalcMergeShipFee)
+      // Nếu = 0 → ship miễn. Nếu > 0 → phụ thu chênh lệch.
       var mergeRes = addToExistingOrder_(
         data.parent_order_no.trim(),
-        data.items,
-        data.amount,
-        data.userId
+        data.cartItems,
+        data.total,
+        data.userId,
+        data.shipping || 0
       );
 
       if (!mergeRes.ok) {
         return buildResponse({ success: false, error: mergeRes.error });
       }
+
+      // === Side effects (subset của verify_then_create_order) ===
+      // - Yamato sheet: TODO Phase 4 (Agent E sẽ gộp items vào row parent)
+      // - Email confirm: TODO Phase 4
+      // - GetResponse sync: KHÔNG cần (khách đã sync khi đặt đơn gốc)
+      // - Supabase orders insert: KHÔNG cần (RPC add_to_existing_order đã INSERT)
+      // - Stock deduct: CẦN (đơn con cũng tiêu thụ inventory)
+      try { deductStockForOrder_(data.cartItems); } catch(dse) { Logger.log('Merge deduct stock err: ' + dse); }
+      // - Points deduct: nếu khách dùng điểm cho đơn merge
+      if (data.userId && data.pointsUsed > 0) {
+        try { deductPointsFromSupabase(data.userId, mergeRes.order_no, data.pointsUsed); } catch(de) { Logger.log('Merge pts err: ' + de); }
+      }
+
       return buildResponse({
         success: true,
         status: 'success',
-        order_no: mergeRes.order_no,
-        merged_with: data.parent_order_no.trim()
+        orderNo: mergeRes.order_no,
+        merged_with: data.parent_order_no.trim(),
+        verified: true,
+        detected_amount: verifyRes.detected_amount
       });
     }
 
@@ -3684,32 +3739,32 @@ function updateGetResponseContact(email, customFields) {
 }
 
 // ============================================================
-// ADD_TO_EXISTING_ORDER HELPER (2026-05-08) — Merge Orders Phase 2
-// Gọi Supabase RPC add_to_existing_order để tạo đơn con (ship_fee=0,
-// parent_order_no=parentOrderNo, is_merged=true).
+// ADD_TO_EXISTING_ORDER HELPER (2026-05-09 V2 — recalc shipping)
+// Gọi Supabase RPC add_to_existing_order để tạo đơn con.
 //
 // Params:
-//   parentOrderNo  {string}  order_no đơn cha (e.g. "123")
-//   newItems       {Array}   cart items của đơn con (format giống cartItems)
-//   newTotal       {number}  tổng tiền items, KHÔNG include ship (luôn 0)
-//   userId         {string}  UUID của khách (bắt buộc — RPC dùng để verify owner)
+//   parentOrderNo   {string}  order_no đơn cha (e.g. "0123")
+//   newItems        {Array}   cart items đơn con
+//   newTotal        {number}  tổng tiền items (KHÔNG gồm ship delta)
+//   userId          {string}  UUID khách (RPC verify owner)
+//   shipFeeDelta    {number}  phí ship phụ thu (max(0, newShip - parentShip))
+//                             0 = ship miễn (weight chưa vượt mức cũ)
+//                             >0 = phụ thu phần chênh lệch
 //
-// Returns: { ok: true, order_no, amount } hoặc { ok: false, error: <code> }
+// Returns: { ok: true, order_no, amount, ship_fee_delta } hoặc { ok: false, error }
 // ============================================================
-function addToExistingOrder_(parentOrderNo, newItems, newTotal, userId) {
+function addToExistingOrder_(parentOrderNo, newItems, newTotal, userId, shipFeeDelta) {
   try {
-    // Gọi Supabase RPC — signature: add_to_existing_order(p_parent, p_items, p_total)
-    // SECURITY DEFINER nên userId được verify trong RPC bằng auth.uid().
-    // Apps Script gọi bằng service_role key → phải truyền userId trong p_items
-    // RPC signature: add_to_existing_order(p_parent text, p_user_id uuid, p_items jsonb, p_total int)
-    // Apps Script gọi qua service_role key → auth.uid() trong RPC return NULL
-    // → BẮT BUỘC pass p_user_id để RPC verify Rule 2 (parent.user_id match).
+    // RPC signature V2 (2026-05-09):
+    //   add_to_existing_order(p_parent, p_user_id, p_items, p_total, p_ship_fee_delta)
+    // Apps Script gọi qua service_role key → auth.uid() return NULL → pass p_user_id.
     var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/add_to_existing_order';
     var rpcPayload = {
       p_parent: parentOrderNo,
       p_user_id: userId,
       p_items: newItems,
-      p_total: newTotal
+      p_total: newTotal,
+      p_ship_fee_delta: shipFeeDelta || 0
     };
 
     var res = UrlFetchApp.fetch(rpcUrl, {

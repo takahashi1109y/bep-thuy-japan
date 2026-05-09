@@ -1110,20 +1110,59 @@ window.addEventListener('scroll', function() {
     setTimeout(doFill, 300);
   }
 
+  // 2026-05-09 V2: thay setShipFeeZero bằng recalcMergeShipFee.
+  // Logic:
+  //   parentWeight = sum(parent.items[i].wt × qty)
+  //   newWeight    = parentWeight + currentCartWeight
+  //   newShipFee   = shippingFee(parent.prefecture, newWeight)
+  //   delta        = max(0, newShipFee - parent.shipping_fee)
+  // Display:
+  //   delta = 0  → "✅ Phí ship: MIỄN (đơn cũ đã đủ phí cho weight gộp)"
+  //   delta > 0  → "📦 Phí ship phụ thu ¥{delta} (gộp {kg}kg vượt mức ¥{cũ})"
+  function recalcMergeShipFee() {
+    const parentItems = mergeParentData.items || [];
+    const parentShipFee = mergeParentData.shippingFee || 0;
+    const parentPref = mergeParentData.district || '';
+    // Parent weight: sum from items array (mỗi item có wt + qty)
+    let parentWeight = 0;
+    try {
+      parentItems.forEach(function(it) {
+        const w = Number(it.wt || it.weight || 0);
+        const q = Number(it.qty || 1);
+        parentWeight += w * q;
+      });
+    } catch (e) { parentWeight = 0; }
+    // Current cart weight
+    const cartWt = totalWeight();
+    const totalWt = parentWeight + cartWt;
+    // New ship fee for total weight
+    const newShipFee = shippingFee(parentPref, totalWt) || 0;
+    const delta = Math.max(0, newShipFee - parentShipFee);
+    shipFee = delta;
+    return { delta: delta, totalWt: totalWt, parentShipFee: parentShipFee, newShipFee: newShipFee };
+  }
+
   function setShipFeeZero() {
-    shipFee = 0;
-    // Patch calcShipping and calcShippingRecipient to always return 0 in merge mode
+    // Patch calcShipping để recalc delta thay vì hardcode 0
     const origCalcShipping = calcShipping;
     calcShipping = function() {
       origCalcShipping();
-      shipFee = 0;
-      // Override the ship result box display
+      const r = recalcMergeShipFee();
       const box = document.getElementById('ship-result-box');
       if (box) {
-        box.innerHTML = '<div class="ship-result"><div class="flex justify-between items-center">'
-          + '<p class="text-xs text-green-700 font-semibold">✅ Phí ship: MIỄN (gộp đơn #'
-          + mergeParentData.parentOrderNo + ')</p>'
-          + '<p class="text-green-800 font-bold text-xl">¥0</p></div></div>';
+        if (r.delta === 0) {
+          box.innerHTML = '<div class="ship-result"><div class="flex justify-between items-center">'
+            + '<p class="text-xs text-green-700 font-semibold">✅ Phí ship: MIỄN (đơn gộp #'
+            + mergeParentData.parentOrderNo + ' đã đủ phí ship cho ' + (r.totalWt/1000).toFixed(1) + 'kg)</p>'
+            + '<p class="text-green-800 font-bold text-xl">¥0</p></div></div>';
+        } else {
+          box.innerHTML = '<div class="ship-result"><div class="flex justify-between items-center">'
+            + '<p class="text-xs text-amber-700 font-semibold">📦 Phí ship phụ thu (gộp ' + (r.totalWt/1000).toFixed(1) + 'kg vượt mức cũ)</p>'
+            + '<p class="text-amber-800 font-bold text-xl">¥' + r.delta.toLocaleString() + '</p></div>'
+            + '<p class="text-xs text-gray-500 mt-1">Đơn cũ ¥' + r.parentShipFee.toLocaleString()
+            + ' → đơn gộp ¥' + r.newShipFee.toLocaleString()
+            + ' = phụ thu ¥' + r.delta.toLocaleString() + '</p></div>';
+        }
         box.classList.remove('hidden');
       }
       updateTotalBox();
@@ -1132,7 +1171,8 @@ window.addEventListener('scroll', function() {
 
   function clearMergeSessionStorage() {
     ['merge_parent_order','merge_parent_address','merge_parent_district',
-     'merge_parent_postal','merge_parent_name','merge_parent_phone'].forEach(function(k){
+     'merge_parent_postal','merge_parent_name','merge_parent_phone',
+     'merge_parent_items','merge_parent_ship_fee'].forEach(function(k){
       sessionStorage.removeItem(k);
     });
   }
@@ -1145,13 +1185,20 @@ window.addEventListener('scroll', function() {
     const savedParent = sessionStorage.getItem('merge_parent_order');
     if (savedParent === mergeParent) {
       MERGE_MODE = true;
+      // V2 2026-05-09: thêm items + shippingFee để recalcMergeShipFee work
+      let parentItems = [];
+      try {
+        parentItems = JSON.parse(sessionStorage.getItem('merge_parent_items') || '[]');
+      } catch (e) { parentItems = []; }
       mergeParentData = {
         parentOrderNo: mergeParent,
         address:  sessionStorage.getItem('merge_parent_address') || '',
         district: sessionStorage.getItem('merge_parent_district') || '',
         postal:   sessionStorage.getItem('merge_parent_postal') || '',
         name:     sessionStorage.getItem('merge_parent_name') || '',
-        phone:    sessionStorage.getItem('merge_parent_phone') || ''
+        phone:    sessionStorage.getItem('merge_parent_phone') || '',
+        items: parentItems,
+        shippingFee: Number(sessionStorage.getItem('merge_parent_ship_fee')) || 0
       };
       // Banner + ship zero will be shown after DOM ready (see DOMContentLoaded below)
     } else {
