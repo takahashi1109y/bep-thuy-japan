@@ -2432,9 +2432,26 @@ window.addEventListener('scroll', function() {
       `<p class="text-xs text-gray-400">📞 ${phone} · ✉️ ${email}</p>`;
 
     // Luôn hiện hộp post đơn vào nhóm cho mọi khách
+    // 2026-05-11: Rút gọn — chỉ mã sản phẩm + tổng kg/hộp, KHÔNG hiển thị tên KH/giá/ship
     const groupBox = document.getElementById('group-order-box');
-    const itemLines = cart.map(i=>`  - ${i.name} (${i.size}) x${i.qty} = ${yen(i.price*i.qty)}`).join('\n');
-    const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\nHọ tên: ${name}\n\nSản phẩm:\n${itemLines}\nPhí ship: ${yen(ship)}\nTổng: ${yen(total)}\n\nXin xác nhận đơn hàng ạ!`;
+    const shortItems = cart.map(i => {
+      // Extract mã ngắn từ name "[GKT] Giò không tiêu" → "GKT"
+      const codeMatch = String(i.name || '').match(/^\[([^\]]+)\]/);
+      const code = codeMatch ? codeMatch[1] : String(i.name || '').split(' ')[0];
+      // Parse size: "1kg" / "0.5kg" / "2 hộp"
+      const sizeMatch = String(i.size || '1').match(/^([\d.]+)\s*(.*)/);
+      const sizeNum = sizeMatch ? parseFloat(sizeMatch[1]) : 1;
+      const sizeUnit = sizeMatch && sizeMatch[2] ? sizeMatch[2].trim() : '';
+      // Tổng = qty * size_per_unit
+      const total = sizeNum * (i.qty || 1);
+      const totalStr = (total % 1 === 0 ? total : total.toFixed(1));
+      // Format: kg liền (0.5kg), hộp có space (3 hộp)
+      const display = sizeUnit.toLowerCase().indexOf('hộp') === 0
+        ? `${totalStr} ${sizeUnit}`
+        : `${totalStr}${sizeUnit}`;
+      return `${code} ${display}`;
+    }).join(', ');
+    const orderText = `[ĐẶT HÀNG] Đơn #${orderNo}\n${shortItems}\nXin xác nhận đơn hàng!`;
     document.getElementById('group-order-text').textContent = orderText;
     groupBox.style.display='block';
 
