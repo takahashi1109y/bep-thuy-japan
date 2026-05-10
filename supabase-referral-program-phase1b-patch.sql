@@ -64,8 +64,8 @@ BEGIN
     'eligible', true,
     'reason', 'eligible',
     'discount_amount', 300,
-    'min_subtotal', 1000,
-    'message', 'Bạn được giảm 300¥ cho đơn đầu tiên (chỉ áp dụng đơn > 1000¥).');
+    'min_subtotal', 3000,
+    'message', 'Bạn được giảm 300¥ cho đơn đầu tiên (chỉ áp dụng đơn > 3000¥).');
 END;
 $$;
 
