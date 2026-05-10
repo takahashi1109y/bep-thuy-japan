@@ -1750,6 +1750,11 @@ async function tryClaimWelcomeBonus(token) {
         console.warn('[welcome-claim] duplicate_email — alias detected');
         showWelcomeClaimError('Email này đã được sử dụng để nhận thưởng. Mỗi người chỉ được nhận 1 lần.');
         return { ok: false, error: 'duplicate_email' };
+
+      case 'disposable_email':
+        console.warn('[welcome-claim] disposable_email — blacklisted domain');
+        showWelcomeClaimError('Email tạm thời (disposable) không được nhận điểm thưởng. Vui lòng dùng email chính thức như Gmail, Yahoo, iCloud.');
+        return { ok: false, error: 'disposable_email' };
     }
 
     if (data.ok) {
