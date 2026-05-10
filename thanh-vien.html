@@ -1755,6 +1755,11 @@ async function tryClaimWelcomeBonus(token) {
         console.warn('[welcome-claim] disposable_email — blacklisted domain');
         showWelcomeClaimError('Email tạm thời (disposable) không được nhận điểm thưởng. Vui lòng dùng email chính thức như Gmail, Yahoo, iCloud.');
         return { ok: false, error: 'disposable_email' };
+
+      case 'ip_rate_limited':
+        console.warn('[welcome-claim] ip_rate_limited — same IP > 3 signups/24h');
+        showWelcomeClaimError('Đã có quá nhiều tài khoản đăng ký từ mạng Internet này trong 24h. Vui lòng liên hệ support@thuyjapan.com để được kích hoạt thủ công.');
+        return { ok: false, error: 'ip_rate_limited' };
     }
 
     if (data.ok) {
@@ -2242,6 +2247,19 @@ async function doRegister() {
 
   btn.innerHTML = '<span class="spin">⏳</span> Đang đăng ký...';
 
+  // P1.C 2026-05-11: Lay IP de trigger handle_new_user log signup_ip
+  // (rate limit anti-fraud: cung 1 IP > 3 signups/24h se khong nhan 100đ)
+  let signupIp = null;
+  try {
+    const ipRes = await fetch('https://api.ipify.org?format=json');
+    if (ipRes.ok) {
+      const ipData = await ipRes.json();
+      signupIp = ipData.ip || null;
+    }
+  } catch(e) {
+    console.warn('[doRegister] fetch IP fail (non-blocking):', e);
+  }
+
   const { data, error } = await sb.auth.signUp({
     email, password,
     options: {
@@ -2252,7 +2270,8 @@ async function doRegister() {
         postal: postal || null,
         address: address || null,
         gender: gender,
-        birthday: birthday
+        birthday: birthday,
+        signup_ip: signupIp
       },
       emailRedirectTo: window.location.origin + '/thanh-vien',
       captchaToken: captchaToken
