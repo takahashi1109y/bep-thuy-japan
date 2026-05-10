@@ -693,20 +693,124 @@ sau 1-2 tuần data.
 
 ---
 
-# 7. CHECKLIST TRƯỚC COMMIT (2026-05-09 — extracted từ 8 mistakes)
+# 8. THIRD-PARTY INTEGRATION SAFETY
 
-Trước khi commit feature mới, agent BẮT BUỘC tự verify:
+Áp dụng khi tích hợp third-party services (email/SMS, payment, webhook, OAuth, marketing automation).
+
+## Rule 8.1 — Test real production-like flow
+
+Mọi third-party notification / template / link flow PHẢI test bằng end-to-end real flow trước production deploy. KHÔNG tin "Send Test" hoặc "Preview" của vendor — thường KHÔNG resolve personalization, link tracking, hoặc dynamic content.
+
+**Bắt buộc**: 1 round real flow với account test trước commit. Nếu không thể, document trong PR là "untested in real flow" + chờ stakeholder review.
+
+## Rule 8.2 — Query API for canonical ID, never assume URL slug
+
+URL slug trên admin UI thường KHÔNG phải ID dùng cho API request.
+
+**Bắt buộc**:
+- Khi cần ID cho 3rd-party API, gọi API endpoint trả về ID chuẩn
+- Document ID format trong reference memory file
+
+## Rule 8.3 — Explicit identifier + retry with backoff
+
+Khi data flow qua nhiều layers (frontend → backend → DB trigger → 3rd-party):
+1. Pass mọi identifier **explicit** trong payload — KHÔNG dựa implicit context
+2. Backend layer expecting data từ DB trigger → retry với exponential backoff (vd 3 attempts × 500ms/1000ms)
+3. Log từng attempt để debug race conditions
+
+## Rule 8.4 — SPEC state machine for one-shot/stateful services
+
+Tích hợp service có state machine cố định (autoresponder fire 1 lần per contact, OAuth grant 1 lần per scope, webhook fire-and-forget) → SPEC bắt buộc 5 sections:
+
+1. **Preconditions**: Yêu cầu data state trước trigger
+2. **Trigger action**: Action gì kích hoạt
+3. **Expected state change**: State sau trigger
+4. **How to reset/retest**: Steps để re-test
+5. **Real test scenario**: Numbered text steps để future agent follow
+
+---
+
+# 9. REWARD / PROMOTION / ANTI-FRAUD SAFETY
+
+Áp dụng cho feature liên quan điểm thưởng, giảm giá, voucher, referral, NPS reward, loyalty.
+
+## Rule 9.1 — At least 3 anti-fraud layers + admin alert
+
+Mọi promotion feature mới BẮT BUỘC:
+- **≥3 anti-fraud layers** chọn từ: identity (UNIQUE email/phone), behavioral (IP rate limit), hardware (device fingerprint), volume (lifetime cap), email blacklist (disposable domains)
+- **1 manual review trigger**: Telegram/email alert admin khi cron hourly phát hiện anomaly pattern
+
+**SPEC bắt buộc** liệt kê layers + trade-off cho khách thật.
+
+## Rule 9.2 — User-controlled reward fields must be locked + validated
+
+Bất kỳ field user input có quan hệ với reward eligibility (birthday, referral code, address-based discount) BẮT BUỘC:
+1. **Lock immutable** sau lần đầu set — chỉ admin/service_role override
+2. **Age threshold**: Field set_at ≥ N ngày trước khi eligible (default 30)
+3. **Cooldown period**: Reward 1 lần/N ngày (default 365 annual, 60 NPS)
+4. **Backend RPC validate** — frontend check KHÔNG đủ
+
+---
+
+# 10. STATUS TRANSITION & BULK OPERATION SAFETY
+
+## Rule 10.1 — Idempotent revoke for status transitions with side effects
+
+Status flow A→B→C có side effect tại transition A→B (award điểm, refund, gửi email) → BẮT BUỘC reverse logic cho transition B→C nếu C là cancel/revert:
+
+**Pattern**:
+- Trigger `award_X_on_B_fn` set cờ `awarded_at` (idempotent)
+- Trigger `revoke_X_on_C_fn` check `awarded_at IS NOT NULL` → INSERT reverse transaction → set `revoked_at`
+- Document mọi state có/không award trong SPEC
+
+## Rule 10.2 — Bulk operation safety
+
+Mọi bulk operation (gửi N emails, update N rows, query N records):
+- **Idempotent**: Function chạy lại lần 2 KHÔNG duplicate work (skip records đã processed via flag column)
+- **Per-item try/catch**: 1 item fail KHÔNG crash batch
+- **Quota/limit awareness**: Check quota (`MailApp.getRemainingDailyQuota`, API rate limit, DB pool) trước. Plan multi-batch nếu N > quota.
+
+---
+
+# 7. CHECKLIST TRƯỚC COMMIT (updated 2026-05-11)
+
+Trước khi commit feature mới, agent BẮT BUỘC tự verify theo 6 groups:
+
+### A. SPEC & Process
+
+- [ ] **5.1**: SPEC có data contract field names exact?
+- [ ] **5.2**: Sau spawn agents có integration test?
+- [ ] **5.3**: Handler mới có grep existing pattern (data.type/cartItems/method)?
+- [ ] **8.4**: One-shot/stateful service → SPEC có 5 sections state machine?
+
+### B. Code Pattern Discipline
 
 - [ ] **6.1**: Mọi enum/group dùng const, không hardcode lặp?
 - [ ] **6.2**: Variables truy cập giữa functions có pass qua param/object?
 - [ ] **6.3**: Apps Script functions cần chạy editor có public wrapper (no `_` cuối)?
 - [ ] **6.4**: Timeout layers tính tổng < hangTimeout?
 - [ ] **6.5**: JSON inject HTML attribute có escape cả `'` và `"`?
-- [ ] **6.6**: Feature critical có diagnostic auto-log?
-- [ ] **5.1**: SPEC có data contract field names exact?
-- [ ] **5.2**: Sau spawn agents có integration test?
-- [ ] **5.3**: Handler mới có grep existing pattern (data.type/cartItems/method)?
+
+### C. Third-party Integration
+
+- [ ] **8.1**: Feature có notification/template → đã test real flow chưa?
+- [ ] **8.2**: Cần ID cho 3rd-party API → query endpoint, không lấy từ URL UI?
+- [ ] **8.3**: Data flow nhiều layers → identifier explicit + retry backoff?
+
+### D. Reward / Anti-fraud
+
+- [ ] **9.1**: Promotion mới có ≥3 anti-fraud layers + Telegram alert?
+- [ ] **9.2**: User-controlled field có lock + age + cooldown + RPC validate?
+
+### E. Status Transition & Bulk
+
+- [ ] **10.1**: Status transition có side effect → idempotent revoke logic?
+- [ ] **10.2**: Bulk operation idempotent + per-item try/catch + quota check?
+
+### F. Quality Gates & Rollback
+
 - [ ] **5.5**: Test E2E happy path đã chạy?
+- [ ] **6.6**: Feature critical có diagnostic auto-log?
 - [ ] **Rollback plan**: Có backup table / revert SQL nếu fail?
 
-Tick từng cái trước commit. Nếu thiếu → quay lại fix trước.
+Tick từng cái trước commit. Thiếu group nào → quay lại fix trước.
