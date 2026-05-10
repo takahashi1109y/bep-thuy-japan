@@ -633,6 +633,7 @@
       <button onclick="switchDashTab('address')" class="dash-tab" data-tab="address">📍 Địa Chỉ</button>
       <button onclick="switchDashTab('password')" class="dash-tab" data-tab="password">🔐 Mật Khẩu</button>
       <button onclick="switchDashTab('points')" class="dash-tab" data-tab="points">📊 Điểm Thưởng</button>
+      <button onclick="switchDashTab('referral')" class="dash-tab" data-tab="referral" style="background:linear-gradient(135deg,#FCE7F3,#FBCFE8);color:#9F1239;border:1px solid #F9A8D4;font-weight:700">🎁 Giới Thiệu</button>
     </div>
 
     <!-- Phone update reminder banner (subtle, sau khi user dismiss modal) -->
@@ -733,6 +734,83 @@
       <h4 class="font-bold text-gray-700 text-sm mb-3">📋 Lịch Sử Điểm</h4>
       <div id="points-history" class="space-y-2">
         <p class="text-gray-400 text-sm text-center py-4">Chưa có giao dịch nào</p>
+      </div>
+    </div>
+
+    <!-- Tab: Referral (2026-05-11) -->
+    <div id="panel-referral" class="hidden bg-white rounded-2xl shadow-lg border border-orange-100 p-6">
+      <div class="text-center mb-6">
+        <div class="text-4xl mb-2">🎁</div>
+        <h3 class="text-2xl font-bold text-brand-dark mb-2">Giới thiệu bạn bè — nhận điểm thưởng</h3>
+        <p class="text-gray-600 text-sm">Chia sẻ mã / link của anh/chị. Bạn bè đặt đơn → anh/chị nhận tới <strong class="text-brand-red">500 điểm/đơn</strong>.</p>
+      </div>
+
+      <!-- Mã giới thiệu -->
+      <div class="bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-dashed border-pink-300 rounded-2xl p-5 mb-4">
+        <p class="text-xs text-pink-700 font-semibold mb-2 tracking-wider">🏷️ MÃ GIỚI THIỆU CỦA ANH/CHỊ</p>
+        <div class="flex items-center gap-3">
+          <p id="ref-code-display" class="text-3xl font-bold text-brand-red tracking-widest flex-1 font-mono">···</p>
+          <button onclick="copyRefCode()" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl font-semibold text-sm shrink-0 transition">📋 Copy mã</button>
+        </div>
+      </div>
+
+      <!-- Link giới thiệu -->
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+        <p class="text-xs text-gray-600 font-semibold mb-2">🔗 LINK GIỚI THIỆU (gửi cho bạn bè)</p>
+        <div class="flex items-center gap-2">
+          <input id="ref-link-display" type="text" readonly class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-700" value="https://www.thuyjapan.com/?ref=···">
+          <button onclick="copyRefLink()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shrink-0 transition">📋 Copy link</button>
+        </div>
+      </div>
+
+      <!-- Share buttons -->
+      <div class="grid grid-cols-3 gap-2 mb-6">
+        <button onclick="shareRefFB()" class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+          <span>📘</span> Facebook
+        </button>
+        <button onclick="shareRefMessenger()" class="bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+          <span>💬</span> Messenger
+        </button>
+        <button onclick="shareRefZalo()" class="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+          <span>💙</span> Zalo
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 text-center">
+          <p class="text-xs text-purple-700 font-semibold mb-1">Đã giới thiệu</p>
+          <p class="text-2xl font-bold text-purple-900"><span id="ref-count">0</span><span class="text-base text-purple-500">/20</span></p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+          <p class="text-xs text-amber-700 font-semibold mb-1">Tổng điểm đã nhận</p>
+          <p class="text-2xl font-bold text-amber-900"><span id="ref-total-points">0</span><span class="text-base text-amber-500"> điểm</span></p>
+        </div>
+      </div>
+
+      <!-- Cách hoạt động -->
+      <details class="bg-white border border-gray-200 rounded-xl p-4 mb-3">
+        <summary class="font-semibold text-gray-700 text-sm cursor-pointer">💡 Cách hoạt động</summary>
+        <div class="mt-3 text-sm text-gray-600 space-y-2 leading-relaxed">
+          <p><strong>1.</strong> Anh/chị copy mã hoặc link → gửi cho bạn bè qua FB/Zalo/SMS.</p>
+          <p><strong>2.</strong> Bạn bè click link → đăng ký tài khoản → đặt đơn đầu tiên.</p>
+          <p><strong>3.</strong> Bạn bè được <strong class="text-brand-red">giảm 10% đơn đầu</strong> (tối thiểu đơn hàng &gt; 1000 ¥).</p>
+          <p><strong>4.</strong> Khi đơn của bạn bè được <strong>giao thành công</strong> → anh/chị nhận điểm thưởng = <strong>10% giá trị đơn (tối đa 500 điểm)</strong>.</p>
+          <p><strong>5.</strong> Tối đa 20 lượt giới thiệu / tài khoản.</p>
+          <p class="text-xs text-gray-500 italic mt-3">Lưu ý: Để tránh gian lận, bạn bè phải dùng email + SĐT + thiết bị + mạng KHÁC với anh/chị. Hệ thống tự động kiểm tra.</p>
+        </div>
+      </details>
+
+      <!-- Banner thông báo nếu có notif chưa seen -->
+      <div id="referral-notif-banner" class="hidden bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-4 mt-3">
+        <div class="flex items-start gap-3">
+          <div class="text-3xl">🎉</div>
+          <div class="flex-1">
+            <p class="font-bold text-amber-900 mb-1">Bạn vừa nhận <span id="referral-notif-points" class="text-brand-red text-lg">0</span> điểm!</p>
+            <p class="text-sm text-amber-800">Từ giới thiệu <span id="referral-notif-referee">···</span></p>
+          </div>
+          <button onclick="dismissReferralNotif()" class="text-amber-700 hover:text-amber-900 text-2xl px-2">×</button>
+        </div>
       </div>
     </div>
 
@@ -2699,7 +2777,7 @@ function switchDashTab(tab) {
   document.querySelectorAll('.dash-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  ['orders','points','messages','profile','address','password'].forEach(t => {
+  ['orders','points','messages','profile','address','password','referral'].forEach(t => {
     var el = document.getElementById('panel-' + t);
     if (el) el.classList.toggle('hidden', t !== tab);
   });
@@ -2713,6 +2791,111 @@ function switchDashTab(tab) {
     loadDashboard().catch(e => console.warn('Refresh orders err:', e));
   }
   if (tab === 'messages') loadMessages();
+  if (tab === 'referral') loadReferralData();
+}
+
+// REFERRAL Phase 3 2026-05-11: Load + display ref code, stats, notifs
+async function loadReferralData() {
+  if (!currentUser || !sb) return;
+  try {
+    // 1. Get profile (referral_code, referral_count)
+    const { data: profile } = await sb.from('profiles')
+      .select('referral_code, referral_count')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    if (profile && profile.referral_code) {
+      const code = profile.referral_code;
+      document.getElementById('ref-code-display').textContent = code;
+      document.getElementById('ref-link-display').value = 'https://www.thuyjapan.com/?ref=' + code;
+      document.getElementById('ref-count').textContent = profile.referral_count || 0;
+    }
+
+    // 2. Get total referral points (sum from points_transactions type='referral')
+    const { data: txs } = await sb.from('points_transactions')
+      .select('points')
+      .eq('user_id', currentUser.id)
+      .eq('type', 'referral');
+    const totalPts = (txs || []).reduce((s, t) => s + (t.points || 0), 0);
+    document.getElementById('ref-total-points').textContent = totalPts;
+
+    // 3. Check for unseen notifications
+    const { data: notifs } = await sb.from('referral_notifications')
+      .select('id, points, referee_name')
+      .eq('user_id', currentUser.id)
+      .eq('seen', false)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (notifs && notifs.length > 0) {
+      const n = notifs[0];
+      document.getElementById('referral-notif-points').textContent = n.points;
+      document.getElementById('referral-notif-referee').textContent = n.referee_name || 'bạn bè';
+      document.getElementById('referral-notif-banner').classList.remove('hidden');
+      document.getElementById('referral-notif-banner').dataset.notifId = n.id;
+    }
+  } catch(e) { console.warn('[referral] loadReferralData err:', e); }
+}
+
+function copyRefCode() {
+  const code = document.getElementById('ref-code-display').textContent;
+  if (!code || code === '···') return;
+  navigator.clipboard.writeText(code).then(() => {
+    showToast('✅ Đã copy mã: ' + code);
+  }).catch(() => alert('Không copy được. Mã: ' + code));
+}
+
+function copyRefLink() {
+  const link = document.getElementById('ref-link-display').value;
+  if (!link || link.indexOf('···') !== -1) return;
+  navigator.clipboard.writeText(link).then(() => {
+    showToast('✅ Đã copy link giới thiệu');
+  }).catch(() => alert('Không copy được. Link: ' + link));
+}
+
+function shareRefFB() {
+  const link = document.getElementById('ref-link-display').value;
+  if (!link || link.indexOf('···') !== -1) return;
+  window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank', 'width=600,height=500');
+}
+
+function shareRefMessenger() {
+  const link = document.getElementById('ref-link-display').value;
+  if (!link || link.indexOf('···') !== -1) return;
+  // Generic share + copy backup
+  const msg = '🎁 Bếp Thuỷ Japan đặc sản phố cổ Hà Nội. Đặt đơn đầu tiên qua link này được giảm 10%: ' + link;
+  if (navigator.share) {
+    navigator.share({ title: 'Bếp Thuỷ Japan', text: msg, url: link }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(msg).then(() => showToast('✅ Đã copy nội dung. Dán vào Messenger nhé!'));
+  }
+}
+
+function shareRefZalo() {
+  const link = document.getElementById('ref-link-display').value;
+  if (!link || link.indexOf('···') !== -1) return;
+  const msg = '🎁 Bếp Thuỷ Japan đặc sản phố cổ Hà Nội. Đặt đơn đầu tiên qua link này được giảm 10%: ' + link;
+  // Zalo share (mobile only) — fallback copy
+  navigator.clipboard.writeText(msg).then(() => showToast('✅ Đã copy. Mở Zalo dán vào chat nhé!'));
+}
+
+async function dismissReferralNotif() {
+  const banner = document.getElementById('referral-notif-banner');
+  const notifId = banner.dataset.notifId;
+  banner.classList.add('hidden');
+  if (!notifId || !sb) return;
+  try {
+    await sb.from('referral_notifications').update({ seen: true }).eq('id', notifId);
+  } catch(e) { console.warn('dismiss notif err:', e); }
+}
+
+function showToast(msg) {
+  // Reuse existing toast if any, else simple alert
+  if (window.toast) { window.toast(msg); return; }
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#10b981;color:white;padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:99999';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
 }
 
 // FIX 2026-05-09 (Bug B fix 5.5): Diagnostic logger.
