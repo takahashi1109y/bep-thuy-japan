@@ -5807,6 +5807,100 @@ function sendWelcomeBonusReminderDryRun() {
 }
 
 // ============================================================
+// ============================================================
+// P1.D — Welcome Bonus Fraud Detection (2026-05-11)
+// Chay hourly via cron trigger. Detect pattern bat thuong:
+//   1. Same IP > 2 claims trong 1 hour
+//   2. Speed claim < 60s tu signup (likely bot)
+//   3. Domain la / non-mainstream > 3 claims trong 1 hour
+// Alert qua Telegram toi admin.
+// ============================================================
+function checkWelcomeBonusFraud() {
+  var TRUSTED_DOMAINS = {
+    'gmail.com': true, 'googlemail.com': true,
+    'yahoo.co.jp': true, 'yahoo.com': true, 'yahoo.co.uk': true, 'ymail.com': true,
+    'icloud.com': true, 'me.com': true, 'mac.com': true,
+    'outlook.com': true, 'hotmail.com': true, 'live.com': true, 'msn.com': true,
+    'i.softbank.jp': true, 'docomo.ne.jp': true, 'ezweb.ne.jp': true, 'au.com': true,
+    'protonmail.com': true, 'proton.me': true,
+    'thuyjapan.com': true
+  };
+
+  // 1. Query last 1 hour claims
+  var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/get_recent_welcome_claims';
+  var rpcRes = UrlFetchApp.fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify({ p_hours: 1 }),
+    muteHttpExceptions: true
+  });
+
+  if (rpcRes.getResponseCode() !== 200) {
+    Logger.log('[fraudCheck] RPC fail: ' + rpcRes.getResponseCode());
+    return;
+  }
+
+  var claims = JSON.parse(rpcRes.getContentText());
+  if (!claims.length) {
+    Logger.log('[fraudCheck] no claims in last hour — skip');
+    return;
+  }
+
+  Logger.log('[fraudCheck] analyzing ' + claims.length + ' claims');
+
+  var alerts = [];
+
+  // Pattern 1: Same IP multiple claims
+  var ipCounts = {};
+  for (var i = 0; i < claims.length; i++) {
+    var ip = claims[i].signup_ip;
+    if (!ip) continue;
+    ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+  }
+  for (var ipKey in ipCounts) {
+    if (ipCounts[ipKey] >= 2) {
+      alerts.push('🚨 IP ' + ipKey + ' claimed welcome bonus ' + ipCounts[ipKey] + ' lan trong 1h');
+    }
+  }
+
+  // Pattern 2: Speed bot (claim < 60s sau signup)
+  var speedBots = claims.filter(function(c) { return c.seconds_to_claim != null && c.seconds_to_claim < 60; });
+  if (speedBots.length >= 1) {
+    var speedList = speedBots.slice(0, 5).map(function(c) {
+      return c.email + ' (' + c.seconds_to_claim + 's)';
+    }).join(', ');
+    alerts.push('🤖 ' + speedBots.length + ' khach claim < 60s sau signup (bot suspect): ' + speedList);
+  }
+
+  // Pattern 3: Untrusted domain spike
+  var untrustedCounts = {};
+  for (var j = 0; j < claims.length; j++) {
+    var dom = claims[j].email_domain;
+    if (!dom || TRUSTED_DOMAINS[dom]) continue;
+    untrustedCounts[dom] = (untrustedCounts[dom] || 0) + 1;
+  }
+  for (var domKey in untrustedCounts) {
+    if (untrustedCounts[domKey] >= 3) {
+      alerts.push('⚠️ Domain ' + domKey + ' claimed ' + untrustedCounts[domKey] + ' lan trong 1h (uncommon)');
+    }
+  }
+
+  // Send alert if any
+  if (alerts.length > 0) {
+    var msg = '🛡️ WELCOME BONUS FRAUD ALERT (last 1h)\n\n' + alerts.join('\n\n') +
+              '\n\nTotal claims: ' + claims.length +
+              '\nXem chi tiet: thuyjapan.com/thuythang';
+    sendTelegramAlertAdmin_(msg);
+    Logger.log('[fraudCheck] ALERT sent — ' + alerts.length + ' patterns');
+  } else {
+    Logger.log('[fraudCheck] no anomaly detected (' + claims.length + ' claims, all clean)');
+  }
+}
+
 // FORCE TEST — gui email FORMAT cho anh check (bypass pending list)
 // Token la dummy → click se reject 'invalid_token' (expected).
 // Dung de verify email design + delivery, khong test claim flow.
