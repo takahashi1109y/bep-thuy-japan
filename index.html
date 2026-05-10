@@ -2798,8 +2798,8 @@ window.addEventListener('scroll', function() {
         const { data: bal } = await sbClient.from('points_balance')
           .select('total_points').eq('user_id', sbUser.id).maybeSingle();
         sbPointsBalance = bal?.total_points || 0;
-        // Check birthday
-        checkBirthday();
+        // Check birthday (async — RPC backend enforce 4 layers anti-fraud)
+        checkBirthday().catch(e => console.warn('checkBirthday err:', e));
         checkInactiveDiscount();
         updateMemberUI();
       }
@@ -2835,17 +2835,42 @@ window.addEventListener('scroll', function() {
   }
 
   // BIRTHDAY DISCOUNT: check if today (JST) is user's birthday -> 10% off
+  // 2026-05-11: Anti-fraud Option B — backend RPC enforces 4 layers:
+  //   1. Account age ≥ 30 days
+  //   2. Birthday set_at ≥ 30 days ago (lock after first set)
+  //   3. Last claim ≥ 365 days ago (1 lan/nam dương lich)
+  //   4. Birthday match today (timezone JST)
+  // Frontend KHONG tu tinh — phai goi RPC check_birthday_discount().
   let isBirthdayToday = false;
-  function checkBirthday() {
-    if (!sbProfile?.birthday) { isBirthdayToday = false; return; }
+  let birthdayEligible = false;
+  let birthdayReason = '';
+  let birthdayMessage = '';
+  async function checkBirthday() {
+    if (!sbUser) { isBirthdayToday = false; birthdayEligible = false; return; }
     try {
-      // Get today in JST
-      const nowJST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-      const bday = new Date(sbProfile.birthday);
-      isBirthdayToday = (nowJST.getMonth() === bday.getMonth() && nowJST.getDate() === bday.getDate());
-      console.log('[birthday] check:', { birthday: sbProfile.birthday, isBirthdayToday });
-      if (isBirthdayToday) showBirthdayBanner();
-    } catch(e) { console.warn('checkBirthday err:', e); }
+      const { data, error } = await sbClient.rpc('check_birthday_discount');
+      if (error) {
+        console.warn('[birthday] RPC err:', error);
+        isBirthdayToday = false; birthdayEligible = false; return;
+      }
+      isBirthdayToday  = !!(data && data.is_birthday);
+      birthdayEligible = !!(data && data.eligible);
+      birthdayReason   = (data && data.reason) || '';
+      birthdayMessage  = (data && data.message) || '';
+      console.log('[birthday] RPC result:', { is_birthday: isBirthdayToday, eligible: birthdayEligible, reason: birthdayReason });
+      if (isBirthdayToday && birthdayEligible) showBirthdayBanner();
+      else if (isBirthdayToday && !birthdayEligible) showBirthdayIneligibleBanner(birthdayMessage);
+    } catch(e) { console.warn('[birthday] err:', e); isBirthdayToday = false; birthdayEligible = false; }
+  }
+
+  function showBirthdayIneligibleBanner(msg) {
+    if (document.getElementById('birthday-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'birthday-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#FBBF24,#F59E0B);color:#444;padding:10px 16px;text-align:center;font-weight:500;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15)';
+    banner.innerHTML = '🎂 Chúc mừng sinh nhật! ' + (msg || '') + ' <button onclick="this.parentNode.style.display=\'none\'" style="background:rgba(255,255,255,0.4);border:none;color:#444;padding:2px 10px;border-radius:999px;margin-left:8px;cursor:pointer">✕</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.style.paddingTop = '40px';
   }
 
   function showBirthdayBanner() {
@@ -2860,7 +2885,8 @@ window.addEventListener('scroll', function() {
   }
 
   function birthdayDiscount(amount) {
-    return isBirthdayToday ? Math.floor(amount * 0.1) : 0;
+    // 2026-05-11: Chi giam khi backend RPC eligible=true (4-layer check)
+    return birthdayEligible ? Math.floor(amount * 0.1) : 0;
   }
 
   // Max points redeemable for THIS order, FLOOR to multiple of 50

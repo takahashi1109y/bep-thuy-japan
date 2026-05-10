@@ -3328,6 +3328,26 @@ function saveOrderToSupabase(orderNo, data) {
     Logger.log('[saveOrderToSupabase] FAIL HTTP ' + code + ' for ' + orderNo + ' status=' + payload.status + ': ' + res.getContentText().slice(0, 600));
   } else {
     Logger.log('[saveOrderToSupabase] OK HTTP ' + code + ' #' + orderNo + ' status=' + payload.status);
+
+    // 2026-05-11: Mark birthday claim if order has birthday discount applied
+    // (Anti-fraud Option B Layer 3: 1 lần/365 ngày)
+    if (data.birthdayDiscount && data.birthdayDiscount > 0 && data.userId) {
+      try {
+        var markRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_birthday_claim_for_order', {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+            'Content-Type': 'application/json'
+          },
+          payload: JSON.stringify({ p_order_no: orderNo }),
+          muteHttpExceptions: true
+        });
+        Logger.log('[birthdayClaim] mark for #' + orderNo + ': HTTP ' + markRes.getResponseCode());
+      } catch (bcErr) {
+        Logger.log('[birthdayClaim] mark err for #' + orderNo + ': ' + bcErr);
+      }
+    }
   }
 }
 
