@@ -2619,6 +2619,14 @@ window.addEventListener('scroll', function() {
       showMergeBanner();
       setShipFeeZero();
     }
+    // 2026-05-11 REFERRAL: parse ?ref=XXX → save sessionStorage để thanh-vien.html dùng
+    try {
+      const refParam = new URLSearchParams(window.location.search).get('ref');
+      if (refParam && refParam.match(/^[A-Z0-9_]{4,16}$/i)) {
+        sessionStorage.setItem('pending_ref_code', refParam.toUpperCase());
+        console.log('[referral] saved pending ref code:', refParam.toUpperCase());
+      }
+    } catch(e) { console.warn('referral parse err:', e); }
   });
 
   // ── INVENTORY SYNC FROM SUPABASE ──

@@ -2260,6 +2260,53 @@ async function doRegister() {
     console.warn('[doRegister] fetch IP fail (non-blocking):', e);
   }
 
+  // REFERRAL Phase 2 2026-05-11: Get device fingerprint + validate pending ref code
+  let deviceFingerprint = null;
+  try {
+    if (!window.FingerprintJS) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://openfpcdn.io/fingerprintjs/v4';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    const fp = await window.FingerprintJS.load();
+    const result = await fp.get();
+    deviceFingerprint = result.visitorId || null;
+  } catch(e) {
+    console.warn('[doRegister] fingerprint fail (non-blocking):', e);
+  }
+
+  // Validate ref code (if any) — fetch trước signUp để show error sớm
+  let refCode = null;
+  try {
+    const pendingRef = sessionStorage.getItem('pending_ref_code');
+    if (pendingRef) {
+      const { data: refResult, error: refErr } = await sb.rpc('validate_ref_code', {
+        p_ref_code: pendingRef,
+        p_email: email,
+        p_phone: phone,
+        p_ip: signupIp,
+        p_fingerprint: deviceFingerprint
+      });
+      if (refErr) {
+        console.warn('[doRegister] validate_ref_code err:', refErr);
+      } else if (refResult && refResult.valid) {
+        refCode = pendingRef;
+        console.log('[referral] code OK from referrer:', refResult.referrer_name);
+      } else if (refResult && !refResult.valid) {
+        // Show friendly error + abort signup
+        const friendlyMsg = refResult.message || 'Mã giới thiệu không hợp lệ.';
+        showError('reg-error', '🚫 ' + friendlyMsg);
+        btn.disabled = false; btn.textContent = 'Đăng Ký Thành Viên';
+        return;
+      }
+    }
+  } catch(e) {
+    console.warn('[doRegister] referral validate fail (non-blocking):', e);
+  }
+
   const { data, error } = await sb.auth.signUp({
     email, password,
     options: {
@@ -2271,7 +2318,9 @@ async function doRegister() {
         address: address || null,
         gender: gender,
         birthday: birthday,
-        signup_ip: signupIp
+        signup_ip: signupIp,
+        device_fingerprint: deviceFingerprint,
+        ref_code: refCode
       },
       emailRedirectTo: window.location.origin + '/thanh-vien',
       captchaToken: captchaToken
