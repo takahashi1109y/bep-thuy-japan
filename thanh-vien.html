@@ -745,62 +745,57 @@
         <p class="text-gray-600 text-sm">Bạn bè đăng ký qua link → giảm <strong class="text-brand-red">300¥ đơn đầu</strong>. Khi đơn giao thành công → anh/chị nhận <strong class="text-brand-red">10% giá trị đơn (tối đa 500 điểm)</strong>. Cap 20 người = tối đa 10,000 điểm.</p>
       </div>
 
-      <!-- Mã giới thiệu -->
-      <div class="bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-dashed border-pink-300 rounded-2xl p-5 mb-4">
-        <p class="text-xs text-pink-700 font-semibold mb-2 tracking-wider">🏷️ MÃ GIỚI THIỆU CỦA ANH/CHỊ</p>
-        <div class="flex items-center gap-3">
-          <p id="ref-code-display" class="text-3xl font-bold text-brand-red tracking-widest flex-1 font-mono">···</p>
-          <button onclick="copyRefCode()" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl font-semibold text-sm shrink-0 transition">📋 Copy mã</button>
+      <!-- Mã giới thiệu (compact 30% smaller) -->
+      <div class="bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-dashed border-pink-300 rounded-xl p-3 mb-2">
+        <p class="text-[11px] text-pink-700 font-semibold mb-1 tracking-wider">🏷️ MÃ GIỚI THIỆU CỦA ANH/CHỊ</p>
+        <div class="flex items-center gap-2">
+          <p id="ref-code-display" class="text-xl sm:text-2xl font-bold text-brand-red tracking-wider flex-1 font-mono leading-tight">···</p>
+          <button onclick="copyRefCode()" class="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shrink-0 transition">📋 Copy</button>
         </div>
+      </div>
+
+      <!-- Stats inline 1 hàng (compact) -->
+      <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs">
+        <span class="text-gray-700">👥 Đã giới thiệu: <strong class="text-purple-700"><span id="ref-count">0</span>/20</strong></span>
+        <span class="text-gray-300">·</span>
+        <span class="text-gray-700">💰 Đã nhận: <strong class="text-amber-700"><span id="ref-total-points">0</span> điểm</strong></span>
       </div>
 
       <!-- Link giới thiệu -->
       <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
         <p class="text-xs text-gray-600 font-semibold mb-2">🔗 LINK GIỚI THIỆU (gửi cho bạn bè)</p>
         <div class="flex items-center gap-2">
-          <input id="ref-link-display" type="text" readonly class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-700" value="https://www.thuyjapan.com/?ref=···">
-          <button onclick="copyRefLink()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shrink-0 transition">📋 Copy link</button>
+          <input id="ref-link-display" type="text" readonly class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-700 min-w-0" value="https://www.thuyjapan.com/?ref=···">
+          <button onclick="copyRefLink()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-semibold text-xs shrink-0 transition">📋 Copy</button>
+        </div>
+      </div>
+
+      <!-- Cách hoạt động (mở sẵn) -->
+      <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+        <p class="font-semibold text-gray-700 text-sm mb-2">💡 Cách hoạt động</p>
+        <div class="text-sm text-gray-600 space-y-2 leading-relaxed">
+          <p><strong>1.</strong> Anh/chị copy mã hoặc link → gửi cho bạn bè qua FB/Zalo/SMS.</p>
+          <p><strong>2.</strong> Bạn bè click link → đăng ký tài khoản → đặt đơn đầu tiên (đơn &gt; 1000¥).</p>
+          <p><strong>3.</strong> Bạn bè được <strong class="text-brand-red">giảm 300¥ đơn đầu</strong> (1 lần duy nhất).</p>
+          <p><strong>4.</strong> Khi đơn của bạn bè được <strong>giao thành công</strong> → anh/chị nhận <strong class="text-brand-red">10% giá trị đơn (tối đa 500 điểm)</strong>.</p>
+          <p><strong>5.</strong> Mỗi người = 1 lần thưởng. 2 người → max 1000đ. 20 người (cap) → max 10,000đ.</p>
+          <p><strong>6.</strong> Bạn bè cũng có mã riêng — có thể giới thiệu tiếp người khác.</p>
+          <p class="text-xs text-gray-500 italic mt-2">Lưu ý: Để tránh gian lận, bạn bè phải dùng email + SĐT + thiết bị + mạng KHÁC với anh/chị.</p>
         </div>
       </div>
 
       <!-- Share buttons -->
-      <div class="grid grid-cols-3 gap-2 mb-6">
-        <button onclick="shareRefFB()" class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <button onclick="shareRefFB()" class="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
           <span>📘</span> Facebook
         </button>
-        <button onclick="shareRefMessenger()" class="bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+        <button onclick="shareRefMessenger()" class="bg-pink-500 hover:bg-pink-600 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
           <span>💬</span> Messenger
         </button>
-        <button onclick="shareRefZalo()" class="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-1">
+        <button onclick="shareRefZalo()" class="bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
           <span>💙</span> Zalo
         </button>
       </div>
-
-      <!-- Stats -->
-      <div class="grid grid-cols-2 gap-3 mb-6">
-        <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 text-center">
-          <p class="text-xs text-purple-700 font-semibold mb-1">Đã giới thiệu</p>
-          <p class="text-2xl font-bold text-purple-900"><span id="ref-count">0</span><span class="text-base text-purple-500">/20</span></p>
-        </div>
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-          <p class="text-xs text-amber-700 font-semibold mb-1">Tổng điểm đã nhận</p>
-          <p class="text-2xl font-bold text-amber-900"><span id="ref-total-points">0</span><span class="text-base text-amber-500"> điểm</span></p>
-        </div>
-      </div>
-
-      <!-- Cách hoạt động -->
-      <details class="bg-white border border-gray-200 rounded-xl p-4 mb-3">
-        <summary class="font-semibold text-gray-700 text-sm cursor-pointer">💡 Cách hoạt động</summary>
-        <div class="mt-3 text-sm text-gray-600 space-y-2 leading-relaxed">
-          <p><strong>1.</strong> Anh/chị copy mã hoặc link → gửi cho bạn bè qua FB/Zalo/SMS.</p>
-          <p><strong>2.</strong> Bạn bè click link → đăng ký tài khoản → đặt đơn đầu tiên (đơn &gt; 1000¥).</p>
-          <p><strong>3.</strong> Bạn bè được <strong class="text-brand-red">giảm 300¥ đơn đầu</strong> (1 lần duy nhất).</p>
-          <p><strong>4.</strong> Khi đơn của bạn bè được <strong>giao thành công</strong> → anh/chị nhận <strong class="text-brand-red">10% giá trị đơn của bạn bè (tối đa 500 điểm)</strong>.</p>
-          <p><strong>5.</strong> Mỗi người bạn giới thiệu = 1 lần thưởng. Giới thiệu 2 người → tối đa 1000 điểm. Giới thiệu 20 người (cap) → tối đa 10,000 điểm.</p>
-          <p><strong>6.</strong> Bạn bè cũng có mã giới thiệu riêng — họ có thể giới thiệu tiếp người khác để nhận điểm.</p>
-          <p class="text-xs text-gray-500 italic mt-3">Lưu ý: Để tránh gian lận, bạn bè phải dùng email + SĐT + thiết bị + mạng KHÁC với anh/chị. Hệ thống tự động kiểm tra.</p>
-        </div>
-      </details>
 
       <!-- Banner thông báo nếu có notif chưa seen -->
       <div id="referral-notif-banner" class="hidden bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-4 mt-3">
