@@ -745,28 +745,28 @@
         <p class="text-gray-600 text-sm">Bạn bè đăng ký qua link → giảm <strong class="text-brand-red">300¥ đơn đầu</strong>. Khi đơn giao thành công → anh/chị nhận <strong class="text-brand-red">10% giá trị đơn (tối đa 500 điểm)</strong>. Cap 20 người = tối đa 10,000 điểm.</p>
       </div>
 
-      <!-- Mã giới thiệu (compact 30% smaller) -->
-      <div class="bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-dashed border-pink-300 rounded-xl p-3 mb-2">
-        <p class="text-[11px] text-pink-700 font-semibold mb-1 tracking-wider">🏷️ MÃ GIỚI THIỆU CỦA ANH/CHỊ</p>
-        <div class="flex items-center gap-2">
-          <p id="ref-code-display" class="text-xl sm:text-2xl font-bold text-brand-red tracking-wider flex-1 font-mono leading-tight">···</p>
-          <button onclick="copyRefCode()" class="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shrink-0 transition">📋 Copy</button>
+      <!-- Mã giới thiệu (compact, inline style để không depend Tailwind purge) -->
+      <div style="background:linear-gradient(135deg,#FCE7F3,#FFF1F2);border:2px dashed #F9A8D4;border-radius:12px;padding:12px;margin-bottom:8px">
+        <p style="font-size:11px;color:#BE185D;font-weight:600;margin-bottom:4px;letter-spacing:1px">🏷️ MÃ GIỚI THIỆU CỦA ANH/CHỊ</p>
+        <div style="display:flex;align-items:center;gap:8px">
+          <p id="ref-code-display" style="font-size:22px;font-weight:bold;color:#C8102E;letter-spacing:2px;flex:1;font-family:monospace;line-height:1;margin:0">···</p>
+          <button onclick="copyRefCode()" style="background:#EC4899;color:white;padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;border:none;cursor:pointer;flex-shrink:0">📋 Copy</button>
         </div>
       </div>
 
       <!-- Stats inline 1 hàng (compact) -->
-      <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs">
-        <span class="text-gray-700">👥 Đã giới thiệu: <strong class="text-purple-700"><span id="ref-count">0</span>/20</strong></span>
-        <span class="text-gray-300">·</span>
-        <span class="text-gray-700">💰 Đã nhận: <strong class="text-amber-700"><span id="ref-total-points">0</span> điểm</strong></span>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px">
+        <span style="color:#374151">👥 Đã giới thiệu: <strong style="color:#7E22CE"><span id="ref-count">0</span>/20</strong></span>
+        <span style="color:#D1D5DB">·</span>
+        <span style="color:#374151">💰 Đã nhận: <strong style="color:#B45309"><span id="ref-total-points">0</span> điểm</strong></span>
       </div>
 
       <!-- Link giới thiệu -->
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
-        <p class="text-xs text-gray-600 font-semibold mb-2">🔗 LINK GIỚI THIỆU (gửi cho bạn bè)</p>
-        <div class="flex items-center gap-2">
-          <input id="ref-link-display" type="text" readonly class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-700 min-w-0" value="https://www.thuyjapan.com/?ref=···">
-          <button onclick="copyRefLink()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-semibold text-xs shrink-0 transition">📋 Copy</button>
+      <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:14px;margin-bottom:14px">
+        <p style="font-size:12px;color:#4B5563;font-weight:600;margin-bottom:8px">🔗 LINK GIỚI THIỆU (gửi cho bạn bè)</p>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input id="ref-link-display" type="text" readonly style="flex:1;background:white;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:12px;font-family:monospace;color:#374151;min-width:0" value="https://www.thuyjapan.com/?ref=···">
+          <button onclick="copyRefLink()" style="background:#3B82F6;color:white;padding:8px 12px;border-radius:6px;font-weight:600;font-size:12px;border:none;cursor:pointer;flex-shrink:0">📋 Copy</button>
         </div>
       </div>
 
@@ -784,15 +784,15 @@
         </div>
       </div>
 
-      <!-- Share buttons -->
-      <div class="grid grid-cols-3 gap-2 mb-4">
-        <button onclick="shareRefFB()" class="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
+      <!-- Share buttons (inline style để không depend Tailwind purge) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        <button onclick="shareRefFB()" style="background:#1877F2;color:white;padding:10px 8px;border-radius:8px;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
           <span>📘</span> Facebook
         </button>
-        <button onclick="shareRefMessenger()" class="bg-pink-500 hover:bg-pink-600 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
+        <button onclick="shareRefMessenger()" style="background:#EC4899;color:white;padding:10px 8px;border-radius:8px;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
           <span>💬</span> Messenger
         </button>
-        <button onclick="shareRefZalo()" class="bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1">
+        <button onclick="shareRefZalo()" style="background:#0084FF;color:white;padding:10px 8px;border-radius:8px;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
           <span>💙</span> Zalo
         </button>
       </div>
@@ -1716,7 +1716,7 @@ async function init() {
     // Honor ?tab= URL param
     try {
       var tabParam = new URLSearchParams(window.location.search).get('tab');
-      if (tabParam && ['orders','points','messages','profile','address','password'].indexOf(tabParam) >= 0) {
+      if (tabParam && ['orders','points','messages','profile','address','password','referral'].indexOf(tabParam) >= 0) {
         switchDashTab(tabParam);
       }
     } catch(e) {}
@@ -2271,7 +2271,7 @@ async function doLogin() {
   // Honor ?tab= URL param (vd: /thanh-vien?tab=orders)
   try {
     var tabParam = new URLSearchParams(window.location.search).get('tab');
-    if (tabParam && ['orders','points','messages','profile','address','password'].indexOf(tabParam) >= 0) {
+    if (tabParam && ['orders','points','messages','profile','address','password','referral'].indexOf(tabParam) >= 0) {
       switchDashTab(tabParam);
     }
   } catch(e) {}
