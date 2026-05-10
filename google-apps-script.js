@@ -5806,6 +5806,35 @@ function sendWelcomeBonusReminderDryRun() {
   sendWelcomeBonusReminder({ dryRun: true });
 }
 
+// ============================================================
+// FORCE TEST — gui email FORMAT cho anh check (bypass pending list)
+// Token la dummy → click se reject 'invalid_token' (expected).
+// Dung de verify email design + delivery, khong test claim flow.
+// ============================================================
+function sendWelcomeBonusReminderForceTest() {
+  var TEST_EMAIL = 'thanghoang1109@gmail.com';
+  var dummyToken = 'TEST_DUMMY_TOKEN_' + Date.now();
+  var claimUrl = 'https://www.thuyjapan.com/thanh-vien?claim=welcome&token=' + encodeURIComponent(dummyToken);
+  var subject = '🎁 [TEST] Bếp Thuỷ Japan: 100 điểm chào mừng đang chờ kích hoạt';
+  var htmlBody = buildReminderEmailHtml_('anh Thắng', claimUrl);
+  var plainBody = buildReminderEmailPlain_('anh Thắng', claimUrl);
+
+  try {
+    MailApp.sendEmail({
+      to: TEST_EMAIL,
+      subject: subject,
+      htmlBody: htmlBody,
+      body: plainBody,
+      name: 'Bếp Thuỷ Japan',
+      replyTo: 'support@thuyjapan.com'
+    });
+    Logger.log('[forceTest] OK sent to ' + TEST_EMAIL + ' with dummy token. Click se reject invalid_token (expected).');
+    Logger.log('[forceTest] Remaining quota: ' + MailApp.getRemainingDailyQuota());
+  } catch (err) {
+    Logger.log('[forceTest] FAIL: ' + err);
+  }
+}
+
 function sendWelcomeBonusReminder(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false; // default true (an toan)
