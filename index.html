@@ -1433,7 +1433,8 @@ window.addEventListener('scroll', function() {
     const sub = subtotal();
     const bdDisc = birthdayDiscount(sub); // 10% on subtotal (products only, NOT shipping)
     const inaDisc = inactiveDiscount(sub); // 5% on subtotal (products only, NOT shipping)
-    const totalDisc = bdDisc + inaDisc;
+    const refDisc = referralDiscount(sub); // 300¥ FLAT if eligible + sub > 3000
+    const totalDisc = bdDisc + inaDisc + refDisc;
     const gross = sub + shipFee - totalDisc;
     // FIX 2026-05-09 (Bug -100 điểm — Fix A): clamp pointsUsed vs CẢ HAI:
     //   1. gross (max bằng tiền đơn — không trả âm)
@@ -1476,6 +1477,21 @@ window.addEventListener('scroll', function() {
       inaRow.className = 'flex justify-between text-sm text-orange-600 font-semibold';
       inaRow.innerHTML = '<span>🎁 Ưu đãi quay lại (' + inactiveDiscountPercent + '%):</span><span id="final-inactive-amount">−¥0</span>';
       container.insertBefore(inaRow, discRow);
+    }
+    // Referral discount row (B's first order, 300¥ flat)
+    let refRow = document.getElementById('final-referral-row');
+    if (!refRow && refDisc > 0) {
+      const container = discRow.parentNode;
+      refRow = document.createElement('div');
+      refRow.id = 'final-referral-row';
+      refRow.className = 'flex justify-between text-sm text-pink-600 font-semibold';
+      refRow.innerHTML = '<span>🎁 Ưu đãi giới thiệu:</span><span id="final-referral-amount">−¥0</span>';
+      container.insertBefore(refRow, discRow);
+    }
+    if (refRow) {
+      refRow.style.display = refDisc > 0 ? 'flex' : 'none';
+      const refAmt = document.getElementById('final-referral-amount');
+      if (refAmt) refAmt.textContent = '−' + yen(refDisc);
     }
     if (inaRow) {
       inaRow.style.display = inaDisc > 0 ? 'flex' : 'none';
@@ -1897,7 +1913,8 @@ window.addEventListener('scroll', function() {
       : (shipFee || shippingFee(shipPref, totalWeight()) || 0);
     const bdDisc = birthdayDiscount(sub);
     const inaDisc = inactiveDiscount(sub);
-    const grossTotal = sub+ship-bdDisc-inaDisc;
+    const refDisc = referralDiscount(sub); // 2026-05-11: 300¥ flat for B's first order
+    const grossTotal = sub+ship-bdDisc-inaDisc-refDisc;
     // Subtract loyalty points if logged-in member is using them
     const ptsUsed = (sbUser && pointsUsed) ? pointsUsed : 0;
     const total = Math.max(0, grossTotal - ptsUsed);
@@ -1914,6 +1931,7 @@ window.addEventListener('scroll', function() {
       subtotal: sub, shipping: ship, total, grossTotal,
       pointsUsed: ptsUsed,
       birthdayDiscount: bdDisc, inactiveDiscount: inaDisc, inactivePercent: inactiveDiscountPercent,
+      referralDiscount: refDisc, referralApplied: refDisc > 0,
       // FIX 2026-05-07: Track payment method khách chọn (paypay / bank)
       // Backend dùng để hiển thị đúng email + lưu đúng method vào payment_confirmations.
       method: (typeof _selectedPayMethod !== 'undefined' && _selectedPayMethod === 'bank') ? 'bank_transfer' : 'paypay',
@@ -2825,6 +2843,8 @@ window.addEventListener('scroll', function() {
         sbPointsBalance = bal?.total_points || 0;
         // Check birthday (async — RPC backend enforce 4 layers anti-fraud)
         checkBirthday().catch(e => console.warn('checkBirthday err:', e));
+        // Check referral eligibility (B's discount 300¥ if eligible)
+        checkReferralEligibility().catch(e => console.warn('checkReferralEligibility err:', e));
         checkInactiveDiscount();
         updateMemberUI();
       }
@@ -2912,6 +2932,37 @@ window.addEventListener('scroll', function() {
   function birthdayDiscount(amount) {
     // 2026-05-11: Chi giam khi backend RPC eligible=true (4-layer check)
     return birthdayEligible ? Math.floor(amount * 0.1) : 0;
+  }
+
+  // REFERRAL DISCOUNT (B's first order discount): 300¥ FLAT, only if subtotal > 3000
+  // 2026-05-11 anh-approved: 300¥ flat, đơn đầu, 1 lần duy nhất
+  let referralEligible = false;
+  let referralDiscountAmount = 300;
+  let referralMinSubtotal = 3000;
+  async function checkReferralEligibility() {
+    if (!sbUser || !sbClient) { referralEligible = false; return; }
+    try {
+      const { data, error } = await sbClient.rpc('check_referral_eligibility');
+      if (error) { console.warn('[referral] eligibility err:', error); return; }
+      if (!data) return;
+      referralEligible       = !!data.eligible;
+      if (typeof data.discount_amount === 'number') referralDiscountAmount = data.discount_amount;
+      if (typeof data.min_subtotal === 'number')    referralMinSubtotal = data.min_subtotal;
+      console.log('[referral] eligibility:', { eligible: referralEligible, amount: referralDiscountAmount, min: referralMinSubtotal });
+      if (referralEligible) showReferralBanner(data.message);
+    } catch(e) { console.warn('[referral] check err:', e); }
+  }
+  function referralDiscount(amount) {
+    return (referralEligible && amount > referralMinSubtotal) ? referralDiscountAmount : 0;
+  }
+  function showReferralBanner(msg) {
+    if (document.getElementById('referral-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'referral-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(135deg,#EC4899,#9F1239);color:white;padding:10px 16px;text-align:center;font-weight:600;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15)';
+    banner.innerHTML = '🎁 ' + (msg || 'Bạn được giảm 300¥ đơn đầu (đơn > 3000¥)') + ' <button onclick="this.parentNode.style.display=\'none\'" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:2px 10px;border-radius:999px;margin-left:8px;cursor:pointer">✕</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.style.paddingTop = '40px';
   }
 
   // Max points redeemable for THIS order, FLOOR to multiple of 50

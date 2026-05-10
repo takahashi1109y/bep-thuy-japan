@@ -3303,6 +3303,9 @@ function saveOrderToSupabase(orderNo, data) {
     status: data.status || 'pending', // Option B uses 'customer_paid' when verified at checkout
     note:          data.note || '',
     delivery_time: data.deliveryTime || '',
+    // 2026-05-11 REFERRAL: forward referral discount info (Phase 4)
+    referral_discount: data.referralDiscount || 0,
+    referral_applied:  !!data.referralApplied,
     // FIX 2026-05-09: Defensive — set created_at explicit. DB cũng có DEFAULT now()
     // (sau migration supabase-fix-orders-created-at.sql) nhưng set ở đây luôn để
     // không bao giờ bị NULL (đã gặp bug với đơn 0206).
@@ -3346,6 +3349,26 @@ function saveOrderToSupabase(orderNo, data) {
         Logger.log('[birthdayClaim] mark for #' + orderNo + ': HTTP ' + markRes.getResponseCode());
       } catch (bcErr) {
         Logger.log('[birthdayClaim] mark err for #' + orderNo + ': ' + bcErr);
+      }
+    }
+
+    // 2026-05-11 REFERRAL Phase 4: Mark redeem if order has referral discount applied
+    // (B's 300¥ off đơn đầu — block re-apply lần sau)
+    if (data.referralApplied && data.referralDiscount > 0 && data.userId) {
+      try {
+        var refMarkRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_referral_redeemed_for_order', {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+            'Content-Type': 'application/json'
+          },
+          payload: JSON.stringify({ p_order_no: orderNo }),
+          muteHttpExceptions: true
+        });
+        Logger.log('[referralRedeem] mark for #' + orderNo + ': HTTP ' + refMarkRes.getResponseCode());
+      } catch (rfErr) {
+        Logger.log('[referralRedeem] mark err for #' + orderNo + ': ' + rfErr);
       }
     }
   }
