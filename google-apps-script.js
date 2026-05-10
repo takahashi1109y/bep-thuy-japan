@@ -6102,3 +6102,138 @@ function escapeHtml_(s) {
   if (!s) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ============================================================
+// REFERRAL PROGRAM — PHASE 5 (2026-05-11)
+// Email notify A khi đơn B delivered + A nhận điểm thưởng.
+// Cron: Hour timer chạy sendReferralRewardEmails
+// ============================================================
+//
+// USAGE:
+//   1. Manual test 1 lần:
+//        sendReferralRewardEmails()
+//      → Query referral_notifications WHERE email_sent=false → send email
+//
+//   2. Setup cron: Apps Script Triggers → + Add → Function:
+//      sendReferralRewardEmails → Time-driven → Hour timer → Every 1 hour
+// ============================================================
+
+function sendReferralRewardEmails() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    Logger.log('[refReward] SKIP: Supabase chua cau hinh');
+    return;
+  }
+
+  // 1. Query unsent emails via RPC
+  var rpcUrl = SUPABASE_URL + '/rest/v1/rpc/get_unsent_referral_emails';
+  var rpcRes = UrlFetchApp.fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify({ p_limit: 50 }),
+    muteHttpExceptions: true
+  });
+
+  if (rpcRes.getResponseCode() !== 200) {
+    Logger.log('[refReward] RPC fail: ' + rpcRes.getResponseCode() + ' ' + rpcRes.getContentText());
+    return;
+  }
+
+  var rows = JSON.parse(rpcRes.getContentText());
+  if (!rows || rows.length === 0) {
+    Logger.log('[refReward] no unsent emails — skip');
+    return;
+  }
+
+  Logger.log('[refReward] Found ' + rows.length + ' unsent emails');
+  Logger.log('[refReward] Remaining quota: ' + MailApp.getRemainingDailyQuota());
+
+  var sent = 0, errors = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row.user_email) continue;
+
+    try {
+      var subject = '🎉 Bếp Thuỷ Japan: Bạn vừa nhận ' + row.points + ' điểm từ giới thiệu';
+      var htmlBody = buildReferralRewardEmailHtml_(row.user_name, row.points, row.referee_name, row.order_no);
+      var plainBody = buildReferralRewardEmailPlain_(row.user_name, row.points, row.referee_name);
+
+      MailApp.sendEmail({
+        to: row.user_email,
+        subject: subject,
+        htmlBody: htmlBody,
+        body: plainBody,
+        name: 'Bếp Thuỷ Japan',
+        replyTo: 'support@thuyjapan.com'
+      });
+
+      // Mark sent in DB
+      UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/mark_referral_email_sent', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify({ p_notif_id: row.notif_id }),
+        muteHttpExceptions: true
+      });
+
+      sent++;
+      Logger.log('[refReward] OK: ' + row.user_email + ' (+' + row.points + ' điểm)');
+      Utilities.sleep(200); // tránh quota burst
+    } catch (err) {
+      errors++;
+      Logger.log('[refReward] FAIL ' + row.user_email + ': ' + err);
+    }
+  }
+
+  Logger.log('[refReward] DONE: sent=' + sent + ' errors=' + errors + ' total=' + rows.length);
+}
+
+function buildReferralRewardEmailHtml_(userName, points, refereeName, orderNo) {
+  var displayName = userName || 'anh/chị';
+  var refereeDisplay = refereeName || 'một người bạn';
+  return ''
+    + '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FFF8F0">'
+    + '  <div style="background:linear-gradient(135deg,#2C1A0E,#8B3A0F,#C8102E);padding:36px 24px;text-align:center">'
+    + '    <h1 style="color:white;font-family:Georgia,serif;margin:0;font-size:30px">Bếp Thuỷ Japan</h1>'
+    + '    <p style="color:#FFD700;font-size:11px;letter-spacing:3px;margin:8px 0 0">✦ ĐẶC SẢN PHỐ CỔ HÀ NỘI TẠI NHẬT ✦</p>'
+    + '  </div>'
+    + '  <div style="padding:32px 28px">'
+    + '    <h2 style="color:#2C1A0E;font-family:Georgia,serif;font-size:22px;margin-top:0">' + escapeHtml_(displayName) + ' ơi, cảm ơn bạn đã giới thiệu! 🎉</h2>'
+    + '    <p style="color:#444;font-size:16px;line-height:1.7"><strong>' + escapeHtml_(refereeDisplay) + '</strong> đã đặt đơn hàng đầu tiên tại Bếp Thuỷ và nhận hàng thành công.</p>'
+    + '    <p style="color:#444;font-size:16px;line-height:1.7">Là cảm ơn vì đã chia sẻ Bếp Thuỷ tới bạn bè, bạn vừa nhận:</p>'
+    + '    <div style="background:linear-gradient(135deg,#FCE7F3,#FFF1F2);border:2px dashed #EC4899;border-radius:14px;padding:24px;margin:28px 0;text-align:center">'
+    + '      <p style="color:#9F1239;font-size:12px;margin:0;letter-spacing:2px">🎁 ĐIỂM THƯỞNG GIỚI THIỆU</p>'
+    + '      <p style="color:#C8102E;font-size:44px;font-weight:bold;margin:8px 0;font-family:Georgia,serif;line-height:1">+' + points + ' ĐIỂM</p>'
+    + '      <p style="color:#666;font-size:13px;margin:0">≈ Giảm ¥' + points + ' cho đơn tiếp theo của bạn</p>'
+    + '    </div>'
+    + '    <p style="text-align:center;margin:36px 0 12px">'
+    + '      <a href="https://www.thuyjapan.com/thanh-vien?tab=points" style="background:linear-gradient(135deg,#C8102E,#8B3A0F);color:white;padding:16px 36px;border-radius:14px;text-decoration:none;font-weight:bold;display:inline-block;font-size:16px;box-shadow:0 6px 16px rgba(200,16,46,0.35)">📊 Xem điểm trong tài khoản</a>'
+    + '    </p>'
+    + '    <div style="background:#FFF8F0;border-radius:8px;padding:16px;margin:32px 0;color:#444;font-size:14px;line-height:1.7">'
+    + '      <p style="margin:0;color:#8B3A0F"><strong>💡 Tiếp tục giới thiệu để nhận thêm điểm:</strong></p>'
+    + '      <p style="margin:8px 0 0">Mỗi người bạn giới thiệu = +500 điểm tối đa. Cap 20 người = tối đa 10,000 điểm. Mã/link giới thiệu của bạn có sẵn trong tab <strong>"Giới Thiệu Bạn Bè"</strong> của tài khoản.</p>'
+    + '    </div>'
+    + '    <p style="color:#666;font-size:14px;line-height:1.7;margin-top:32px">Cảm ơn bạn đã đồng hành cùng Bếp Thuỷ Japan ❤️</p>'
+    + '    <p style="color:#666;font-size:14px;margin-bottom:0">Thân,<br><strong>Thuỷ</strong> · Bếp Thuỷ Japan</p>'
+    + '  </div>'
+    + '</div>';
+}
+
+function buildReferralRewardEmailPlain_(userName, points, refereeName) {
+  var displayName = userName || 'anh/chị';
+  var refereeDisplay = refereeName || 'một người bạn';
+  return ''
+    + displayName + ' ơi,\n\n'
+    + refereeDisplay + ' đã đặt đơn hàng đầu tiên tại Bếp Thuỷ Japan và nhận hàng thành công.\n\n'
+    + '🎁 Bạn vừa nhận: +' + points + ' ĐIỂM (≈ giảm ¥' + points + ' đơn tiếp theo)\n\n'
+    + 'Xem điểm trong tài khoản: https://www.thuyjapan.com/thanh-vien?tab=points\n\n'
+    + 'Tiếp tục giới thiệu để nhận thêm điểm! Cap 20 người = tối đa 10,000 điểm. Mã giới thiệu của bạn có sẵn trong tab "Giới Thiệu Bạn Bè".\n\n'
+    + 'Cảm ơn bạn đã đồng hành cùng Bếp Thuỷ Japan ❤️\n\n'
+    + 'Thân,\nThuỷ · Bếp Thuỷ Japan';
+}
