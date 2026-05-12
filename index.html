@@ -206,6 +206,102 @@
     @media (max-width: 640px) {
       .btn-3d { font-size:16px; padding:14px 26px; width:100%; }
     }
+
+    /* Nav menu — FLAT HORIZONTAL BAR (Amazon style) */
+    .nav-bar {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 2px;
+      justify-content: center;
+      align-items: center;
+      max-width: 1100px;
+      margin: 18px auto 0;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(44,26,14,0.08);
+      border: 1px solid rgba(212,160,23,0.15);
+    }
+    .nav-bar .nav-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2C1A0E;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .nav-bar .nav-item:hover {
+      background: rgba(212,160,23,0.18);
+      color: #8B0A1F;
+    }
+    .nav-bar .nav-item-cart {
+      background: rgba(245,158,11,0.14);
+      color: #92400E;
+      font-weight: 600;
+    }
+    .nav-bar .nav-item-cart:hover {
+      background: rgba(245,158,11,0.28);
+      color: #78350F;
+    }
+    .nav-bar .nav-item-shop {
+      background: rgba(59,130,246,0.12);
+      color: #1E3A8A;
+      font-weight: 600;
+    }
+    .nav-bar .nav-item-shop:hover {
+      background: rgba(59,130,246,0.22);
+      color: #1E40AF;
+    }
+    @media (max-width: 640px) {
+      .nav-bar {
+        padding: 8px 6px;
+        gap: 0;
+        border-radius: 12px;
+      }
+      .nav-bar .nav-item {
+        font-size: 12.5px;
+        padding: 7px 10px;
+      }
+    }
+
+    /* Member button — compact, đặt góc phải hero */
+    .member-btn-compact {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: white;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 9999px;
+      text-decoration: none;
+      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+    .member-btn-compact:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(16, 185, 129, 0.4);
+      color: white;
+    }
+    @media (max-width: 640px) {
+      .member-btn-compact {
+        padding: 7px 14px;
+        font-size: 12.5px;
+      }
+    }
+
   </style>
 
   <div style="position:relative;z-index:10;max-width:640px;margin:0 auto">
@@ -215,17 +311,24 @@
     <p style="color:#78350F;font-size:19px;margin-top:16px;font-style:italic;font-weight:500">"Hạnh phúc là được ăn ngon"</p>
     <p style="color:#6B7280;margin-top:12px;font-size:15px">Giò Lụa · Chả Quế · Mọc · Nem · Pate — chuẩn vị Phố Cổ Hà Nội, làm tại Nhật</p>
 
-    <!-- 3D Buttons: Member on TOP, then others -->
-    <div style="margin-top:40px;display:flex;flex-direction:column;gap:14px;align-items:center;max-width:360px;margin-left:auto;margin-right:auto">
-      <a id="hero-member-btn" href="/thanh-vien" class="btn-3d btn-3d-green" style="width:100%">⭐ Đăng Ký / Đăng Nhập</a>
-      <a href="#products" class="btn-3d btn-3d-primary" style="width:100%">🛒 Xem Thực Đơn</a>
-      <button onclick="openCart()" class="btn-3d btn-3d-yellow" style="width:100%">🛍️ Giỏ Hàng</button>
-      <a href="/huong-dan-thanh-vien" class="btn-3d btn-3d-gray" style="width:100%">👤 Hướng Dẫn Đăng Ký</a>
-      <a href="/huong-dan-thanh-toan" class="btn-3d btn-3d-gray" style="width:100%">💳 Hướng Dẫn Chuyển Tiền</a>
-      <a href="/huong-dan-bao-quan" class="btn-3d btn-3d-gray" style="width:100%">📋 Hướng Dẫn Bảo Quản</a>
-      <a href="/bang-phi-ship" class="btn-3d btn-3d-gray" style="width:100%">🚚 Bảng Phí Ship</a>
-      <button onclick="openSiPopup()" class="btn-3d btn-3d-blue" style="width:100%">🤝 Liên Hệ Mua Sỉ</button>
+    <!-- Member button — compact, GÓC PHẢI hero (trước nav bar) -->
+    <div style="margin-top:24px;display:flex;justify-content:flex-end;max-width:1100px;margin-left:auto;margin-right:auto;padding:0 12px">
+      <a id="hero-member-btn" href="/thanh-vien" class="member-btn-compact">⭐ Đăng Ký / Đăng Nhập</a>
     </div>
+
+    <!-- Nav bar — FLAT HORIZONTAL (Amazon style) -->
+    <nav class="nav-bar">
+      <a href="/" class="nav-item">🏠 Trang Chủ</a>
+      <a href="#products" class="nav-item">🛒 Xem Thực Đơn</a>
+      <button onclick="openCart()" class="nav-item nav-item-cart">🛍️ Giỏ Hàng</button>
+      <a href="https://blog.thuyjapan.com" class="nav-item">📝 Blog</a>
+      <a href="/video" class="nav-item">▶️ Video</a>
+      <a href="/huong-dan-thanh-vien" class="nav-item">👤 Hướng Dẫn Đăng Ký</a>
+      <a href="/huong-dan-thanh-toan" class="nav-item">💳 Hướng Dẫn Chuyển Tiền</a>
+      <a href="/huong-dan-bao-quan" class="nav-item">📋 Hướng Dẫn Bảo Quản</a>
+      <a href="/bang-phi-ship" class="nav-item">🚚 Bảng Phí Ship</a>
+      <button onclick="openSiPopup()" class="nav-item nav-item-shop">🤝 Liên Hệ Mua Sỉ</button>
+    </nav>
   </div>
 </section>
 

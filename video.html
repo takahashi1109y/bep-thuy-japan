@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="google-site-verification" content="j3kPnQLnNv6ljzjUW0rWAfTUrT18Vygbhc6jXlm8cbw" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="stylesheet" href="/assets/app-mobile.css">
+<title>Video Giới Thiệu & Hướng Dẫn · Bếp Thuỷ Japan</title>
+<meta name="description" content="Xem video giới thiệu Bếp Thuỷ Japan và hướng dẫn cách bảo quản, chế biến giò chả, pate, nem lụi tươi chuẩn vị Phố Cổ Hà Nội.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: { colors: {
+      'brand-red':'#C8102E','brand-red-dark':'#8B0A1F','brand-dark':'#2C1A0E',
+      'brand-warm':'#5A3A24','brand-cream':'#FFF8F0','brand-gold':'#D4A017','brand-gold-light':'#F4CC54'
+    }, fontFamily: { sans:['Inter','sans-serif'], serif:['Playfair Display','serif'] } } }
+  };
+</script>
+<style>
+  body { font-family:'Inter',sans-serif; background:#FFF8F0; color:#2C1A0E; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,.serif { font-family:'Playfair Display',serif; }
+  .hero-bg {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212,160,23,0.18), transparent 50%),
+      radial-gradient(circle at 80% 100%, rgba(200,16,46,0.18), transparent 50%),
+      linear-gradient(135deg,#2C1A0E 0%,#5A3A24 50%,#2C1A0E 100%);
+  }
+  .pill-tag {
+    background:linear-gradient(135deg,#D4A017,#F4CC54); color:#2C1A0E;
+    padding:6px 16px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:2px; display:inline-block;
+  }
+  .gold-line { width:60px; height:3px; background:linear-gradient(90deg,#D4A017,#F5C842,#D4A017); margin:14px auto; border-radius:2px; }
+  .video-card {
+    background:white; border-radius:24px; padding:22px;
+    border:1px solid rgba(212,160,23,0.18);
+    box-shadow:0 8px 30px rgba(44,26,14,0.06);
+    margin-bottom:28px;
+  }
+  .video-wrap {
+    position:relative; padding-bottom:56.25%; height:0; overflow:hidden;
+    border-radius:16px; background:#000;
+  }
+  .video-wrap iframe {
+    position:absolute; top:0; left:0; width:100%; height:100%; border:0;
+  }
+  .btn-back {
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(135deg,#C8102E,#8B0A1F); color:white;
+    padding:10px 20px; border-radius:9999px; font-weight:600; font-size:14px;
+    text-decoration:none; box-shadow:0 6px 18px rgba(200,16,46,0.3);
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header class="hero-bg text-white py-14 px-4 text-center">
+  <div class="max-w-3xl mx-auto">
+    <div class="pill-tag mb-4">▶️ VIDEO · BẾP THUỶ</div>
+    <h1 class="serif text-4xl md:text-5xl font-bold text-yellow-100 mb-3">Video Giới Thiệu & Hướng Dẫn</h1>
+    <div class="gold-line"></div>
+    <p class="text-yellow-100/80 text-base mt-3">Cùng xem chị Thuỷ làm giò chả thủ công, chuẩn vị Phố Cổ Hà Nội tại Nhật</p>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="max-w-3xl mx-auto px-4 py-10">
+
+  <!-- Video 1: Giới thiệu Bếp Thuỷ -->
+  <div class="video-card">
+    <h3 class="text-xl font-bold text-brand-dark mb-4 flex items-center gap-2">
+      <span class="text-2xl">🌟</span> Giới Thiệu Bếp Thuỷ Japan
+    </h3>
+    <p class="text-sm text-gray-600 mb-4">Câu chuyện về Bếp Thuỷ — từ Phố Cổ Hà Nội đến cộng đồng người Việt tại Nhật.</p>
+    <div class="video-wrap">
+      <!-- TODO: Anh thay YOUTUBE_ID_1 bằng ID video thật, ví dụ: dQw4w9WgXcQ -->
+      <iframe src="https://www.youtube.com/embed/YOUTUBE_ID_1"
+              title="Giới thiệu Bếp Thuỷ Japan"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- Video 2: Hướng dẫn bảo quản -->
+  <div class="video-card">
+    <h3 class="text-xl font-bold text-brand-dark mb-4 flex items-center gap-2">
+      <span class="text-2xl">❄️</span> Hướng Dẫn Bảo Quản
+    </h3>
+    <p class="text-sm text-gray-600 mb-4">Cách giữ giò chả, pate tươi ngon đúng chuẩn — không mất hương vị.</p>
+    <div class="video-wrap">
+      <!-- TODO: Anh thay YOUTUBE_ID_2 -->
+      <iframe src="https://www.youtube.com/embed/YOUTUBE_ID_2"
+              title="Hướng dẫn bảo quản giò chả Bếp Thuỷ"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- Video 3: Hướng dẫn chế biến -->
+  <div class="video-card">
+    <h3 class="text-xl font-bold text-brand-dark mb-4 flex items-center gap-2">
+      <span class="text-2xl">🔥</span> Hướng Dẫn Chế Biến
+    </h3>
+    <p class="text-sm text-gray-600 mb-4">Cách chế biến nem lụi Huế, mọc, pate đúng vị quê nhà.</p>
+    <div class="video-wrap">
+      <!-- TODO: Anh thay YOUTUBE_ID_3 -->
+      <iframe src="https://www.youtube.com/embed/YOUTUBE_ID_3"
+              title="Hướng dẫn chế biến món Bếp Thuỷ"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- Back to home -->
+  <div class="text-center mt-10">
+    <a href="/" class="btn-back">
+      <span>←</span> <span>Về Trang Chủ</span>
+    </a>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-brand-dark text-white py-8 px-4 mt-10">
+  <div class="max-w-3xl mx-auto text-center text-sm text-gray-300">
+    <p class="mb-2">© Bếp Thuỷ Japan — chuẩn vị Phố Cổ Hà Nội tại Nhật</p>
+    <p class="text-xs text-gray-400">
+      <a href="/privacy" class="hover:text-yellow-200">Chính sách bảo mật</a> ·
+      <a href="/" class="hover:text-yellow-200">Trang chủ</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
