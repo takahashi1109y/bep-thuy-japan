@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js" defer></script>
 <!-- hCaptcha invisible (anti-bot) -->
 <script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
 <style>
@@ -505,7 +506,8 @@
 
       <div class="card" style="margin-bottom: 12px; padding: 10px;">
         <button onclick="openExportModal()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:8px 14px;font-size:13px;">📊 Xuất Excel theo ngày</button>
-        <span style="font-size:11px;color:#6B7280;margin-left:8px;">Tải file .xlsx khớp format bảng tay</span>
+        <button onclick="openYamatoModal()" class="btn" style="background:#3B82F6;color:white;font-weight:700;padding:8px 14px;font-size:13px;margin-left:6px;">📦 Nhãn Yamato B2</button>
+        <span style="font-size:11px;color:#6B7280;margin-left:8px;">Tải file .xlsx khớp format bảng tay · Yamato = .xlsx + .csv (Shift-JIS)</span>
       </div>
 
       <div class="card" style="margin-bottom: 16px;">
@@ -967,6 +969,60 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button onclick="closeExportModal()" class="btn btn-ghost">Hủy</button>
       <button onclick="doExportExcel()" id="export-btn" class="btn btn-primary">📥 Tải file .xlsx</button>
+    </div>
+  </div>
+</div>
+
+<!-- YAMATO B2 CLOUD EXPORT MODAL -->
+<div id="yamato-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closeYamatoModal()">
+  <div class="modal" style="max-width: 780px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">Yamato B2 Cloud</div>
+        <h3 style="margin:4px 0 0;font-size:20px;color:#1C1C1E;">📦 Tạo file in nhãn Yamato</h3>
+        <div style="font-size:11px;color:#6B7280;margin-top:4px;">Tick đơn cần in → tải .xlsx + .csv (Shift-JIS) → upload lên Yamato B2 Cloud</div>
+      </div>
+      <button onclick="closeYamatoModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <!-- Filter bar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;align-items:end;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Từ ngày</label>
+        <input type="date" id="yamato-from" class="input" style="font-size:13px;padding:6px 10px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Đến ngày</label>
+        <input type="date" id="yamato-to" class="input" style="font-size:13px;padding:6px 10px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Trạng thái</label>
+        <select id="yamato-status" class="select" style="font-size:13px;padding:6px 10px;">
+          <option value="confirmed">✅ Đã thanh toán (mặc định)</option>
+          <option value="all">📊 Tất cả (trừ huỷ)</option>
+          <option value="shipped">🚚 Đang ship</option>
+          <option value="customer_paid">⏳ Khách báo TT</option>
+        </select>
+      </div>
+      <button onclick="reloadYamatoList()" class="btn btn-primary" style="font-size:12px;padding:6px 14px;">🔄 Lọc</button>
+    </div>
+
+    <!-- Quick toggle + count -->
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+      <button onclick="toggleAllYamato(true)" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">☑️ Chọn tất cả</button>
+      <button onclick="toggleAllYamato(false)" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">☐ Bỏ chọn</button>
+      <span id="yamato-selected-count" style="font-size:12px;color:#3B82F6;font-weight:700;margin-left:auto;">0 đơn được chọn</span>
+    </div>
+
+    <!-- Order list -->
+    <div id="yamato-order-list" style="max-height: 52vh; overflow-y: auto; border:1px solid #E5E7EB;border-radius:8px;padding:6px;background:#F9FAFB;">
+      <div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px;">Bấm "🔄 Lọc" để tải danh sách đơn</div>
+    </div>
+
+    <!-- Action -->
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid #E5E7EB;padding-top:12px;">
+      <button onclick="closeYamatoModal()" class="btn btn-ghost">Hủy</button>
+      <button onclick="doExportYamatoB2()" id="yamato-export-btn" class="btn btn-primary">📥 Tạo file Yamato (.xlsx + .csv)</button>
     </div>
   </div>
 </div>
@@ -5570,6 +5626,209 @@ async function doExportExcel() {
     alert('❌ Lỗi: ' + (e.message || e));
   } finally {
     btn.disabled = false; btn.textContent = '📥 Tải file .xlsx';
+  }
+}
+
+// ============ EXPORT YAMATO B2 CLOUD ============
+// Generate xlsx + csv (Shift-JIS) khớp format Yamato B2 Cloud bulk upload.
+// 95 cột A→CQ. Sender hardcode: Hong Thuy JP. Fixed: B=0, C=2 cool đông, AG=お買い上げ, AM=2.
+// Anh tick đơn → tải 2 file → upload Yamato B2 Cloud.
+
+const YAMATO_SENDER = {
+  phone: '080-5115-6688',   // T ご依頼主電話番号
+  postal: '270-0034',       // V ご依頼主郵便番号
+  address: '千葉県松戸市新松戸6-118-2', // W ご依頼主住所
+  name: 'Hong Thuy JP'      // Y ご依頼主名
+};
+
+// Helper: convert Excel column letter → 0-indexed (A=0, Z=25, AA=26, CQ=94)
+function yamatoColIdx(letter) {
+  let idx = 0;
+  for (let i = 0; i < letter.length; i++) {
+    idx = idx * 26 + (letter.charCodeAt(i) - 64);
+  }
+  return idx - 1;
+}
+
+// Build items summary string giống format "3 GT. 2 C. 1 Pte." (skip qty=0)
+function yamatoItemsSummary(order) {
+  const totals = aggregateOrderItems(order);
+  const parts = [];
+  EXPORT_COLS.forEach(c => {
+    const q = totals[c.code] || 0;
+    if (q > 0) parts.push(q + ' ' + c.code + '.');
+  });
+  return parts.join(' ');
+}
+
+// Build 1 row Yamato (95 cells). row[0]=A, row[94]=CQ. Để trống các cột không map.
+function buildYamatoRow(order, stt) {
+  const row = new Array(95).fill('');
+  const phoneClean = (order.customer_phone || '').replace(/[^\d-]/g, ''); // giữ hyphen
+  const address = ((order.ship_prefecture || '') + (order.ship_address || '')).trim();
+
+  row[yamatoColIdx('A')]  = stt;                          // STT
+  row[yamatoColIdx('B')]  = '0';                          // お客様管理番号1 (0 = thường)
+  row[yamatoColIdx('C')]  = '2';                          // クール区分 (2 = cool đông)
+  // D 伝票番号 — để trống (B2 Cloud auto gen)
+  // E 出荷予定日 / F 配達指定日 / G 配達指定時間帯 — để trống
+  row[yamatoColIdx('I')]  = phoneClean;                   // お届け先電話
+  row[yamatoColIdx('K')]  = order.ship_postal || '';      // お届け先郵便番号
+  row[yamatoColIdx('L')]  = address;                      // お届け先住所
+  // M アパート・マンション — để trống (gộp vào L)
+  row[yamatoColIdx('P')]  = order.customer_name || '';    // お届け先名
+  row[yamatoColIdx('T')]  = YAMATO_SENDER.phone;          // ご依頼主電話
+  row[yamatoColIdx('V')]  = YAMATO_SENDER.postal;         // ご依頼主郵便番号
+  row[yamatoColIdx('W')]  = YAMATO_SENDER.address;        // ご依頼主住所
+  row[yamatoColIdx('Y')]  = YAMATO_SENDER.name;           // ご依頼主名
+  row[yamatoColIdx('AB')] = yamatoItemsSummary(order);    // 品名1
+  row[yamatoColIdx('AG')] = 'お買い上げ';                  // 記事
+  row[yamatoColIdx('AM')] = '2';                          // 印字選択
+
+  return row;
+}
+
+function openYamatoModal() {
+  // Default date range: last 7 days → today JST
+  const now = new Date();
+  const jstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+  const today = jstNow.toISOString().slice(0, 10);
+  const weekAgo = new Date(jstNow);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  document.getElementById('yamato-from').value = weekAgo.toISOString().slice(0, 10);
+  document.getElementById('yamato-to').value = today;
+  document.getElementById('yamato-status').value = 'confirmed';
+  document.getElementById('yamato-modal').classList.remove('hidden');
+  reloadYamatoList();
+}
+
+function closeYamatoModal() {
+  document.getElementById('yamato-modal').classList.add('hidden');
+}
+
+function filterYamatoOrders(from, to, status) {
+  return allOrders.filter(o => {
+    const d = isoJSTDate(o.created_at);
+    if (d < from || d > to) return false;
+    if (status === 'all') {
+      if (o.status === 'cancelled') return false;
+      return true;
+    }
+    return o.status === status;
+  }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
+function reloadYamatoList() {
+  const from = document.getElementById('yamato-from').value;
+  const to = document.getElementById('yamato-to').value;
+  const status = document.getElementById('yamato-status').value;
+  const listEl = document.getElementById('yamato-order-list');
+  if (!from || !to) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#DC2626;font-size:12px;">⚠️ Chọn cả 2 ngày</div>';
+    return;
+  }
+  const orders = filterYamatoOrders(from, to, status);
+  if (orders.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px;">Không có đơn nào khớp.</div>';
+    updateYamatoCount();
+    return;
+  }
+  const html = orders.map(o => {
+    const itemsStr = yamatoItemsSummary(o) || '(chưa có sản phẩm)';
+    const addr = '〒' + (o.ship_postal || '') + ' ' + (o.ship_prefecture || '') + ' ' + (o.ship_address || '');
+    return '<label style="display:grid;grid-template-columns:auto 1fr;gap:8px;padding:8px;border-bottom:1px solid #E5E7EB;cursor:pointer;background:white;border-radius:6px;margin-bottom:4px;align-items:start;">' +
+      '<input type="checkbox" class="yamato-chk" data-order-no="' + escapeHtml(o.order_no || '') + '" onchange="updateYamatoCount()" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">' +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1C1C1E;">#' + escapeHtml(o.order_no || '') + ' · ' + escapeHtml(o.customer_name || '(không tên)') + ' · ¥' + Number(o.total || 0).toLocaleString() + '</div>' +
+        '<div style="font-size:11px;color:#6B7280;margin-top:2px;">📞 ' + escapeHtml(o.customer_phone || '-') + ' · ' + statusBadge(o.status) + '</div>' +
+        '<div style="font-size:11px;color:#374151;margin-top:2px;">📍 ' + escapeHtml(addr) + '</div>' +
+        '<div style="font-size:11px;color:#3B82F6;margin-top:2px;font-weight:600;">📦 ' + escapeHtml(itemsStr) + '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+  listEl.innerHTML = html;
+  updateYamatoCount();
+}
+
+function toggleAllYamato(checked) {
+  document.querySelectorAll('.yamato-chk').forEach(cb => { cb.checked = checked; });
+  updateYamatoCount();
+}
+
+function updateYamatoCount() {
+  const n = document.querySelectorAll('.yamato-chk:checked').length;
+  document.getElementById('yamato-selected-count').textContent = n + ' đơn được chọn';
+}
+
+async function doExportYamatoB2() {
+  if (typeof XLSX === 'undefined') { alert('SheetJS chưa load — refresh trang'); return; }
+  if (typeof Encoding === 'undefined') { alert('encoding-japanese chưa load — refresh trang'); return; }
+
+  // Get selected order_no
+  const selectedOrderNos = Array.from(document.querySelectorAll('.yamato-chk:checked'))
+    .map(cb => cb.getAttribute('data-order-no'));
+  if (selectedOrderNos.length === 0) {
+    alert('Tick ít nhất 1 đơn trước khi tạo file');
+    return;
+  }
+  const selectedOrders = allOrders.filter(o => selectedOrderNos.includes(o.order_no));
+  if (selectedOrders.length === 0) {
+    alert('Không tìm thấy đơn nào — refresh trang rồi thử lại');
+    return;
+  }
+
+  const btn = document.getElementById('yamato-export-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang tạo file...';
+
+  try {
+    // Build rows (no header — Yamato B2 Cloud yêu cầu KHÔNG header, data từ row 1)
+    const data = selectedOrders.map((o, i) => buildYamatoRow(o, i + 1));
+
+    // Timestamp filename
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+    const stamp = jstNow.toISOString().slice(0, 10).replace(/-/g, '') + '-' +
+                  jstNow.toISOString().slice(11, 16).replace(':', '');
+    const fnameBase = 'yamato-b2-' + stamp;
+
+    // === 1. Generate XLSX (UTF-8 internal — Excel handles) ===
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Yamato');
+    XLSX.writeFile(wb, fnameBase + '.xlsx');
+
+    // === 2. Generate CSV Shift-JIS ===
+    // Build CSV string in UTF-8 first
+    const csvStr = data.map(row => row.map(cell => {
+      const s = (cell == null) ? '' : String(cell);
+      // CSV escape: nếu chứa , " hoặc \n → bọc " và double-quote escape
+      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }).join(',')).join('\r\n');
+
+    // Convert UTF-8 string → Shift-JIS bytes
+    const sjisArray = Encoding.convert(csvStr, {
+      to: 'SJIS',
+      from: 'UNICODE',
+      type: 'array'
+    });
+    const blob = new Blob([new Uint8Array(sjisArray)], { type: 'text/csv;charset=shift_jis' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fnameBase + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    showToast('✅ Đã tạo ' + selectedOrders.length + ' nhãn Yamato (.xlsx + .csv)', 'success');
+    closeYamatoModal();
+  } catch (e) {
+    console.error('Yamato export err:', e);
+    alert('❌ Lỗi: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '📥 Tạo file Yamato (.xlsx + .csv)';
   }
 }
 </script>
