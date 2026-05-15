@@ -5849,6 +5849,106 @@ const YAMATO_SAMPLE_ROW = [
   ""
 ];
 
+// Per-cell fill color cho Row 1 header (4 màu: CCFFFF=optional, 00CCFF=必須, 969696=auto-gen, CEFDFE=optional alt)
+// AUTO-EXTRACTED từ Yamato-label-print.xlsx indexed palette.
+const YAMATO_HEADER_COLORS = [
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  '969696',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  '00CCFF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  '00CCFF',
+  '00CCFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CEFDFE',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  '969696',
+  '969696',
+  '969696',
+  '969696',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF',
+  'CCFFFF'
+];
+
 // Helper: convert Excel column letter → 0-indexed (A=0, Z=25, AA=26, CQ=94)
 function yamatoColIdx(letter) {
   let idx = 0;
@@ -6005,6 +6105,23 @@ async function doExportYamatoB2() {
 
     // === 1. Generate XLSX (UTF-8 internal — Excel handles) ===
     const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Apply Row 1 styling: per-cell màu khớp file mẫu Yamato + font 8 + wrap text
+    for (let c = 0; c < 95; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: c });
+      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: YAMATO_HEADER_ROW[c] || '' };
+      const color = YAMATO_HEADER_COLORS[c] || 'CCFFFF';
+      ws[cellRef].s = {
+        fill: { patternType: 'solid', fgColor: { rgb: color } },
+        font: { sz: 8, name: 'MS Gothic' },
+        alignment: { wrapText: true, vertical: 'center', horizontal: 'left' }
+      };
+    }
+    // Row 1 height cao để header tiếng Nhật dài hiển thị đủ
+    ws['!rows'] = [{ hpt: 180 }];
+    // Default column width 14 cho mọi cột Row 1 đọc được
+    ws['!cols'] = Array.from({ length: 95 }, () => ({ wch: 14 }));
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Yamato');
     XLSX.writeFile(wb, fnameBase + '.xlsx');
