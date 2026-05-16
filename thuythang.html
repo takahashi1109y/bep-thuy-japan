@@ -6304,26 +6304,50 @@ function updatePrintCount() {
   document.getElementById('print-selected-count').textContent = n + ' đơn được chọn';
 }
 
+// PRINT_ITEM_INFO: name hiển thị + price + unit cho mỗi product code.
+// Đồng bộ với EXPORT_COLS — thứ tự render giống Yamato (GT → GKT → C → ...).
+const PRINT_ITEM_INFO = {
+  'GT':        { name: 'Giò Tiêu',          price: 1850, unit: 'kg' },
+  'GKT':       { name: 'Giò không Tiêu',    price: 1850, unit: 'kg' },
+  'C':         { name: 'Chả Quế',           price: 1850, unit: 'kg' },
+  'CKT':       { name: 'Chả Quế không Tiêu', price: 1850, unit: 'kg' },
+  'CLUA TIEU': { name: 'Chả Lụa Tiêu',      price: 1850, unit: 'kg' },
+  'CLUA':      { name: 'Chả Lụa không Tiêu', price: 1850, unit: 'kg' },
+  'M':         { name: 'Mọc Tiêu',          price: 1750, unit: 'kg' },
+  'MKT':       { name: 'Mọc không Tiêu',    price: 1750, unit: 'kg' },
+  'Nem':       { name: 'Nem Lụi',           price: 1100, unit: 'túi' },
+  'Pte':       { name: 'Pâté',              price: 1350, unit: 'hộp 0.5kg' }
+};
+
 // Build HTML cho 1 order-card (A4 print friendly).
 function buildPrintOrderCard(o) {
   const orderDate = fmtJSTDate(o.created_at);
   const addr = '〒' + escapeHtml(o.ship_postal || '') + ' ' + escapeHtml(o.ship_prefecture || '') + ' ' + escapeHtml(o.ship_address || '');
-  const items = Array.isArray(o.items) ? o.items : [];
-
-  // Items rows
-  const itemsRows = items.length ? items.map(i => {
-    const name = escapeHtml(i.name || '');
-    const sizeStr = i.size ? ' (' + escapeHtml(i.size) + ')' : '';
-    const qty = Number(i.qty || 0);
-    const price = Number(i.price || 0);
-    const lineTotal = price * qty;
-    return '<tr>' +
-      '<td>' + name + sizeStr + '</td>' +
-      '<td class="num">' + qty + '</td>' +
-      '<td class="num">¥' + price.toLocaleString() + '</td>' +
-      '<td class="num">¥' + lineTotal.toLocaleString() + '</td>' +
-    '</tr>';
-  }).join('') : '<tr><td colspan="4" style="text-align:center;color:#888;">(Không có chi tiết item)</td></tr>';
+  // Aggregate items theo code (GT, GKT, C, ...) giống Yamato AB cột.
+  // Loop EXPORT_COLS để render theo thứ tự cố định, skip code có qty=0.
+  const totals = aggregateOrderItems(o);
+  const itemRowsArr = [];
+  EXPORT_COLS.forEach(c => {
+    const qty = totals[c.code] || 0;
+    if (qty <= 0) return;
+    const info = PRINT_ITEM_INFO[c.code];
+    if (!info) return;
+    const price = info.price;
+    const lineTotal = Math.round(price * qty);
+    // Format qty: "2.5 kg" / "3 túi" / "2 hộp 0.5kg"
+    const qtyDisplay = qty + ' ' + info.unit;
+    itemRowsArr.push(
+      '<tr>' +
+        '<td>' + escapeHtml(info.name) + ' (' + c.code + ')</td>' +
+        '<td class="num">' + escapeHtml(qtyDisplay) + '</td>' +
+        '<td class="num">¥' + price.toLocaleString() + '/' + escapeHtml(info.unit) + '</td>' +
+        '<td class="num">¥' + lineTotal.toLocaleString() + '</td>' +
+      '</tr>'
+    );
+  });
+  const itemsRows = itemRowsArr.length
+    ? itemRowsArr.join('')
+    : '<tr><td colspan="4" style="text-align:center;color:#888;">(Không có item nào được nhận diện)</td></tr>';
 
   // Compute subtotal: prefer o.subtotal, fallback total - shipping
   const subtotal = Number(o.subtotal || (Number(o.total || 0) - Number(o.shipping_fee || 0)));
