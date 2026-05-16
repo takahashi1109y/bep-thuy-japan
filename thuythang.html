@@ -5949,6 +5949,33 @@ const YAMATO_HEADER_COLORS = [
   'CCFFFF'
 ];
 
+// Helper: Việt có dấu → không dấu (cho cột P họ tên)
+function yamatoVnToAscii(s) {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
+// Helper: format Date → "YYYY/M/D" (no zero-pad, theo yêu cầu anh Thăng).
+// JST timezone (anh ở Nhật, browser tự local nhưng em explicit cho chắc).
+function yamatoFormatYMD(d) {
+  // d phải là Date đã convert JST. Em pass jstDate vào.
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+// Helper: tách address thành chunks 16 ký tự cho L, M, N.
+// Trả về [L, M, N] (mỗi cell max 16 chars, N có thể chứa phần còn lại nếu quá 32).
+function yamatoSplitAddress(addr) {
+  const s = (addr || '').trim();
+  if (!s) return ['', '', ''];
+  return [
+    s.substring(0, 16),
+    s.substring(16, 32),
+    s.substring(32, 48)  // N có thể dài hơn nếu address quá 48 chars, nhưng đa số đủ
+  ];
+}
+
 // Helper: convert Excel column letter → 0-indexed (A=0, Z=25, AA=26, CQ=94)
 function yamatoColIdx(letter) {
   let idx = 0;
@@ -5970,21 +5997,36 @@ function yamatoItemsSummary(order) {
 }
 
 // Build 1 row Yamato (95 cells). row[0]=A, row[94]=CQ. Để trống các cột không map.
-function buildYamatoRow(order, stt) {
+// Note: tham số stt không cần (A = order_no thay STT), giữ signature 1 arg.
+function buildYamatoRow(order) {
   const row = new Array(95).fill('');
   const phoneClean = (order.customer_phone || '').replace(/[^\d-]/g, ''); // giữ hyphen
-  const address = ((order.ship_prefecture || '') + (order.ship_address || '')).trim();
+  const fullAddr = ((order.ship_prefecture || '') + (order.ship_address || '')).trim();
+  const [addrL, addrM, addrN] = yamatoSplitAddress(fullAddr);
 
-  row[yamatoColIdx('A')]  = stt;                          // STT
-  row[yamatoColIdx('B')]  = '0';                          // お客様管理番号1 (0 = thường)
+  // Today + tomorrow JST format YYYY/M/D
+  const jstNow = new Date(Date.now() + 9 * 3600 * 1000);
+  const jstTomorrow = new Date(jstNow.getTime() + 24 * 3600 * 1000);
+  const todayYMD = yamatoFormatYMD(jstNow);
+  const tomorrowYMD = yamatoFormatYMD(jstTomorrow);
+
+  // Họ tên: "MÃ - HỌ TÊN không dấu"
+  const customerAscii = yamatoVnToAscii(order.customer_name || '').trim();
+  const namePrefixed = (order.order_no || '') + ' - ' + customerAscii;
+
+  row[yamatoColIdx('A')]  = order.order_no || '';         // A = mã đơn hàng (thay STT)
+  row[yamatoColIdx('B')]  = '0';                          // 送り状種類 (0 = 発払い)
   row[yamatoColIdx('C')]  = '2';                          // クール区分 (2 = cool đông)
   // D 伝票番号 — để trống (B2 Cloud auto gen)
-  // E 出荷予定日 / F 配達指定日 / G 配達指定時間帯 — để trống
+  row[yamatoColIdx('E')]  = todayYMD;                     // E = ngày xuất file (today)
+  row[yamatoColIdx('F')]  = tomorrowYMD;                  // F = ngày giao (today + 1)
+  row[yamatoColIdx('G')]  = order.delivery_time || '';    // G = thời gian KH muốn nhận (0812/1416/...)
   row[yamatoColIdx('I')]  = phoneClean;                   // お届け先電話
   row[yamatoColIdx('K')]  = order.ship_postal || '';      // お届け先郵便番号
-  row[yamatoColIdx('L')]  = address;                      // お届け先住所
-  // M アパート・マンション — để trống (gộp vào L)
-  row[yamatoColIdx('P')]  = order.customer_name || '';    // お届け先名
+  row[yamatoColIdx('L')]  = addrL;                        // 住所 chunk 1 (16文字)
+  row[yamatoColIdx('M')]  = addrM;                        // 住所 chunk 2 (16文字)
+  row[yamatoColIdx('N')]  = addrN;                        // 住所 chunk 3 (16文字)
+  row[yamatoColIdx('P')]  = namePrefixed;                 // P = "00198 - Nguyen Van A"
   row[yamatoColIdx('T')]  = YAMATO_SENDER.phone;          // ご依頼主電話
   row[yamatoColIdx('V')]  = YAMATO_SENDER.postal;         // ご依頼主郵便番号
   row[yamatoColIdx('W')]  = YAMATO_SENDER.address;        // ご依頼主住所
@@ -6093,7 +6135,7 @@ async function doExportYamatoB2() {
   try {
     // Build rows: Row 1 = HEADER (cố định), Row 2 = SAMPLE (cố định),
     // Row 3+ = data đơn thực. Khớp template Yamato B2 Cloud file mẫu.
-    const orderRows = selectedOrders.map((o, i) => buildYamatoRow(o, i + 1));
+    const orderRows = selectedOrders.map(o => buildYamatoRow(o));
     const data = [YAMATO_HEADER_ROW, YAMATO_SAMPLE_ROW, ...orderRows];
 
     // Timestamp filename
