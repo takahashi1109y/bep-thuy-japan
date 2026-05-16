@@ -6001,7 +6001,12 @@ function yamatoItemsSummary(order) {
 function buildYamatoRow(order) {
   const row = new Array(95).fill('');
   const phoneClean = (order.customer_phone || '').replace(/[^\d-]/g, ''); // giữ hyphen
-  const fullAddr = ((order.ship_prefecture || '') + (order.ship_address || '')).trim();
+
+  // Concat địa chỉ. Một số khách nhập trùng prefecture vào ship_address
+  // (vd ship_prefecture='兵庫県' và ship_address='兵庫県明石市...') → bỏ duplicate.
+  const pref = (order.ship_prefecture || '').trim();
+  const addr = (order.ship_address || '').trim();
+  const fullAddr = (pref && addr.startsWith(pref)) ? addr : (pref + addr);
   const [addrL, addrM, addrN] = yamatoSplitAddress(fullAddr);
 
   // Today + tomorrow JST format YYYY/M/D
