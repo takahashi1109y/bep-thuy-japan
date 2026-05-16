@@ -507,7 +507,8 @@
       <div class="card" style="margin-bottom: 12px; padding: 10px;">
         <button onclick="openExportModal()" class="btn" style="background:#10B981;color:white;font-weight:700;padding:8px 14px;font-size:13px;">📊 Xuất Excel theo ngày</button>
         <button onclick="openYamatoModal()" class="btn" style="background:#3B82F6;color:white;font-weight:700;padding:8px 14px;font-size:13px;margin-left:6px;">📦 Nhãn Yamato B2</button>
-        <span style="font-size:11px;color:#6B7280;margin-left:8px;">Tải file .xlsx khớp format bảng tay · Yamato = .xlsx upload B2 Cloud</span>
+        <button onclick="openPrintOrdersModal()" class="btn" style="background:#F59E0B;color:white;font-weight:700;padding:8px 14px;font-size:13px;margin-left:6px;">🖨️ In đơn đặt hàng</button>
+        <span style="font-size:11px;color:#6B7280;margin-left:8px;">Xuất Excel · Yamato B2 · In đơn A4 (lề 1.5cm)</span>
       </div>
 
       <div class="card" style="margin-bottom: 16px;">
@@ -1023,6 +1024,56 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid #E5E7EB;padding-top:12px;">
       <button onclick="closeYamatoModal()" class="btn btn-ghost">Hủy</button>
       <button onclick="doExportYamatoB2()" id="yamato-export-btn" class="btn btn-primary">📥 Tạo file Yamato (.xlsx)</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT ORDERS MODAL -->
+<div id="print-orders-modal" class="hidden modal-backdrop" onclick="if(event.target===this)closePrintOrdersModal()">
+  <div class="modal" style="max-width: 780px;">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
+      <div>
+        <div style="font-size:12px;color:#6B7280;font-weight:600;text-transform:uppercase;">In đơn đặt hàng</div>
+        <h3 style="margin:4px 0 0;font-size:20px;color:#1C1C1E;">🖨️ Tạo bản in đơn hàng A4</h3>
+        <div style="font-size:11px;color:#6B7280;margin-top:4px;">Tick đơn → mở bản in (A4, lề 1.5cm) → Ctrl+P để in/save PDF</div>
+      </div>
+      <button onclick="closePrintOrdersModal()" class="btn btn-ghost" style="padding:6px 10px;">✕</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;align-items:end;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Từ ngày</label>
+        <input type="date" id="print-from" class="input" style="font-size:13px;padding:6px 10px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Đến ngày</label>
+        <input type="date" id="print-to" class="input" style="font-size:13px;padding:6px 10px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Trạng thái</label>
+        <select id="print-status" class="select" style="font-size:13px;padding:6px 10px;">
+          <option value="confirmed">✅ Đã thanh toán</option>
+          <option value="all">📊 Tất cả (trừ huỷ)</option>
+          <option value="shipped">🚚 Đang ship</option>
+          <option value="customer_paid">⏳ Khách báo TT</option>
+        </select>
+      </div>
+      <button onclick="reloadPrintList()" class="btn btn-primary" style="font-size:12px;padding:6px 14px;">🔄 Lọc</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+      <button onclick="toggleAllPrint(true)" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">☑️ Chọn tất cả</button>
+      <button onclick="toggleAllPrint(false)" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">☐ Bỏ chọn</button>
+      <span id="print-selected-count" style="font-size:12px;color:#F59E0B;font-weight:700;margin-left:auto;">0 đơn được chọn</span>
+    </div>
+
+    <div id="print-order-list" style="max-height: 52vh; overflow-y: auto; border:1px solid #E5E7EB;border-radius:8px;padding:6px;background:#F9FAFB;">
+      <div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px;">Bấm "🔄 Lọc" để tải danh sách đơn</div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid #E5E7EB;padding-top:12px;">
+      <button onclick="closePrintOrdersModal()" class="btn btn-ghost">Hủy</button>
+      <button onclick="doPrintOrders()" id="print-btn" class="btn btn-primary">🖨️ Mở bản in</button>
     </div>
   </div>
 </div>
@@ -6176,6 +6227,218 @@ async function doExportYamatoB2() {
   } finally {
     btn.disabled = false; btn.textContent = '📥 Tạo file Yamato (.xlsx)';
   }
+}
+
+// ============ PRINT ORDERS (A4) ============
+// Tạo bản in đơn đặt hàng cho 1+ KH. Mỗi đơn = 1 .order-card với
+// page-break-inside: avoid để không bị tách qua trang. Lề 1.5cm.
+// Anh chọn đơn → mở popup print → Ctrl+P save PDF / in trực tiếp.
+
+function openPrintOrdersModal() {
+  const now = new Date();
+  const jstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+  const today = jstNow.toISOString().slice(0, 10);
+  const weekAgo = new Date(jstNow);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  document.getElementById('print-from').value = weekAgo.toISOString().slice(0, 10);
+  document.getElementById('print-to').value = today;
+  document.getElementById('print-status').value = 'confirmed';
+  document.getElementById('print-orders-modal').classList.remove('hidden');
+  reloadPrintList();
+}
+
+function closePrintOrdersModal() {
+  document.getElementById('print-orders-modal').classList.add('hidden');
+}
+
+function filterPrintOrders(from, to, status) {
+  return allOrders.filter(o => {
+    const d = isoJSTDate(o.created_at);
+    if (d < from || d > to) return false;
+    if (status === 'all') {
+      if (o.status === 'cancelled') return false;
+      return true;
+    }
+    return o.status === status;
+  }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
+function reloadPrintList() {
+  const from = document.getElementById('print-from').value;
+  const to = document.getElementById('print-to').value;
+  const status = document.getElementById('print-status').value;
+  const listEl = document.getElementById('print-order-list');
+  if (!from || !to) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#DC2626;font-size:12px;">⚠️ Chọn cả 2 ngày</div>';
+    return;
+  }
+  const orders = filterPrintOrders(from, to, status);
+  if (orders.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px;">Không có đơn nào khớp.</div>';
+    updatePrintCount();
+    return;
+  }
+  const html = orders.map(o => {
+    const addr = '〒' + (o.ship_postal || '') + ' ' + (o.ship_prefecture || '') + ' ' + (o.ship_address || '');
+    const itemsCount = (Array.isArray(o.items) ? o.items.length : 0) + ' món';
+    return '<label style="display:grid;grid-template-columns:auto 1fr;gap:8px;padding:8px;border-bottom:1px solid #E5E7EB;cursor:pointer;background:white;border-radius:6px;margin-bottom:4px;align-items:start;">' +
+      '<input type="checkbox" class="print-chk" data-order-no="' + escapeHtml(o.order_no || '') + '" onchange="updatePrintCount()" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">' +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1C1C1E;">#' + escapeHtml(o.order_no || '') + ' · ' + escapeHtml(o.customer_name || '(không tên)') + ' · ¥' + Number(o.total || 0).toLocaleString() + '</div>' +
+        '<div style="font-size:11px;color:#6B7280;margin-top:2px;">📞 ' + escapeHtml(o.customer_phone || '-') + ' · ' + statusBadge(o.status) + ' · ' + itemsCount + '</div>' +
+        '<div style="font-size:11px;color:#374151;margin-top:2px;">📍 ' + escapeHtml(addr) + '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+  listEl.innerHTML = html;
+  updatePrintCount();
+}
+
+function toggleAllPrint(checked) {
+  document.querySelectorAll('.print-chk').forEach(cb => { cb.checked = checked; });
+  updatePrintCount();
+}
+
+function updatePrintCount() {
+  const n = document.querySelectorAll('.print-chk:checked').length;
+  document.getElementById('print-selected-count').textContent = n + ' đơn được chọn';
+}
+
+// Build HTML cho 1 order-card (A4 print friendly).
+function buildPrintOrderCard(o) {
+  const orderDate = fmtJSTDate(o.created_at);
+  const addr = '〒' + escapeHtml(o.ship_postal || '') + ' ' + escapeHtml(o.ship_prefecture || '') + ' ' + escapeHtml(o.ship_address || '');
+  const items = Array.isArray(o.items) ? o.items : [];
+
+  // Items rows
+  const itemsRows = items.length ? items.map(i => {
+    const name = escapeHtml(i.name || '');
+    const sizeStr = i.size ? ' (' + escapeHtml(i.size) + ')' : '';
+    const qty = Number(i.qty || 0);
+    const price = Number(i.price || 0);
+    const lineTotal = price * qty;
+    return '<tr>' +
+      '<td>' + name + sizeStr + '</td>' +
+      '<td class="num">' + qty + '</td>' +
+      '<td class="num">¥' + price.toLocaleString() + '</td>' +
+      '<td class="num">¥' + lineTotal.toLocaleString() + '</td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="4" style="text-align:center;color:#888;">(Không có chi tiết item)</td></tr>';
+
+  // Compute subtotal: prefer o.subtotal, fallback total - shipping
+  const subtotal = Number(o.subtotal || (Number(o.total || 0) - Number(o.shipping_fee || 0)));
+  const shippingFee = Number(o.shipping_fee || 0);
+  const pointsUsed = Number(o.points_used || 0);
+  const total = Number(o.total || 0);
+
+  return '<div class="order-card">' +
+    '<div class="order-header">' +
+      '<div class="order-no">Mã đơn: <strong>#' + escapeHtml(o.order_no || '') + '</strong></div>' +
+      '<div class="order-date">' + escapeHtml(orderDate) + '</div>' +
+    '</div>' +
+    '<div class="customer-info">' +
+      '<div><strong>Khách hàng:</strong> ' + escapeHtml(o.customer_name || '-') + '</div>' +
+      '<div><strong>Điện thoại:</strong> ' + escapeHtml(o.customer_phone || '-') + '</div>' +
+      '<div><strong>Địa chỉ:</strong> ' + addr + '</div>' +
+      (o.delivery_time ? '<div><strong>Giờ giao:</strong> ' + escapeHtml(o.delivery_time) + '</div>' : '') +
+      (o.note ? '<div class="note"><strong>Ghi chú:</strong> ' + escapeHtml(o.note) + '</div>' : '') +
+    '</div>' +
+    '<table class="items-table">' +
+      '<thead><tr><th>Sản phẩm</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>' +
+      '<tbody>' + itemsRows + '</tbody>' +
+    '</table>' +
+    '<div class="totals">' +
+      '<div>Tạm tính: <span>¥' + subtotal.toLocaleString() + '</span></div>' +
+      '<div>Phí ship: <span>¥' + shippingFee.toLocaleString() + '</span></div>' +
+      (pointsUsed > 0 ? '<div class="points">Điểm đã dùng: <span>-¥' + pointsUsed.toLocaleString() + '</span></div>' : '') +
+      '<div class="grand">TỔNG: <span>¥' + total.toLocaleString() + '</span></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function doPrintOrders() {
+  const selectedOrderNos = Array.from(document.querySelectorAll('.print-chk:checked'))
+    .map(cb => cb.getAttribute('data-order-no'));
+  if (selectedOrderNos.length === 0) {
+    alert('Tick ít nhất 1 đơn trước khi tạo bản in');
+    return;
+  }
+  const selectedOrders = allOrders.filter(o => selectedOrderNos.includes(o.order_no));
+  if (selectedOrders.length === 0) {
+    alert('Không tìm thấy đơn nào — refresh trang rồi thử lại');
+    return;
+  }
+
+  // Sort by order_no asc để in theo thứ tự
+  selectedOrders.sort((a, b) => String(a.order_no).localeCompare(String(b.order_no)));
+
+  const cardsHtml = selectedOrders.map(buildPrintOrderCard).join('');
+
+  const html = '<!DOCTYPE html>' +
+'<html lang="vi"><head>' +
+'<meta charset="UTF-8">' +
+'<title>Đơn đặt hàng - Bếp Thuỷ Japan</title>' +
+'<style>' +
+'@page { size: A4; margin: 1.5cm; }' +
+'* { box-sizing: border-box; }' +
+'body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11pt; color: #1C1C1E; margin: 0; padding: 0; line-height: 1.5; }' +
+'.order-card { page-break-inside: avoid; break-inside: avoid; margin-bottom: 3em; padding-bottom: 1em; border-bottom: 2px dashed #1C1C1E; }' +
+'.order-card:last-child { border-bottom: none; margin-bottom: 0; }' +
+'.order-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.8em; padding-bottom: 0.4em; border-bottom: 2px solid #C8102E; }' +
+'.order-no { font-size: 14pt; color: #C8102E; }' +
+'.order-date { font-size: 10pt; color: #6B7280; }' +
+'.customer-info { margin-bottom: 0.8em; padding: 0.5em 0; line-height: 1.7; }' +
+'.customer-info > div { margin: 0.15em 0; }' +
+'.note { background: #FEF3C7; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #F59E0B; margin-top: 0.3em; }' +
+'.items-table { width: 100%; border-collapse: collapse; margin: 0.5em 0 0.8em; font-size: 10.5pt; }' +
+'.items-table th, .items-table td { border: 1px solid #6B7280; padding: 5px 8px; text-align: left; }' +
+'.items-table th { background: #F3F4F6; font-weight: 700; }' +
+'.items-table .num { text-align: right; }' +
+'.totals { text-align: right; padding-top: 0.4em; border-top: 1px solid #E5E7EB; line-height: 1.7; }' +
+'.totals > div { margin: 0.1em 0; }' +
+'.totals .points { color: #F59E0B; }' +
+'.totals .grand { font-size: 13pt; font-weight: 800; color: #C8102E; margin-top: 0.3em; border-top: 1px solid #C8102E; padding-top: 0.3em; }' +
+'.totals span { display: inline-block; min-width: 100px; }' +
+'.brand-header { text-align: center; padding-bottom: 0.8em; margin-bottom: 1em; border-bottom: 1px solid #C8102E; }' +
+'.brand-header h1 { margin: 0; color: #C8102E; font-size: 16pt; }' +
+'.brand-header .sub { font-size: 10pt; color: #6B7280; margin-top: 4px; }' +
+'@media screen {' +
+'  body { background: #E5E7EB; padding: 2em; }' +
+'  .a4-page { background: white; max-width: 21cm; min-height: 29.7cm; margin: 0 auto; padding: 1.5cm; box-shadow: 0 2px 16px rgba(0,0,0,0.15); }' +
+'  .toolbar { position: sticky; top: 0; background: #1C1C1E; color: white; padding: 12px; margin: -2em -2em 1em -2em; text-align: center; z-index: 10; }' +
+'  .toolbar button { background: #C8102E; color: white; border: none; padding: 8px 20px; font-size: 14px; font-weight: 700; border-radius: 6px; cursor: pointer; margin: 0 4px; }' +
+'}' +
+'@media print {' +
+'  .toolbar { display: none !important; }' +
+'  .a4-page { padding: 0; box-shadow: none; }' +
+'}' +
+'</style>' +
+'</head><body>' +
+'<div class="toolbar">' +
+'  <button onclick="window.print()">🖨️ In / Save PDF (Ctrl+P)</button>' +
+'  <button onclick="window.close()" style="background:#6B7280;">✕ Đóng</button>' +
+'  <span style="margin-left:12px;font-size:12px;">' + selectedOrders.length + ' đơn · A4, lề 1.5cm</span>' +
+'</div>' +
+'<div class="a4-page">' +
+'<div class="brand-header">' +
+'<h1>🌸 Bếp Thuỷ Japan</h1>' +
+'<div class="sub">Đơn đặt hàng · ' + selectedOrders.length + ' KH · In ngày ' + (new Date(Date.now() + 9*3600*1000)).toISOString().slice(0,10).replace(/-/g,'/') + '</div>' +
+'</div>' +
+cardsHtml +
+'</div>' +
+'</body></html>';
+
+  const printWindow = window.open('', '_blank', 'width=900,height=1100');
+  if (!printWindow) {
+    alert('Trình duyệt chặn popup. Anh vui lòng cho phép popup từ trang này.');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+
+  showToast('✅ Đã mở bản in ' + selectedOrders.length + ' đơn (Ctrl+P để in)', 'success');
+  closePrintOrdersModal();
 }
 </script>
 
